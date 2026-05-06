@@ -1,4 +1,4 @@
-# GlucoPilot.LibreLinkClient
+# CgmLink.LibreLinkClient
 The C# client library for accessing LibreLink data.
 
 ## Usage

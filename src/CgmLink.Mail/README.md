@@ -1,5 +1,5 @@
-# GlucoPilot.Mail
-The GlucoPilot.Mail project is a .NET library that provides SMTP/message templating services for the GlucoPilot application. It uses the RazorRenderingEngine to render templates and MailKit/MimeKit to send messages.
+# CgmLink.Mail
+The CgmLink.Mail project is a .NET library that provides SMTP/message templating services for the CGM Link application. It uses the RazorRenderingEngine to render templates and MailKit/MimeKit to send messages.
 
 ## Usage
 To register the mail services:

@@ -1,5 +1,5 @@
-# GlucoPilot.Identity
-The GlucoPilot.Identity project is a .NET library that provides authentication/authorization services for the GlucoPilot application. It includes features such as user registration, login.
+# CgmLink.Identity
+The CgmLink.Identity project is a .NET library that provides authentication/authorization services for the CGM Link application. It includes features such as user registration, login.
 
 ## Usage
 To register the identity services:
