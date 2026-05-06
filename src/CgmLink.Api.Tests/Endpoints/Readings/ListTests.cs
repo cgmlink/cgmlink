@@ -1,0 +1,228 @@
+﻿using FluentValidation;
+using FluentValidation.Results;
+using CgmLink.Api.Endpoints.Readings.List;
+using CgmLink.Data.Entities;
+using CgmLink.Data.Enums;
+using CgmLink.Data.Repository;
+using CgmLink.Identity.Authentication;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Moq;
+using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace CgmLink.Api.Tests.Endpoints.Readings;
+
+[TestFixture]
+internal sealed class ListTests
+{
+    private static readonly Guid _userId = Guid.NewGuid();
+    private Mock<ICurrentUser> _currentUserMock;
+    private Mock<IValidator<ListReadingsRequest>> _validatorMock;
+    Mock<IRepository<Reading>> _repositoryMock;
+
+    [SetUp]
+    public void Setup()
+    {
+        _currentUserMock = new Mock<ICurrentUser>();
+        _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
+        _validatorMock = new Mock<IValidator<ListReadingsRequest>>();
+        _repositoryMock = new Mock<IRepository<Reading>>();
+    }
+
+    [Test]
+    public async Task HandleAsync_ReturnsOkResult_WhenRequestIsValid()
+    {
+        var request = new ListReadingsRequest
+        {
+            From = DateTimeOffset.UtcNow.AddDays(-1),
+            To = DateTimeOffset.UtcNow
+        };
+
+        _validatorMock.Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        var reading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = DateTimeOffset.UtcNow.AddMinutes(-15),
+            GlucoseLevel = 100,
+            Direction = ReadingDirection.Steady
+        };
+
+        _repositoryMock.Setup(r => r.FromSqlRaw(It.IsAny<string>(), It.IsAny<FindOptions>(), It.IsAny<object[]>()))
+            .Returns(new List<Reading> { reading }.AsQueryable());
+
+        var result = await Endpoint.HandleAsync(
+            request,
+            _validatorMock.Object,
+            _currentUserMock.Object,
+            _repositoryMock.Object,
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            var okResult = (Ok<List<ReadingsResponse>>)result.Result;
+            Assert.That(okResult, Is.InstanceOf<Ok<List<ReadingsResponse>>>());
+            Assert.That(okResult.Value, Has.Count.EqualTo(1));
+            Assert.That(okResult.Value[0].UserId, Is.EqualTo(_userId));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Returns_ValidationProblem_When_Request_Is_Invalid()
+    {
+        var request = new ListReadingsRequest
+        {
+            From = DateTimeOffset.UtcNow,
+            To = DateTimeOffset.UtcNow.AddDays(1)
+        };
+
+        _validatorMock.Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult([
+                new ValidationFailure(nameof(ListReadingsRequest.To), "'To' must not be empty.")
+            ]));
+
+        var reading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = DateTimeOffset.UtcNow.AddMinutes(-30),
+            GlucoseLevel = 100,
+            Direction = ReadingDirection.Steady
+        };
+
+
+        _repositoryMock.Setup(r => r.Find(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new List<Reading> { reading }.AsQueryable());
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<ValidationProblem>());
+        var validationProblem = result.Result as ValidationProblem;
+        Assert.That(validationProblem, Is.Not.Null);
+        Assert.That(validationProblem!.ProblemDetails.Errors, Contains.Key(nameof(ListReadingsRequest.To)));
+    }
+
+    [Test]
+    public async Task HandleAsync_Inserts_Additional_Reading_When_First_Is_Behind_To()
+    {
+        var request = new ListReadingsRequest
+        {
+            From = DateTimeOffset.UtcNow.AddHours(-2),
+            To = DateTimeOffset.UtcNow,
+            MinuteInterval = 15
+        };
+
+        var firstReading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = request.From.AddMinutes(10),
+            GlucoseLevel = 100,
+            Direction = ReadingDirection.Steady
+        };
+
+        var readings = new List<Reading> { firstReading };
+
+        var additionalReading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = request.To.Value.AddMinutes(-5),
+            GlucoseLevel = 120,
+            Direction = ReadingDirection.Increase
+        };
+
+        _repositoryMock.Setup(r => r.FromSqlRaw(It.IsAny<string>(), It.IsAny<FindOptions>(), It.IsAny<object[]>()))
+            .Returns(readings.AsQueryable());
+
+        _repositoryMock.Setup(r => r.Find(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new List<Reading> { additionalReading }.AsQueryable());
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+
+        var okResult = (Ok<List<ReadingsResponse>>)result.Result;
+        Assert.That(okResult.Value, Has.Count.EqualTo(3));
+        Assert.That(okResult.Value.First().GlucoseLevel, Is.EqualTo(120));
+    }
+
+    [Test]
+    public async Task HandleAsync_Appends_Additional_Reading_When_Last_Is_Behind_From()
+    {
+        var request = new ListReadingsRequest
+        {
+            From = DateTimeOffset.UtcNow.AddHours(-2),
+            To = DateTimeOffset.UtcNow,
+            MinuteInterval = 15
+        };
+
+        var lastReading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = request.To.Value.AddMinutes(-10),
+            GlucoseLevel = 110,
+            Direction = ReadingDirection.Increase
+        };
+
+        var readings = new List<Reading> { lastReading };
+
+        var additionalReading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = request.From.AddMinutes(5),
+            GlucoseLevel = 130,
+            Direction = ReadingDirection.Decrease
+        };
+
+        _repositoryMock.Setup(r => r.FromSqlRaw(It.IsAny<string>(), It.IsAny<FindOptions>(), It.IsAny<object[]>()))
+            .Returns(readings.AsQueryable());
+
+        _repositoryMock.Setup(r => r.Find(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new List<Reading> { additionalReading }.AsQueryable());
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+
+        var okResult = (Ok<List<ReadingsResponse>>)result.Result;
+        Assert.That(okResult.Value, Has.Count.EqualTo(3));
+        Assert.That(okResult.Value.Last().GlucoseLevel, Is.EqualTo(130));
+    }
+
+    [Test]
+    public async Task HandleAsync_Initialises_Request_To_When_Null()
+    {
+        var request = new ListReadingsRequest
+        {
+            From = DateTimeOffset.UtcNow.AddHours(-2),
+            To = null,
+            MinuteInterval = 15
+        };
+
+        _validatorMock.Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        var reading = new Reading
+        {
+            Id = Guid.NewGuid(),
+            UserId = _userId,
+            Created = DateTimeOffset.UtcNow.AddMinutes(-30),
+            GlucoseLevel = 100,
+            Direction = ReadingDirection.Steady
+        };
+
+        _repositoryMock.Setup(r => r.FromSqlRaw(It.IsAny<string>(), It.IsAny<FindOptions>(), It.IsAny<object[]>()))
+            .Returns(new List<Reading> { reading }.AsQueryable());
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var okResult = (Ok<List<ReadingsResponse>>)result.Result;
+
+        Assert.That(request.To, Is.Not.Null);
+    }
+}

@@ -1,0 +1,16 @@
+using System;
+using System.Text.Json.Serialization;
+
+namespace CgmLink.LibreLinkClient.Models;
+
+public sealed record LoginRedirect
+{
+    [JsonPropertyName("redirect")]
+    public bool Redirect { get; init; }
+
+    [JsonPropertyName("region")]
+    public string? RegionCode { get; init; }
+
+    [JsonIgnore]
+    public LibreRegion? Region => Enum.TryParse<LibreRegion>(RegionCode, ignoreCase: true, out var region) ? region : null;
+}

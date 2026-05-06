@@ -1,0 +1,70 @@
+﻿using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data.Entities;
+using CgmLink.Data.Repository;
+using CgmLink.Identity.Authentication;
+using CgmLink.LibreLinkClient;
+using CgmLink.LibreLinkClient.Exceptions;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using CgmLink.Api.Extensions;
+using LibreAuthTicket = CgmLink.LibreLinkClient.Models.AuthTicket;
+
+namespace CgmLink.Api.Endpoints.LibreLink.Connections;
+
+internal static class Endpoint
+{
+    internal static async Task<Ok<List<ConnectionResponse>>> HandleAsync(
+        [FromServices] ICurrentUser currentUser,
+        [FromServices] ILibreLinkClientFactory libreLinkClientFactory,
+        [FromServices] IRepository<Patient> patientRepository,
+        CancellationToken cancellationToken)
+    {
+        var patient = await patientRepository.FindOneAsync(p => p.Id == currentUser.GetUserId(),
+            new FindOptions { IsAsNoTracking = true }, cancellationToken).ConfigureAwait(false);
+        if (patient is null || patient.AuthTicket is null || patient.Region is null)
+        {
+            throw new UnauthorizedException("PATIENT_NOT_FOUND");
+        }
+
+        var authTicket = new LibreAuthTicket
+        {
+            Token = patient.AuthTicket.Token,
+            Expires = patient.AuthTicket.Expires,
+            PatientId = patient.AuthTicket.PatientId,
+        };
+        try
+        {
+            var libreLinkClient = libreLinkClientFactory.CreateLibreLinkClient(patient.Region.Value.ToLibreRegion());
+            await libreLinkClient.LoginAsync(authTicket, cancellationToken).ConfigureAwait(false);
+
+            var connections = await libreLinkClient.GetConnectionsAsync(cancellationToken).ConfigureAwait(false);
+
+            if (connections is null)
+            {
+                return TypedResults.Ok(new List<ConnectionResponse>());
+            }
+
+            var response = connections.Select(c => new ConnectionResponse
+            {
+                PatientId = c.PatientId,
+                FirstName = c.FirstName,
+                LastName = c.LastName,
+            }).ToList();
+
+            return TypedResults.Ok(response);
+        }
+        catch (LibreLinkAuthenticationExpiredException)
+        {
+            throw new UnauthorizedException("LIBRE_LINK_AUTH_EXPIRED");
+        }
+        catch (LibreLinkNotAuthenticatedException)
+        {
+            throw new UnauthorizedException("LIBRE_LINK_NOT_AUTHENTICATED");
+        }
+    }
+}

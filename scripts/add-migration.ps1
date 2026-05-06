@@ -2,7 +2,7 @@ param(
   [Parameter(Mandatory = $false)]
   [Alias('c')]
   [string]
-  $dbContext = 'GlucoPilotDbContext',
+  $dbContext = 'CgmLinkDbContext',
 
   [Parameter(Mandatory = $true)]
   [ValidateNotNullOrEmpty()]
@@ -14,15 +14,15 @@ param(
 $rootDirectory = git rev-parse --show-toplevel
 
 switch ($dbContext) {
-    'GlucoPilotDbContext' {
-        $workingDirectory = $rootDirectory + "/src/GlucoPilot.Data"
-        $projectPath = '../GlucoPilot.Data.Migrators.MSSQL/'
-        $startupProject = '../GlucoPilot.Api'
+    'CgmLinkDbContext' {
+        $workingDirectory = $rootDirectory + "/src/CgmLink.Data"
+        $projectPath = '../CgmLink.Data.Migrators.MSSQL/'
+        $startupProject = '../CgmLink.Api'
     }
-    'GlucoPilotNutritionDbContext' {
-        $workingDirectory = $rootDirectory + "/src/GlucoPilot.Nutrition.Data"
-        $projectPath = '../GlucoPilot.Nutrition.Data.Migrators.MSSQL/'
-        $startupProject = '../GlucoPilot.Nutrition.Data.Importer'
+    'CgmLinkNutritionDbContext' {
+        $workingDirectory = $rootDirectory + "/src/CgmLink.Nutrition.Data"
+        $projectPath = '../CgmLink.Nutrition.Data.Migrators.MSSQL/'
+        $startupProject = '../CgmLink.Nutrition.Data.Importer'
     }
 }
 

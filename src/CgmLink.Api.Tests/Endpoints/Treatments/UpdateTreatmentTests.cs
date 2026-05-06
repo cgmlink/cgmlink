@@ -1,0 +1,330 @@
+﻿using FluentValidation;
+using FluentValidation.Results;
+using CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
+using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data.Entities;
+using CgmLink.Data.Repository;
+using CgmLink.Identity.Authentication;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Moq;
+using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Linq.Expressions;
+using System.Threading;
+using System.Threading.Tasks;
+using static CgmLink.Api.Endpoints.Treatments.UpdateTreatment.UpdateTreatmentRequest;
+
+namespace CgmLink.Api.Tests.Endpoints.Treatments;
+
+[TestFixture]
+public class UpdateTreatmentTests
+{
+    private Mock<IValidator<UpdateTreatmentRequest>> _validatorMock;
+    private Mock<ICurrentUser> _currentUserMock;
+    private Mock<IRepository<Treatment>> _treatmentRepositoryMock;
+    private Mock<IRepository<Reading>> _readingRepositoryMock;
+    private Mock<IRepository<Meal>> _mealRepositoryMock;
+    private Mock<IRepository<Ingredient>> _ingredientRepositoryMock;
+    private Mock<IRepository<Injection>> _injectionRepositoryMock;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _validatorMock = new Mock<IValidator<UpdateTreatmentRequest>>();
+        _currentUserMock = new Mock<ICurrentUser>();
+        _treatmentRepositoryMock = new Mock<IRepository<Treatment>>();
+        _readingRepositoryMock = new Mock<IRepository<Reading>>();
+        _mealRepositoryMock = new Mock<IRepository<Meal>>();
+        _ingredientRepositoryMock = new Mock<IRepository<Ingredient>>();
+        _injectionRepositoryMock = new Mock<IRepository<Injection>>();
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Treatment_Not_Found()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdateTreatmentRequest();
+        var userId = Guid.NewGuid();
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Treatment)null);
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await Endpoint.HandleAsync(
+                id,
+                request,
+                _validatorMock.Object,
+                _currentUserMock.Object,
+                _treatmentRepositoryMock.Object,
+                _readingRepositoryMock.Object,
+                _mealRepositoryMock.Object,
+                _ingredientRepositoryMock.Object,
+                _injectionRepositoryMock.Object,
+                CancellationToken.None));
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Reading_Not_Found()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdateTreatmentRequest { ReadingId = Guid.NewGuid() };
+        var userId = Guid.NewGuid();
+        var treatment = new Treatment { Id = id, UserId = userId };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(treatment);
+
+        _readingRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Reading)null);
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await Endpoint.HandleAsync(
+                id,
+                request,
+                _validatorMock.Object,
+                _currentUserMock.Object,
+                _treatmentRepositoryMock.Object,
+                _readingRepositoryMock.Object,
+                _mealRepositoryMock.Object,
+                _ingredientRepositoryMock.Object,
+                _injectionRepositoryMock.Object,
+                CancellationToken.None));
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Meal_Not_Found()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdateTreatmentRequest { Meals = [new UpdateTreatmentMealRequest { Id = Guid.NewGuid(), Quantity = 1 }] };
+        var userId = Guid.NewGuid();
+        var treatment = new Treatment { Id = id, UserId = userId };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(treatment);
+
+        _mealRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Meal)null);
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await Endpoint.HandleAsync(
+                id,
+                request,
+                _validatorMock.Object,
+                _currentUserMock.Object,
+                _treatmentRepositoryMock.Object,
+                _readingRepositoryMock.Object,
+                _mealRepositoryMock.Object,
+                _ingredientRepositoryMock.Object,
+                _injectionRepositoryMock.Object,
+                CancellationToken.None));
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Injection_Not_Found()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdateTreatmentRequest { InjectionId = Guid.NewGuid() };
+        var userId = Guid.NewGuid();
+        var treatment = new Treatment { Id = id, UserId = userId };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(treatment);
+
+        _injectionRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Injection, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { (Injection)null }.AsQueryable());
+
+        Assert.ThrowsAsync<NotFoundException>(async () =>
+            await Endpoint.HandleAsync(
+                id,
+                request,
+                _validatorMock.Object,
+                _currentUserMock.Object,
+                _treatmentRepositoryMock.Object,
+                _readingRepositoryMock.Object,
+                _mealRepositoryMock.Object,
+                _ingredientRepositoryMock.Object,
+                _injectionRepositoryMock.Object,
+                CancellationToken.None));
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Return_Ok_When_Treatment_Updated_Successfully()
+    {
+        var id = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var mealId = Guid.NewGuid();
+        var meal = new Meal { Id = mealId, Name = "Sugar on Toast", Created = DateTimeOffset.UtcNow };
+        var ingredientId = Guid.NewGuid();
+        var ingredient = new Ingredient { Id = ingredientId, Name = "Butter", Created = DateTimeOffset.UtcNow, Carbs = 0, Protein = 0, Fat = 10, Calories = 90, Uom = default! };
+        var treatment = new Treatment
+        {
+            Id = id,
+            UserId = userId,
+            Meals = [new TreatmentMeal { MealId = mealId, Quantity = 2, TreatmentId = id, Meal = meal }],
+        };
+        var request = new UpdateTreatmentRequest
+        {
+            Meals = [new UpdateTreatmentMealRequest { Id = mealId, Quantity = 2 }],
+            Ingredients = [new UpdateTreatmentIngredientRequest { Id = ingredientId, Quantity = 3 }]
+        };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(treatment);
+
+        _mealRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new List<Meal>() { meal }.AsQueryable());
+
+        _ingredientRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new List<Ingredient>() { ingredient }.AsQueryable());
+
+        _treatmentRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await Endpoint.HandleAsync(
+            id,
+            request,
+            _validatorMock.Object,
+            _currentUserMock.Object,
+            _treatmentRepositoryMock.Object,
+            _readingRepositoryMock.Object,
+            _mealRepositoryMock.Object,
+            _ingredientRepositoryMock.Object,
+            _injectionRepositoryMock.Object,
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Result, Is.InstanceOf<Ok<UpdateTreatmentResponse>>());
+            var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
+            Assert.That(okResult.Value, Is.Not.Null);
+            Assert.That(okResult.Value.Id, Is.EqualTo(id));
+            Assert.That(okResult.Value.Updated, Is.EqualTo(DateTimeOffset.UtcNow).Within(TimeSpan.FromMinutes(1)));
+            Assert.That(okResult.Value.Type, Is.EqualTo((Models.TreatmentType)treatment.Type));
+
+            Assert.That(okResult.Value.Meals, Is.Not.Null.And.Not.Empty);
+            var mealResponse = okResult.Value.Meals.First();
+            Assert.That(mealResponse.Id, Is.EqualTo(mealId));
+            Assert.That(mealResponse.Quantity, Is.EqualTo(2));
+
+            Assert.That(okResult.Value.Ingredients, Is.Not.Null.And.Not.Empty);
+            var ingredientResponse = okResult.Value.Ingredients.First();
+            Assert.That(ingredientResponse.Id, Is.EqualTo(ingredientId));
+            Assert.That(ingredientResponse.Quantity, Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Return_ValidationProblem_When_Request_Is_Invalid()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdateTreatmentRequest();
+        var userId = Guid.NewGuid();
+
+        var validationResult = new ValidationResult([
+            new ValidationFailure("", "Validation error message")
+        ]);
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        var result = await Endpoint.HandleAsync(
+            id,
+            request,
+            _validatorMock.Object,
+            _currentUserMock.Object,
+            _treatmentRepositoryMock.Object,
+            _readingRepositoryMock.Object,
+            _mealRepositoryMock.Object,
+            _ingredientRepositoryMock.Object,
+            _injectionRepositoryMock.Object,
+            CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<ValidationProblem>());
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_Exception_When_User_Is_Not_Authenticated()
+    {
+        var id = Guid.NewGuid();
+        var request = new UpdateTreatmentRequest();
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Throws(new UnauthorizedAccessException("User is not authenticated"));
+
+        Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
+            await Endpoint.HandleAsync(
+                id,
+                request,
+                _validatorMock.Object,
+                _currentUserMock.Object,
+                _treatmentRepositoryMock.Object,
+                _readingRepositoryMock.Object,
+                _mealRepositoryMock.Object,
+                _ingredientRepositoryMock.Object,
+                _injectionRepositoryMock.Object,
+                CancellationToken.None));
+    }
+}

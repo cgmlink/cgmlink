@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+	<ItemGroup>
+		<InternalsVisibleTo Include="CgmLink.Nutrition.Tests" />
+	</ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Asp.Versioning.Http" Version="8.1.0" />
+        <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.5" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.5" />
+    </ItemGroup>	
+
+    <ItemGroup>
+      <ProjectReference Include="..\CgmLink.AspNetCore\CgmLink.AspNetCore.csproj" />
+      <ProjectReference Include="..\CgmLink.Data\CgmLink.Data.csproj" />
+      <ProjectReference Include="..\CgmLink.Identity\CgmLink.Identity.csproj" />
+      <ProjectReference Include="..\CgmLink.Nutrition.Data\CgmLink.Nutrition.Data.csproj" />
+    </ItemGroup>
+    
+</Project>

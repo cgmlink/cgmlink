@@ -28,7 +28,7 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Lint
-        run: dotnet format src/gluco-pilot.sln
+        run: dotnet format src/cgm-link.sln
       - name: Commit changes
         if: github.event_name == 'pull_request'
         uses: stefanzweifel/git-auto-commit-action@b863ae1933cb653a53c021fe36dbb774e1fb9403
@@ -49,18 +49,18 @@ jobs:
         run: >
           dotnet tool install --global dotnet-sonarscanner
 
-          dotnet sonarscanner begin /k:"glucopilot_GlucoPilot" /o:"glucopilot" \
+          dotnet sonarscanner begin /k:"cgmlink_CgmLink" /o:"cgmlink" \
             /d:sonar.token="$SONAR_TOKEN" \
             /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
             /d:sonar.coverage.exclusions="**/Program.cs" \
             /d:sonar.exclusions="**/Templates/*.cshtml" \
-            /d:sonar.cpd.exclusions="**/GlucoPilot**.Data/Entities/*.cs,**/GlucoPilot.Api/Endpoints/**/*Request.cs,**/GlucoPilot.Api/Endpoints/**/*Response.cs"
+            /d:sonar.cpd.exclusions="**/CgmLink**.Data/Entities/*.cs,**/CgmLink.Api/Endpoints/**/*Request.cs,**/CgmLink.Api/Endpoints/**/*Response.cs"
 
       - name: Restore dependencies
-        run: dotnet restore src/gluco-pilot.sln
+        run: dotnet restore src/cgm-link.sln
       - name: Build
-        run: dotnet build src/gluco-pilot.sln -c Release --no-restore
+        run: dotnet build src/cgm-link.sln -c Release --no-restore
       - name: Test
-        run: dotnet test src/gluco-pilot.sln -c Release --no-build --logger "trx;LogFilePrefix=UnitTestResults" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+        run: dotnet test src/cgm-link.sln -c Release --no-build --logger "trx;LogFilePrefix=UnitTestResults" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
       - name: Upload sonar results
         run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
