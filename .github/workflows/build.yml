@@ -45,22 +45,9 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
-      - name: Set up SonarScanner
-        run: >
-          dotnet tool install --global dotnet-sonarscanner
-
-          dotnet sonarscanner begin /k:"cgmlink_CgmLink" /o:"cgmlink" \
-            /d:sonar.token="$SONAR_TOKEN" \
-            /d:sonar.cs.opencover.reportsPaths="**/coverage.opencover.xml" \
-            /d:sonar.coverage.exclusions="**/Program.cs" \
-            /d:sonar.exclusions="**/Templates/*.cshtml" \
-            /d:sonar.cpd.exclusions="**/CgmLink**.Data/Entities/*.cs,**/CgmLink.Api/Endpoints/**/*Request.cs,**/CgmLink.Api/Endpoints/**/*Response.cs"
-
       - name: Restore dependencies
         run: dotnet restore src/cgm-link.sln
       - name: Build
         run: dotnet build src/cgm-link.sln -c Release --no-restore
       - name: Test
         run: dotnet test src/cgm-link.sln -c Release --no-build --logger "trx;LogFilePrefix=UnitTestResults" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
-      - name: Upload sonar results
-        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
