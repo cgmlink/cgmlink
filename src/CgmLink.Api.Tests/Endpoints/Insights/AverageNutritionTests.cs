@@ -122,7 +122,7 @@ internal sealed class AverageNutritionTests
     [Test]
     public void Handle_With_Unauthorized_User_Returns_Unauthorized_Result()
     {
-        var exception = new UnauthorizedException("Test");
+        var exception = new UnauthorizedException("Test", UnauthorizedSource.CgmLink);
         _currentUserMock.Setup(cu => cu.GetUserId()).Throws(exception);
 
         var request = new AverageNutritionRequest

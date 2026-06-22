@@ -59,7 +59,7 @@ public class AverageNutritionTests
             .Setup(v => v.ValidateAsync(It.IsAny<NutritionRequestModel>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult());
 
-        _currentUserMock.Setup(x => x.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN"));
+        _currentUserMock.Setup(x => x.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink));
 
         var mockRepository = new Mock<IRepository<Meal>>();
 

@@ -114,7 +114,7 @@ namespace CgmLink.Api.Tests.Endpoints.Insights
         [Test]
         public async Task HandleAsync_Returns_Unauthorized_When_User_Is_Not_Authenticated()
         {
-            var exception = new UnauthorizedException("Test");
+            var exception = new UnauthorizedException("Test", UnauthorizedSource.CgmLink);
             _currentUserMock.Setup(cu => cu.GetUserId()).Throws(exception);
 
             Assert.That(() => Endpoint.HandleAsync(new TotalNutritionRequest(), _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None), Throws.Exception.SameAs(exception));

@@ -59,7 +59,7 @@ public sealed class UpdateIngredientTests
         var ingredientId = Guid.NewGuid();
         var request = new UpdateIngredientRequest { Name = "Ingredient", Carbs = 0, Protein = 0, Fat = 0, Calories = 0, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Unit };
         _validatorMock.Setup(v => v.ValidateAsync(request, default)).ReturnsAsync(new FluentValidation.Results.ValidationResult());
-        _currentUserMock.Setup(c => c.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN"));
+        _currentUserMock.Setup(c => c.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink));
         Assert.That(async () => await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None),
             Throws.TypeOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));
     }

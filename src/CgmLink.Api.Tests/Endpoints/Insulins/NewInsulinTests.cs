@@ -59,7 +59,7 @@ public class NewInsulinTests
 
         _currentUserMock
             .Setup(c => c.GetUserId())
-            .Throws(new UnauthorizedException("USER_NOT_LOGGED_IN"));
+            .Throws(new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink));
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object, _repositoryMock.Object, _currentUserMock.Object, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));

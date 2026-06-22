@@ -104,7 +104,7 @@ internal sealed class AverageGlucoseEndpointTests
     [Test]
     public void Handle_With_Unauthorized_User_Returns_Unauthorized_Result()
     {
-        var exception = new UnauthorizedException("Unauthorized");
+        var exception = new UnauthorizedException("Unauthorized", UnauthorizedSource.CgmLink);
         _currentUserMock.Setup(cu => cu.GetUserId()).Throws(exception);
 
         var request = new AverageGlucoseRequest

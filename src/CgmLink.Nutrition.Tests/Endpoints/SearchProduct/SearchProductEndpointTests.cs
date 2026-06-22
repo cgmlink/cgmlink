@@ -39,7 +39,7 @@ public class SearchProductEndpointTests
     [Test]
     public async Task HandleAsync_Returns_Unauthorized_When_User_Is_Not_Authenticated()
     {
-        _currentUserMock.Setup(x => x.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN")); ;
+        _currentUserMock.Setup(x => x.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink)); ;
 
         Assert.That(() => Endpoint.HandleAsync("search", null, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));

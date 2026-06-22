@@ -35,7 +35,7 @@ internal static class Endpoint
                 .ConfigureAwait(false);
             if (patient is null || string.IsNullOrWhiteSpace(patient.AuthTicket?.Token) || patient.Region is null)
             {
-                throw new UnauthorizedException("PATIENT_NOT_FOUND");
+                throw new UnauthorizedException("PATIENT_NOT_FOUND", UnauthorizedSource.CgmProvider);
             }
 
             var libreLinkClient = libreLinkClientFactory.CreateLibreLinkClient(patient.Region.Value.ToLibreRegion());
@@ -73,15 +73,15 @@ internal static class Endpoint
         }
         catch (LibreLinkNotAuthenticatedException)
         {
-            throw new UnauthorizedException("LIBRE_LINK_NOT_AUTHENTICATED");
+            throw new UnauthorizedException("LIBRE_LINK_NOT_AUTHENTICATED", UnauthorizedSource.CgmProvider);
         }
         catch (LibreLinkAuthenticationExpiredException)
         {
-            throw new UnauthorizedException("LIBRE_LINK_AUTH_EXPIRED");
+            throw new UnauthorizedException("LIBRE_LINK_AUTH_EXPIRED", UnauthorizedSource.CgmProvider);
         }
         catch (LibreLinkAuthenticationFailedException)
         {
-            throw new UnauthorizedException("LIBRE_LINK_AUTH_FAILED");
+            throw new UnauthorizedException("LIBRE_LINK_AUTH_FAILED", UnauthorizedSource.CgmProvider);
         }
     }
 }

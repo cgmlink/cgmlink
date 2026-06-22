@@ -57,7 +57,7 @@ internal static class Startup
                         context.HandleResponse();
                         if (!context.Response.HasStarted)
                         {
-                            throw new UnauthorizedException("NOT_LOGGED_IN");
+                            throw new UnauthorizedException("NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
                         }
 
                         return Task.CompletedTask;

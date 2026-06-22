@@ -24,7 +24,7 @@ internal static class Endpoint
             .ConfigureAwait(false);
         if (user is null)
         {
-            throw new UnauthorizedException("USER_NOT_LOGGED_IN");
+            throw new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
         }
 
 

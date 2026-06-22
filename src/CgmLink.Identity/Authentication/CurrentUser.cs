@@ -15,7 +15,7 @@ internal sealed class CurrentUser : ICurrentUser, ICurrentUserInitializer
     /// </summary>
     /// <returns>The current user's ID</returns>
     /// <exception cref="UnauthorizedException">When called from a place the user should not be authenticated.</exception>
-    public Guid GetUserId() => _user?.GetUserId() ?? throw new UnauthorizedException("USER_NOT_LOGGED_IN");
+    public Guid GetUserId() => _user?.GetUserId() ?? throw new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
 
     public string? GetUserEmail() => _user?.GetEmail() ?? null;
 

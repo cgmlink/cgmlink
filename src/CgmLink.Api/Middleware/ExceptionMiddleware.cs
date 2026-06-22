@@ -52,6 +52,7 @@ internal partial class ExceptionMiddleware : IMiddleware
             }
 
             var messages = new List<string>();
+            object? data = null;
             switch (e)
             {
                 case ConflictException:
@@ -62,9 +63,10 @@ internal partial class ExceptionMiddleware : IMiddleware
                     context.Response.StatusCode = StatusCodes.Status404NotFound;
                     messages.Add(e.Message);
                     break;
-                case UnauthorizedException:
+                case UnauthorizedException unauthorizedException:
                     context.Response.StatusCode = StatusCodes.Status401Unauthorized;
-                    messages.Add(e.Message);
+                    data = new { Source = unauthorizedException.UnauthorizedSource };
+                    messages.Add(unauthorizedException.Message);
                     break;
                 case ForbiddenException:
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
@@ -87,6 +89,7 @@ internal partial class ExceptionMiddleware : IMiddleware
                 SupportMessage = "SUPPORT_MESSAGE",
                 StatusCode = context.Response.StatusCode,
                 Messages = messages,
+                Data = data,
             };
             LogException(e);
             await JsonSerializer

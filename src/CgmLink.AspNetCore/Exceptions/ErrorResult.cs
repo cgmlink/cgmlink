@@ -11,4 +11,5 @@ public sealed class ErrorResult
     public required string SupportMessage { get; init; }
     public required int StatusCode { get; init; }
     public List<string> Messages { get; init; } = [];
+    public object? Data { get; init; }
 }
