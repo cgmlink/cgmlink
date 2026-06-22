@@ -42,7 +42,7 @@ internal static class Endpoint
                 .ConfigureAwait(false);
             if (patient is null)
             {
-                throw new UnauthorizedException("PATIENT_NOT_FOUND");
+                throw new UnauthorizedException("PATIENT_NOT_FOUND", UnauthorizedSource.CgmProvider);
             }
 
             if (patient.AuthTicket is not null && !string.IsNullOrWhiteSpace(patient.AuthTicket.PatientId) &&
@@ -101,7 +101,7 @@ internal static class Endpoint
         }
         catch (LibreLinkAuthenticationFailedException)
         {
-            throw new UnauthorizedException("LIBRE_LINK_AUTH_FAILED");
+            throw new UnauthorizedException("LIBRE_LINK_AUTH_FAILED", UnauthorizedSource.CgmProvider);
         }
     }
 }

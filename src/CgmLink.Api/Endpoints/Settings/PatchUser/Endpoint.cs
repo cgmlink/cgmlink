@@ -26,7 +26,7 @@ internal static class Endpoint
 
         if (user is null)
         {
-            throw new UnauthorizedException("USER_NOT_LOGGED_IN");
+            throw new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
         }
 
         if (user.Settings is null)

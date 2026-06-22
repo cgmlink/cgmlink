@@ -28,7 +28,7 @@ internal static class Endpoint
             new FindOptions { IsAsNoTracking = true }, cancellationToken).ConfigureAwait(false);
         if (patient is null || patient.AuthTicket is null || patient.Region is null)
         {
-            throw new UnauthorizedException("PATIENT_NOT_FOUND");
+            throw new UnauthorizedException("PATIENT_NOT_FOUND", UnauthorizedSource.CgmProvider);
         }
 
         var authTicket = new LibreAuthTicket
@@ -60,11 +60,11 @@ internal static class Endpoint
         }
         catch (LibreLinkAuthenticationExpiredException)
         {
-            throw new UnauthorizedException("LIBRE_LINK_AUTH_EXPIRED");
+            throw new UnauthorizedException("LIBRE_LINK_AUTH_EXPIRED", UnauthorizedSource.CgmProvider);
         }
         catch (LibreLinkNotAuthenticatedException)
         {
-            throw new UnauthorizedException("LIBRE_LINK_NOT_AUTHENTICATED");
+            throw new UnauthorizedException("LIBRE_LINK_NOT_AUTHENTICATED", UnauthorizedSource.CgmProvider);
         }
     }
 }

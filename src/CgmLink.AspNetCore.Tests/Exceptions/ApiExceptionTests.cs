@@ -1,5 +1,6 @@
 using System.Net;
 using CgmLink.AspNetCore.Exceptions;
+using NUnit.Framework.Interfaces;
 
 namespace CgmLink.AspNetCore.Tests.Exceptions;
 
@@ -49,12 +50,13 @@ internal sealed class ApiExceptionTests
     public void UnauthorizedException_Should_Set_Properties_Correctly()
     {
         const string message = "Unauthorized access";
-        var exception = new UnauthorizedException(message);
+        var exception = new UnauthorizedException(message, UnauthorizedSource.CgmLink);
 
         Assert.Multiple(() =>
         {
             Assert.That(exception.Message, Is.EqualTo(message));
             Assert.That(exception.StatusCode, Is.EqualTo(HttpStatusCode.Unauthorized));
+            Assert.That(exception.UnauthorizedSource, Is.EqualTo(UnauthorizedSource.CgmLink));
         });
     }
 }

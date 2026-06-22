@@ -1,8 +1,11 @@
 using System;
+using System.IO;
+using System.Text.Json;
 using System.Threading.Tasks;
 using CgmLink.Api.Middleware;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Identity.Authentication;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -62,7 +65,7 @@ internal sealed class ExceptionMiddlewareTests
     [Test]
     public async Task InvokeAsync_WithUnauthorizedException_ReturnsUnauthorizedStatusCode()
     {
-        var next = new RequestDelegate(_ => throw new UnauthorizedException("Unauthorized"));
+        var next = new RequestDelegate(_ => throw new UnauthorizedException("Unauthorized", UnauthorizedSource.CgmLink));
 
         await _sut.InvokeAsync(_httpContext, next);
 

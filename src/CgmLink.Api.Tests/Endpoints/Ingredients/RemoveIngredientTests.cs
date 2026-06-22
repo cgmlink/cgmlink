@@ -33,7 +33,7 @@ public class RemoveIngredientTests
         var ingredientId = Guid.NewGuid();
         var userId = Guid.NewGuid();
         var ingredient = new Ingredient { Id = ingredientId, Created = DateTimeOffset.UtcNow, Name = "ingredient", Uom = UnitOfMeasurement.Unit, UserId = userId };
-        _currentUserMock.Setup(c => c.GetUserId()).Throws(new UnauthorizedException("INGREDIENT_NOT_FOUND"));
+        _currentUserMock.Setup(c => c.GetUserId()).Throws(new UnauthorizedException("INGREDIENT_NOT_FOUND", UnauthorizedSource.CgmLink));
         _ingredientRepositoryMock
             .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ingredient);

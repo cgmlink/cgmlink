@@ -37,7 +37,7 @@ internal static class Endpoint
         var user = await userService.FindByRefreshTokenAsync(token.Token, cancellationToken).ConfigureAwait(false);
         if (userId != user.Id || string.IsNullOrWhiteSpace(token.Token))
         {
-            throw new UnauthorizedException("UNAUTHORIZED");
+            throw new UnauthorizedException("UNAUTHORIZED", UnauthorizedSource.CgmLink);
         }
 
         await userService.RevokeTokenAsync(token.Token, httpContext.IpAddress(), cancellationToken).ConfigureAwait(false);

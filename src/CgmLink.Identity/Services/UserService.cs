@@ -60,7 +60,7 @@ public sealed class UserService : IUserService
 
         if (user is null || !Verify(request.Password, user.PasswordHash))
         {
-            throw new UnauthorizedException("EMAIL_OR_PASSWORD_INCORRECT");
+            throw new UnauthorizedException("EMAIL_OR_PASSWORD_INCORRECT", UnauthorizedSource.CgmLink);
         }
 
         if (_options.RequireEmailVerification && !user.IsVerified)
@@ -225,7 +225,7 @@ public sealed class UserService : IUserService
 
         if (!(refreshToken?.IsActive ?? false))
         {
-            throw new UnauthorizedException("REFRESH_TOKEN_INCORRECT");
+            throw new UnauthorizedException("REFRESH_TOKEN_INCORRECT", UnauthorizedSource.CgmLink);
         }
 
         var newRefreshToken = _tokenService.GenerateRefreshToken(ipAddress);
@@ -250,7 +250,7 @@ public sealed class UserService : IUserService
     {
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new UnauthorizedException("INVALID_TOKEN");
+            throw new UnauthorizedException("INVALID_TOKEN", UnauthorizedSource.CgmLink);
         }
 
         var user = await _repository.FindOneAsync(u => u.RefreshTokens.Any(t => t.Token == token),
@@ -258,7 +258,7 @@ public sealed class UserService : IUserService
             .ConfigureAwait(false);
         if (user is null)
         {
-            throw new UnauthorizedException("INVALID_TOKEN");
+            throw new UnauthorizedException("INVALID_TOKEN", UnauthorizedSource.CgmLink);
         }
 
         return user;
@@ -269,14 +269,14 @@ public sealed class UserService : IUserService
         var user = await FindByRefreshTokenAsync(token, cancellationToken).ConfigureAwait(false);
         if (user is null)
         {
-            throw new UnauthorizedException("INVALID_TOKEN");
+            throw new UnauthorizedException("INVALID_TOKEN", UnauthorizedSource.CgmLink);
         }
 
         var refreshToken = user.RefreshTokens.Single(x => x.Token == token);
 
         if (!refreshToken.IsActive)
         {
-            throw new UnauthorizedException("INVALID_TOKEN");
+            throw new UnauthorizedException("INVALID_TOKEN", UnauthorizedSource.CgmLink);
         }
 
         RevokeRefreshToken(refreshToken, ipAddress, "Revoked without replacement");
@@ -347,7 +347,7 @@ public sealed class UserService : IUserService
             .ConfigureAwait(false);
         if (user is null)
         {
-            throw new UnauthorizedException("EMAIL_VERIFICATION_TOKEN_INVALID");
+            throw new UnauthorizedException("EMAIL_VERIFICATION_TOKEN_INVALID", UnauthorizedSource.CgmLink);
         }
 
         user.EmailVerificationToken = null;

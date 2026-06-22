@@ -129,7 +129,7 @@ internal sealed class InsulinToCarbRatioEndpointTests
     [Test]
     public void HandleAsync_With_Unauthorized_User_Returns_Unauthorized_Result()
     {
-        var exception = new UnauthorizedException("test");
+        var exception = new UnauthorizedException("test", UnauthorizedSource.CgmLink);
         _currentUserMock.Setup(cu => cu.GetUserId()).Throws(exception);
 
         var request = new InsulinToCarbRatioRequest
