@@ -90,20 +90,28 @@ internal static class Endpoint
         }
 
         treatment.ReadingId = request.ReadingId;
-        treatment.Meals = request.Meals.Select(m => new TreatmentMeal
+        treatment.Meals.Clear();
+        foreach (var meal in request.Meals)
         {
-            Id = Guid.NewGuid(),
-            MealId = m.Id,
-            TreatmentId = treatment.Id,
-            Quantity = m.Quantity,
-        }).ToList();
-        treatment.Ingredients = request.Ingredients.Select(i => new TreatmentIngredient
+            treatment.Meals.Add(new TreatmentMeal
+            {
+                Id = Guid.NewGuid(),
+                MealId = meal.Id,
+                TreatmentId = treatment.Id,
+                Quantity = meal.Quantity,
+            });
+        }
+        treatment.Ingredients.Clear();
+        foreach (var ingredient in request.Ingredients)
         {
-            Id = Guid.NewGuid(),
-            IngredientId = i.Id,
-            TreatmentId = treatment.Id,
-            Quantity = i.Quantity,
-        }).ToList();
+            treatment.Ingredients.Add(new TreatmentIngredient
+            {
+                Id = Guid.NewGuid(),
+                IngredientId = ingredient.Id,
+                TreatmentId = treatment.Id,
+                Quantity = ingredient.Quantity,
+            });
+        }
         treatment.InjectionId = request.InjectionId;
         treatment.Updated = DateTimeOffset.UtcNow;
 
