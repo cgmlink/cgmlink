@@ -1,7 +1,6 @@
 ﻿using System;
 using FluentValidation.TestHelper;
 using CgmLink.Api.Endpoints.Injections.UpdateInjection;
-using CgmLink.Api.Models;
 using NUnit.Framework;
 
 namespace CgmLink.Api.Tests.Validators;
@@ -18,13 +17,28 @@ public class UpdateInjectionRequestValidatorTests
     }
 
     [Test]
+    public void Validate_Returns_Error_When_InjectionId_Is_Empty()
+    {
+        var request = new UpdateInjectionRequest
+        {
+            InjectionId = Guid.Empty,
+            InsulinId = Guid.NewGuid(),
+            Units = 10,
+        };
+
+        var result = _validator.TestValidate(request);
+
+        result.ShouldHaveValidationErrorFor(x => x.InjectionId).WithErrorMessage("INJECTION_ID_INVALID");
+    }
+
+    [Test]
     public void Validate_Returns_Error_When_InsulinId_Is_Empty()
     {
         var request = new UpdateInjectionRequest
         {
+            InjectionId = Guid.NewGuid(),
             InsulinId = Guid.Empty,
             Units = 10,
-            Type = InsulinType.Bolus
         };
 
         var result = _validator.TestValidate(request);
@@ -37,9 +51,9 @@ public class UpdateInjectionRequestValidatorTests
     {
         var request = new UpdateInjectionRequest
         {
+            InjectionId = Guid.NewGuid(),
             InsulinId = Guid.NewGuid(),
             Units = 0,
-            Type = InsulinType.Bolus
         };
 
         var result = _validator.TestValidate(request);
@@ -48,28 +62,13 @@ public class UpdateInjectionRequestValidatorTests
     }
 
     [Test]
-    public void Validate_Returns_Error_When_Type_Is_Invalid()
-    {
-        var request = new UpdateInjectionRequest
-        {
-            InsulinId = Guid.NewGuid(),
-            Units = 10,
-            Type = (InsulinType)(-1)
-        };
-
-        var result = _validator.TestValidate(request);
-
-        result.ShouldHaveValidationErrorFor(x => x.Type).WithErrorMessage("INSULIN_TYPE_INVALID");
-    }
-
-    [Test]
     public void Validate_Passes_When_All_Fields_Are_Valid()
     {
         var request = new UpdateInjectionRequest
         {
+            InjectionId = Guid.NewGuid(),
             InsulinId = Guid.NewGuid(),
             Units = 10,
-            Type = InsulinType.Bolus
         };
 
         var result = _validator.TestValidate(request);
