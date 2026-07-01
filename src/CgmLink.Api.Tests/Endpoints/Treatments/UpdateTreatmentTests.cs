@@ -57,8 +57,8 @@ public class UpdateTreatmentTests
             .Returns(userId);
 
         _treatmentRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Treatment)null);
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(Enumerable.Empty<Treatment>().AsQueryable());
 
         Assert.ThrowsAsync<NotFoundException>(async () =>
             await Endpoint.HandleAsync(
@@ -91,8 +91,8 @@ public class UpdateTreatmentTests
             .Returns(userId);
 
         _treatmentRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(treatment);
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { treatment }.AsQueryable());
 
         _readingRepositoryMock
             .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
@@ -129,12 +129,12 @@ public class UpdateTreatmentTests
             .Returns(userId);
 
         _treatmentRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(treatment);
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { treatment }.AsQueryable());
 
         _mealRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Meal)null);
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(Enumerable.Empty<Meal>().AsQueryable());
 
         Assert.ThrowsAsync<NotFoundException>(async () =>
             await Endpoint.HandleAsync(
@@ -167,8 +167,8 @@ public class UpdateTreatmentTests
             .Returns(userId);
 
         _treatmentRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(treatment);
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { treatment }.AsQueryable());
 
         _injectionRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Injection, bool>>>(), It.IsAny<FindOptions>()))
@@ -218,8 +218,8 @@ public class UpdateTreatmentTests
             .Returns(userId);
 
         _treatmentRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(treatment);
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { treatment }.AsQueryable());
 
         _mealRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))

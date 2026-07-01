@@ -37,9 +37,12 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
 
-        var treatment = await treatmentRepository
-            .FindOneAsync(t => t.Id == id && t.UserId == userId, new FindOptions { IsAsNoTracking = false }, cancellationToken)
-            .ConfigureAwait(false);
+        var treatment = treatmentRepository
+            .Find(t => t.Id == id && t.UserId == userId, new FindOptions { IsAsNoTracking = false })
+            .Include(t => t.Meals)
+            .Include(t => t.Ingredients)
+            .AsSplitQuery()
+            .FirstOrDefault();
 
         if (treatment is null)
         {
