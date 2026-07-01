@@ -131,6 +131,7 @@ internal static class Endpoint
             InjectionId = treatment.InjectionId,
             InsulinName = injection?.Insulin?.Name,
             InsulinUnits = injection?.Units,
+            Created = treatment.Created,
             Updated = treatment.Updated
         };
 
