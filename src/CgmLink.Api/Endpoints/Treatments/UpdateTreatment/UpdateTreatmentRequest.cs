@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using CgmLink.Api.Endpoints.Injections.UpdateInjection;
+using FluentValidation;
 using System;
 using System.Collections.Generic;
 
@@ -6,7 +7,7 @@ namespace CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
 
 public sealed record UpdateTreatmentRequest
 {
-    public Guid? InjectionId { get; set; }
+    public UpdateTreatmentInjectionRequest? Injection { get; set; }
     public ICollection<UpdateTreatmentMealRequest> Meals { get; set; } = [];
     public ICollection<UpdateTreatmentIngredientRequest> Ingredients { get; set; } = [];
     public Guid? ReadingId { get; set; }
@@ -15,9 +16,9 @@ public sealed record UpdateTreatmentRequest
     {
         public UpdateTreatmentRequestValidator()
         {
-            When(x => x.InjectionId is null && x.ReadingId is null && x.Meals.Count == 0 && x.Ingredients.Count == 0, () =>
+            When(x => x.Injection is null && x.ReadingId is null && x.Meals.Count == 0 && x.Ingredients.Count == 0, () =>
             {
-                RuleFor(x => x.InjectionId)
+                RuleFor(x => x.Injection)
                     .NotNull()
                     .WithMessage(Resources.ValidationMessages.InjectionIdRequiredWhenAllNull);
 
@@ -34,6 +35,13 @@ public sealed record UpdateTreatmentRequest
                     .WithMessage(Resources.ValidationMessages.IngredientRequiredWhenAllNull);
             });
         }
+    }
+
+    public record UpdateTreatmentInjectionRequest
+    {
+        public Guid? Id { get; set; }
+        public required Guid InsulinId { get; set; }
+        public required double Units { get; set; }
     }
 
     public record UpdateTreatmentMealRequest

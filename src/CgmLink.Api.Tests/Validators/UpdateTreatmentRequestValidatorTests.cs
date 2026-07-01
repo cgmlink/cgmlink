@@ -1,4 +1,5 @@
 ﻿using FluentValidation.TestHelper;
+using CgmLink.Api.Endpoints.Injections.UpdateInjection;
 using CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
 using NUnit.Framework;
 using System;
@@ -22,7 +23,7 @@ public class UpdateTreatmentRequestValidatorTests
     {
         var request = new UpdateTreatmentRequest
         {
-            InjectionId = null,
+            Injection = null,
             Meals = [],
             Ingredients = [],
             ReadingId = null
@@ -34,7 +35,7 @@ public class UpdateTreatmentRequestValidatorTests
         {
             Assert.That(result.IsValid, Is.False);
             Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
-            x => x.ErrorMessage == "INJECTION_ID_REQUIRED_WHEN_ALL_NULL"));
+                x => x.ErrorMessage == "INJECTION_ID_REQUIRED_WHEN_ALL_NULL"));
             Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
                 x => x.ErrorMessage == "MEAL_REQUIRED_WHEN_ALL_NULL"));
             Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
@@ -45,11 +46,11 @@ public class UpdateTreatmentRequestValidatorTests
     }
 
     [Test]
-    public void Validate_Should_Pass_When_Only_InjectionId_Is_Provided()
+    public void Validate_Should_Pass_When_Only_Injection_Is_Provided()
     {
         var request = new UpdateTreatmentRequest
         {
-            InjectionId = Guid.NewGuid(),
+            Injection = new UpdateTreatmentInjectionRequest { Id = Guid.NewGuid(), InsulinId = Guid.NewGuid(), Units = 1 },
             Meals = [],
             Ingredients = [],
             ReadingId = null
@@ -65,7 +66,7 @@ public class UpdateTreatmentRequestValidatorTests
     {
         var request = new UpdateTreatmentRequest
         {
-            InjectionId = null,
+            Injection = null,
             Meals = [new UpdateTreatmentMealRequest { Id = Guid.NewGuid(), Quantity = 1 }],
             Ingredients = [],
             ReadingId = null
@@ -81,7 +82,7 @@ public class UpdateTreatmentRequestValidatorTests
     {
         var request = new UpdateTreatmentRequest
         {
-            InjectionId = null,
+            Injection = null,
             Meals = [],
             Ingredients = [new UpdateTreatmentIngredientRequest { Id = Guid.NewGuid(), Quantity = 1 }],
             ReadingId = null
@@ -97,7 +98,7 @@ public class UpdateTreatmentRequestValidatorTests
     {
         var request = new UpdateTreatmentRequest
         {
-            InjectionId = null,
+            Injection = null,
             Meals = [],
             Ingredients = [],
             ReadingId = Guid.NewGuid()
@@ -113,7 +114,7 @@ public class UpdateTreatmentRequestValidatorTests
     {
         var request = new UpdateTreatmentRequest
         {
-            InjectionId = Guid.NewGuid(),
+            Injection = new UpdateTreatmentInjectionRequest { Id = Guid.NewGuid(), InsulinId = Guid.NewGuid(), Units = 1 },
             Meals = [new UpdateTreatmentMealRequest { Id = Guid.NewGuid(), Quantity = 1 }],
             Ingredients = [new UpdateTreatmentIngredientRequest { Id = Guid.NewGuid(), Quantity = 1 }],
             ReadingId = null

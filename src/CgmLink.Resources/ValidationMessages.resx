@@ -246,4 +246,7 @@
   <data name="PenNotFound" xml:space="preserve">
     <value>PEN_NOT_FOUND</value>
   </data>
+  <data name="InjectionIdInvalid" xml:space="preserve">
+    <value>INJECTION_ID_INVALID</value>
+  </data>
 </root>
