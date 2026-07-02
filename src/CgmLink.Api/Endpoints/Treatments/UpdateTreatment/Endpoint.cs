@@ -37,14 +37,14 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
 
-        var treatment = treatmentRepository
+        var treatment = await treatmentRepository
             .Find(t => t.Id == id && t.UserId == userId, new FindOptions { IsAsNoTracking = false })
             .Include(i => i.Injection)
             .Include(r => r.Reading)
             .Include(t => t.Meals)
             .Include(t => t.Ingredients)
             .AsSplitQuery()
-            .FirstOrDefault();
+            .FirstOrDefaultAsync();
 
         if (treatment is null)
         {
@@ -52,34 +52,32 @@ internal static class Endpoint
         }
 
         Injection? injection = null;
-        if (request.Injection is not null)
+
+        if (request.Injection?.Id is not null)
         {
-            if (request.Injection.Id is not null)
-            {
-                injection = injectionRepository
-                .Find(i => i.Id == request.Injection.Id && i.UserId == userId, new FindOptions { IsAsNoTracking = true })
-                .Include(i => i.Insulin).FirstOrDefault();
+            injection = injectionRepository
+            .Find(i => i.Id == request.Injection.Id && i.UserId == userId, new FindOptions { IsAsNoTracking = true })
+            .Include(i => i.Insulin).FirstOrDefault();
 
-                if (injection is null)
-                {
-                    throw new NotFoundException("INJECTION_NOT_FOUND");
-                }
-
-                injection.Updated = DateTimeOffset.UtcNow;
-                injection.InsulinId = request.Injection.InsulinId;
-                injection.Units = request.Injection.Units;
-            }
-            else
+            if (injection is null)
             {
-                injection = new Injection
-                {
-                    Id = Guid.NewGuid(),
-                    UserId = userId,
-                    InsulinId = request.Injection.InsulinId,
-                    Units = request.Injection.Units,
-                    Created = DateTimeOffset.UtcNow,
-                };
+                throw new NotFoundException("INJECTION_NOT_FOUND");
             }
+
+            injection.Updated = DateTimeOffset.UtcNow;
+            injection.InsulinId = request.Injection.InsulinId;
+            injection.Units = request.Injection.Units;
+        }
+        else if (request.Injection is not null)
+        {
+            injection = new Injection
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                InsulinId = request.Injection.InsulinId,
+                Units = request.Injection.Units,
+                Created = DateTimeOffset.UtcNow,
+            };
         }
 
         treatment.Injection = injection;
@@ -115,28 +113,21 @@ internal static class Endpoint
         }
 
         treatment.ReadingId = request.ReadingId;
-        treatment.Meals.Clear();
-        foreach (var meal in request.Meals)
+
+        treatment.Meals = request.Meals.Select(m => new TreatmentMeal
         {
-            treatment.Meals.Add(new TreatmentMeal
-            {
-                Id = Guid.NewGuid(),
-                MealId = meal.Id,
-                TreatmentId = treatment.Id,
-                Quantity = meal.Quantity,
-            });
-        }
-        treatment.Ingredients.Clear();
-        foreach (var ingredient in request.Ingredients)
+            Id = Guid.NewGuid(),
+            MealId = m.Id,
+            TreatmentId = treatment.Id,
+            Quantity = m.Quantity,
+        }).ToList();
+        treatment.Ingredients = request.Ingredients.Select(i => new TreatmentIngredient
         {
-            treatment.Ingredients.Add(new TreatmentIngredient
-            {
-                Id = Guid.NewGuid(),
-                IngredientId = ingredient.Id,
-                TreatmentId = treatment.Id,
-                Quantity = ingredient.Quantity,
-            });
-        }
+            Id = Guid.NewGuid(),
+            IngredientId = i.Id,
+            TreatmentId = treatment.Id,
+            Quantity = i.Quantity,
+        }).ToList();
         treatment.Updated = DateTimeOffset.UtcNow;
 
         await treatmentRepository.UpdateAsync(treatment, cancellationToken);
