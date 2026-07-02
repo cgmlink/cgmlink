@@ -37,9 +37,14 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
 
-        var treatment = await treatmentRepository
-            .FindOneAsync(t => t.Id == id && t.UserId == userId, new FindOptions { IsAsNoTracking = false }, cancellationToken)
-            .ConfigureAwait(false);
+        var treatment = treatmentRepository
+            .Find(t => t.Id == id && t.UserId == userId, new FindOptions { IsAsNoTracking = false })
+            .Include(i => i.Injection)
+            .Include(r => r.Reading)
+            .Include(t => t.Meals)
+            .Include(t => t.Ingredients)
+            .AsSplitQuery()
+            .FirstOrDefault();
 
         if (treatment is null)
         {
@@ -47,17 +52,35 @@ internal static class Endpoint
         }
 
         Injection? injection = null;
-        if (request.InjectionId is not null)
+
+        if (request.Injection?.Id is not null)
         {
             injection = injectionRepository
-                .Find(i => i.Id == request.InjectionId && i.UserId == userId, new FindOptions { IsAsNoTracking = true })
-                .Include(i => i.Insulin).FirstOrDefault();
+            .Find(i => i.Id == request.Injection.Id && i.UserId == userId, new FindOptions { IsAsNoTracking = true })
+            .Include(i => i.Insulin).FirstOrDefault();
 
             if (injection is null)
             {
                 throw new NotFoundException("INJECTION_NOT_FOUND");
             }
+
+            injection.Updated = DateTimeOffset.UtcNow;
+            injection.InsulinId = request.Injection.InsulinId;
+            injection.Units = request.Injection.Units;
         }
+        else if (request.Injection is not null)
+        {
+            injection = new Injection
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                InsulinId = request.Injection.InsulinId,
+                Units = request.Injection.Units,
+                Created = DateTimeOffset.UtcNow,
+            };
+        }
+
+        treatment.Injection = injection;
 
         var mealIds = request.Meals.Select(m => m.Id).ToList();
         var meals = mealRepository.Find(m => mealIds.Contains(m.Id) && m.UserId == userId, new FindOptions { IsAsNoTracking = true }).ToList();
@@ -90,6 +113,7 @@ internal static class Endpoint
         }
 
         treatment.ReadingId = request.ReadingId;
+
         treatment.Meals = request.Meals.Select(m => new TreatmentMeal
         {
             Id = Guid.NewGuid(),
@@ -104,7 +128,6 @@ internal static class Endpoint
             TreatmentId = treatment.Id,
             Quantity = i.Quantity,
         }).ToList();
-        treatment.InjectionId = request.InjectionId;
         treatment.Updated = DateTimeOffset.UtcNow;
 
         await treatmentRepository.UpdateAsync(treatment, cancellationToken);
@@ -131,6 +154,7 @@ internal static class Endpoint
             InjectionId = treatment.InjectionId,
             InsulinName = injection?.Insulin?.Name,
             InsulinUnits = injection?.Units,
+            Created = treatment.Created,
             Updated = treatment.Updated
         };
 
