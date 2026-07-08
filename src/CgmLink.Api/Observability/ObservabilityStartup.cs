@@ -2,7 +2,6 @@ using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 #if ENABLE_PRIVATE_OBSERVABILITY
 using CgmLink.SystemsApi.Observability.DependencyInjection;
 using CgmLink.SystemsApi.Observability.Logging;
@@ -71,6 +70,11 @@ internal static class ObservabilityStartup
             options.Environment = environment;
             options.ServiceInstanceId = serviceInstanceId;
             options.MeterNames = [serviceName];
+
+            BindOptionalInteger(section, "MetricExportIntervalMilliseconds",
+                value => options.MetricExportIntervalMilliseconds = value);
+            BindOptionalInteger(section, "MetricExportTimeoutMilliseconds",
+                value => options.MetricExportTimeoutMilliseconds = value);
         });
 
         builder.Services.AddObservabilityHealthChecks();
