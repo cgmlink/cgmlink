@@ -7,16 +7,24 @@
     <ImplicitUsings>disable</ImplicitUsings>
     <UserSecretsId>0cf8d2c1-9e5d-4757-b8dc-2bb4a26429ce</UserSecretsId>
     <PublishWithAspNetCoreTargetManifest>False</PublishWithAspNetCoreTargetManifest>
+    <EnableSystemsObservability Condition="'$(EnableSystemsObservability)' == ''">false</EnableSystemsObservability>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(EnableSystemsObservability)' == 'true'">
+    <DefineConstants>$(DefineConstants);ENABLE_PRIVATE_OBSERVABILITY</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
     <InternalsVisibleTo Include="CgmLink.Api.Tests" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" />
   </ItemGroup>
-  
+
   <ItemGroup>
     <PackageReference Include="Asp.Versioning.Http" Version="8.1.1" />
     <PackageReference Include="Asp.Versioning.Mvc.ApiExplorer" Version="8.1.1" />
+    <PackageReference Include="CgmLink.SystemsApi.Observability"
+                      Version="0.3.0-preview300"
+                      Condition="'$(EnableSystemsObservability)' == 'true'" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.8">
       <PrivateAssets>all</PrivateAssets>
