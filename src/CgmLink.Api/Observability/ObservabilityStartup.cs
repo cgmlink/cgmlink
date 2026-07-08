@@ -14,11 +14,12 @@ internal static class ObservabilityStartup
 {
     public static void AddObservability(this WebApplicationBuilder builder)
     {
+#if ENABLE_PRIVATE_OBSERVABILITY
         if (!builder.Environment.IsProduction())
         {
             return;
         }
-#if ENABLE_PRIVATE_OBSERVABILITY
+
         var section = builder.Configuration.GetSection("Observability");
         if (!section.GetValue<bool>("Enabled"))
         {

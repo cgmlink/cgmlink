@@ -33,6 +33,9 @@ jobs:
         run: dotnet build src/cgm-link.sln --configuration Release /p:Version=$env:VERSION
       - name: Create private NuGet config
         shell: pwsh
+        env:
+          CGMLINK_NUGET_FEED_URL: ${{ secrets.CGMLINK_NUGET_FEED_URL }}
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           @'
           <?xml version="1.0" encoding="utf-8"?>
@@ -40,12 +43,12 @@ jobs:
             <packageSources>
               <clear />
               <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
-              <add key="private-observability" value="${{ secrets.CGMLINK_NUGET_FEED_URL }}" />
+              <add key="private-observability" value="$env:CGMLINK_NUGET_FEED_URL" />
             </packageSources>
             <packageSourceCredentials>
               <private-observability>
                 <add key="Username" value="${{ github.actor }}" />
-                <add key="ClearTextPassword" value="${{ secrets.GITHUB_TOKEN }}" />
+                <add key="ClearTextPassword" value="$env:NUGET_AUTH_TOKEN" />
               </private-observability>
             </packageSourceCredentials>
           </configuration>
@@ -68,7 +71,9 @@ jobs:
       - name: Pack
         run: dotnet pack src/cgm-link.sln --configuration Release /p:Version=$env:VERSION --output .
       - name: Push
-        run: dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key ${{ secrets.NUGET_APIKEY }}
+        env:
+          NUGET_APIKEY: ${{ secrets.NUGET_APIKEY }}
+        run: dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key $env:NUGET_APIKEY
       - name: Deploy
         uses: rasmusbuchholdt/simply-web-deploy@2.2.0
         with:
