@@ -2,6 +2,7 @@ using System;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 #if ENABLE_PRIVATE_OBSERVABILITY
 using CgmLink.SystemsApi.Observability.DependencyInjection;
 using CgmLink.SystemsApi.Observability.Logging;
