@@ -1,5 +1,6 @@
 using System.Text.Json.Serialization;
 using Asp.Versioning;
+using CgmLink.Api.Observability;
 using FluentValidation;
 using CgmLink.Api.Endpoints;
 using CgmLink.Api.Middleware;
@@ -91,6 +92,8 @@ builder.Services.AddLogging(logging =>
     logging.ClearProviders();
     logging.AddSerilog(dispose: true);
 });
+
+builder.AddObservability();
 
 var app = builder.Build();
 
