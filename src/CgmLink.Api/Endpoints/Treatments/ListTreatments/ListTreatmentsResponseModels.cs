@@ -48,6 +48,7 @@ public record ListTreatmentIngredientResponse
 public record ListTreatmentInjectionResponse
 {
     public required Guid Id { get; init; }
+    public required Guid InsulinId { get; init; }
     public required string InsulinName { get; init; }
     public required double Units { get; init; }
     public required DateTimeOffset Created { get; init; }

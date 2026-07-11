@@ -11,6 +11,7 @@ public sealed record UpdateTreatmentResponse
     public ICollection<UpdateTreatmentIngredientResponse> Ingredients { get; init; } = [];
     public required TreatmentType Type { get; init; }
     public Guid? InjectionId { get; init; }
+    public Guid? InsulinId { get; init; }
     public string? InsulinName { get; init; }
     public double? InsulinUnits { get; init; }
     public Guid? ReadingId { get; init; }

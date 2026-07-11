@@ -157,6 +157,7 @@ internal static class Endpoint
                 Quantity = i.Quantity,
             }).ToList(),
             InjectionId = treatment.InjectionId,
+            InsulinId = injection?.Insulin?.Id,
             InsulinName = injection?.Insulin?.Name,
             InsulinUnits = injection?.Units,
             Created = treatment.Created,
