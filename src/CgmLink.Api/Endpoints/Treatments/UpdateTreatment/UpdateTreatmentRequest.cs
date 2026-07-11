@@ -7,6 +7,7 @@ namespace CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
 
 public sealed record UpdateTreatmentRequest
 {
+    public DateTimeOffset? Created { get; set; }
     public UpdateTreatmentInjectionRequest? Injection { get; set; }
     public ICollection<UpdateTreatmentMealRequest> Meals { get; set; } = [];
     public ICollection<UpdateTreatmentIngredientRequest> Ingredients { get; set; } = [];

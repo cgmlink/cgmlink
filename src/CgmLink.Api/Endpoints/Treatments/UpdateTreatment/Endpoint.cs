@@ -114,6 +114,11 @@ internal static class Endpoint
 
         treatment.ReadingId = request.ReadingId;
 
+        if (request.Created is not null)
+        {
+            treatment.Created = request.Created.Value;
+        }
+
         treatment.Meals = request.Meals.Select(m => new TreatmentMeal
         {
             Id = Guid.NewGuid(),

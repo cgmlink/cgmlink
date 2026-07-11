@@ -192,6 +192,59 @@ public class UpdateTreatmentTests
     }
 
     [Test]
+    public async Task HandleAsync_Should_Update_Created_When_Provided()
+    {
+        var id = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var originalCreated = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var newCreated = new DateTimeOffset(2025, 6, 15, 10, 30, 0, TimeSpan.Zero);
+        var treatment = new Treatment
+        {
+            Id = id,
+            UserId = userId,
+            Created = originalCreated
+        };
+        var request = new UpdateTreatmentRequest
+        {
+            Created = newCreated
+        };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { treatment }.AsQueryable());
+
+        _treatmentRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await Endpoint.HandleAsync(
+            id,
+            request,
+            _validatorMock.Object,
+            _currentUserMock.Object,
+            _treatmentRepositoryMock.Object,
+            _readingRepositoryMock.Object,
+            _mealRepositoryMock.Object,
+            _ingredientRepositoryMock.Object,
+            _injectionRepositoryMock.Object,
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
+            Assert.That(okResult.Value.Created, Is.EqualTo(newCreated));
+        });
+    }
+
+    [Test]
     public async Task HandleAsync_Should_Return_Ok_When_Treatment_Updated_Successfully()
     {
         var id = Guid.NewGuid();
