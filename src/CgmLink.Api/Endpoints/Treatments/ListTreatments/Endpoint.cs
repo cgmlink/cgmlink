@@ -97,6 +97,7 @@ internal static class Endpoint
                     ? new ListTreatmentInjectionResponse
                     {
                         Id = t.Injection.Id,
+                        InsulinId = t.Injection.Insulin?.Id ?? default,
                         InsulinName = t.Injection.Insulin?.Name ?? "",
                         Units = t.Injection?.Units ?? 0,
                         Created = t.Injection?.Created ?? DateTimeOffset.MinValue,

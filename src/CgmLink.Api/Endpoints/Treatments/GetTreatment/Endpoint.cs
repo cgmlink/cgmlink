@@ -76,6 +76,7 @@ internal static class Endpoint
             ? new GetTreatmentInjectionResponse
             {
                 Id = treatment.Injection.Id,
+                InsulinId = treatment.Injection.Insulin?.Id ?? default,
                 InsulinName = treatment.Injection.Insulin?.Name ?? "",
                 Units = treatment.Injection.Units,
             } : null,
