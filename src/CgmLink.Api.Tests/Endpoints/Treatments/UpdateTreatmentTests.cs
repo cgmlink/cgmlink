@@ -4,6 +4,7 @@ using CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
 using UpdateInjectionRequest = CgmLink.Api.Endpoints.Injections.UpdateInjection.UpdateInjectionRequest;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
+using CgmLink.Data.Enums;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -241,6 +242,70 @@ public class UpdateTreatmentTests
         {
             var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
             Assert.That(okResult.Value.Created, Is.EqualTo(newCreated));
+            Assert.That(okResult.Value.InsulinId, Is.Null);
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Return_Ok_When_Treatment_Updated_With_Injection()
+    {
+        var id = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+        var insulinId = Guid.NewGuid();
+        var injectionId = Guid.NewGuid();
+        var insulin = new Insulin { Id = insulinId, Name = "Test Insulin", Type = InsulinType.Bolus };
+        var injection = new Injection { Id = injectionId, UserId = userId, InsulinId = insulinId, Units = 5, Insulin = insulin };
+        var treatment = new Treatment
+        {
+            Id = id,
+            UserId = userId,
+            InjectionId = injectionId,
+            Injection = injection,
+        };
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentInjectionRequest { Id = injectionId, InsulinId = insulinId, Units = 6 },
+        };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        _treatmentRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { treatment }.AsQueryable());
+
+        _injectionRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Injection, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new[] { injection }.AsQueryable());
+
+        _treatmentRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        var result = await Endpoint.HandleAsync(
+            id,
+            request,
+            _validatorMock.Object,
+            _currentUserMock.Object,
+            _treatmentRepositoryMock.Object,
+            _readingRepositoryMock.Object,
+            _mealRepositoryMock.Object,
+            _ingredientRepositoryMock.Object,
+            _injectionRepositoryMock.Object,
+            CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Result, Is.InstanceOf<Ok<UpdateTreatmentResponse>>());
+            var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
+            Assert.That(okResult.Value.InjectionId, Is.EqualTo(injectionId));
+            Assert.That(okResult.Value.InsulinId, Is.EqualTo(insulinId));
+            Assert.That(okResult.Value.InsulinUnits, Is.EqualTo(6));
         });
     }
 
