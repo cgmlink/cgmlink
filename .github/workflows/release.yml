@@ -37,7 +37,7 @@ jobs:
           CGMLINK_NUGET_FEED_URL: ${{ secrets.CGMLINK_NUGET_FEED_URL }}
           NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          @'
+          @"
           <?xml version="1.0" encoding="utf-8"?>
           <configuration>
             <packageSources>
@@ -52,7 +52,7 @@ jobs:
               </private-observability>
             </packageSourceCredentials>
           </configuration>
-          '@ | Set-Content -Path "$env:RUNNER_TEMP\private-observability.nuget.config"
+          "@ | Set-Content -Path "$env:RUNNER_TEMP\private-observability.nuget.config"
       - name: Restore production observability variant
         run: >
           dotnet restore src/CgmLink.Api/CgmLink.Api.csproj
