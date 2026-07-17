@@ -64,53 +64,43 @@ internal static class Endpoint
         var ingredients = await ingredientsQuery
             .ToListAsync(cancellationToken).ConfigureAwait(false);
 
-        var food = new List<FoodResponse>(meals.Count + ingredients.Count);
-
-        foreach (var meal in meals)
+        var food = meals.Select(meal => new FoodResponse
         {
-            food.Add(new FoodResponse
+            Id = meal.Id,
+            Name = meal.Name,
+            FoodType = FoodType.Meal,
+            Created = meal.Created,
+            Updated = meal.Updated,
+            TotalCalories = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Calories * mi.Quantity),
+            TotalCarbs = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Carbs * mi.Quantity),
+            TotalProtein = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Protein * mi.Quantity),
+            TotalFat = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Fat * mi.Quantity),
+            Ingredients = meal.MealIngredients.Select(mi => new FoodIngredientResponse
             {
-                Id = meal.Id,
-                Name = meal.Name,
-                FoodType = FoodType.Meal,
-                Created = meal.Created,
-                Updated = meal.Updated,
-                TotalCalories = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Calories * mi.Quantity),
-                TotalCarbs = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Carbs * mi.Quantity),
-                TotalProtein = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Protein * mi.Quantity),
-                TotalFat = meal.MealIngredients.Sum(mi => mi.Ingredient == null ? 0 : mi.Ingredient.Fat * mi.Quantity),
-                Ingredients = meal.MealIngredients.Select(mi => new FoodIngredientResponse
-                {
-                    Id = mi.Ingredient?.Id ?? Guid.Empty,
-                    Name = mi.Ingredient?.Name ?? string.Empty,
-                    Quantity = mi.Quantity,
-                    Carbs = mi.Ingredient?.Carbs ?? 0,
-                    Protein = mi.Ingredient?.Protein ?? 0,
-                    Fat = mi.Ingredient?.Fat ?? 0,
-                    Calories = mi.Ingredient?.Calories ?? 0,
-                    Uom = (UnitOfMeasurement)(mi.Ingredient?.Uom ?? Data.Enums.UnitOfMeasurement.Unit)
-                }).ToList()
-            });
-        }
-
-        foreach (var ingredient in ingredients)
+                Id = mi.Ingredient?.Id ?? Guid.Empty,
+                Name = mi.Ingredient?.Name ?? string.Empty,
+                Quantity = mi.Quantity,
+                Carbs = mi.Ingredient?.Carbs ?? 0,
+                Protein = mi.Ingredient?.Protein ?? 0,
+                Fat = mi.Ingredient?.Fat ?? 0,
+                Calories = mi.Ingredient?.Calories ?? 0,
+                Uom = (UnitOfMeasurement)(mi.Ingredient?.Uom ?? Data.Enums.UnitOfMeasurement.Unit)
+            }).ToList()
+        }).Union(ingredients.Select(ingredient => new FoodResponse
         {
-            food.Add(new FoodResponse
-            {
-                Id = ingredient.Id,
-                Name = ingredient.Name,
-                FoodType = FoodType.Ingredient,
-                Created = ingredient.Created,
-                Updated = ingredient.Updated,
-                TotalCalories = ingredient.Calories,
-                TotalCarbs = ingredient.Carbs,
-                TotalProtein = ingredient.Protein,
-                TotalFat = ingredient.Fat,
-                Barcode = ingredient.Barcode,
-                Uom = (UnitOfMeasurement)ingredient.Uom,
-                Ingredients = []
-            });
-        }
+            Id = ingredient.Id,
+            Name = ingredient.Name,
+            FoodType = FoodType.Ingredient,
+            Created = ingredient.Created,
+            Updated = ingredient.Updated,
+            TotalCalories = ingredient.Calories,
+            TotalCarbs = ingredient.Carbs,
+            TotalProtein = ingredient.Protein,
+            TotalFat = ingredient.Fat,
+            Barcode = ingredient.Barcode,
+            Uom = (UnitOfMeasurement)ingredient.Uom,
+            Ingredients = []
+        })).ToList();
 
         var sortValues = request.GetSortValues();
         var descending = request.IsDescending();
