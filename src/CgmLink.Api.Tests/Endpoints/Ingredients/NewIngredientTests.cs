@@ -93,7 +93,7 @@ public class NewIngredientTests
             .Returns(userId);
 
         _ingredientRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), null, It.IsAny<CancellationToken>()))
+            .Setup(r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Ingredient?)null);
 
         _ingredientRepositoryMock.Setup(r => r.Add(It.IsAny<Ingredient>()));
@@ -139,7 +139,7 @@ public class NewIngredientTests
             .Returns(userId);
 
         _ingredientRepositoryMock
-            .Setup(r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), null, It.IsAny<CancellationToken>()))
+            .Setup(r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingIngredient);
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
@@ -183,7 +183,7 @@ public class NewIngredientTests
 
         Assert.That(result.Result, Is.TypeOf<Ok<NewIngredientResponse>>());
         _ingredientRepositoryMock.Verify(
-            r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), null, It.IsAny<CancellationToken>()),
+            r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
 }
