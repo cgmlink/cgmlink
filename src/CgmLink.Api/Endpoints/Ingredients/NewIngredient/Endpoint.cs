@@ -32,7 +32,7 @@ internal static class Endpoint
         if (!string.IsNullOrEmpty(request.Barcode))
         {
             var existingIngredient = await ingredientRepository
-                .FindOneAsync(i => i.UserId == userId && i.Barcode == request.Barcode, cancellationToken: cancellationToken)
+                .FindOneAsync(i => i.UserId == userId && i.Barcode == request.Barcode, new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true }, cancellationToken: cancellationToken)
                 .ConfigureAwait(false);
 
             if (existingIngredient is not null)
