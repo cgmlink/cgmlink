@@ -14,7 +14,7 @@ namespace CgmLink.Api.Endpoints.Ingredients.NewIngredient;
 
 internal static class Endpoint
 {
-    internal static async Task<Results<Ok<NewIngredientResponse>, ValidationProblem>> HandleAsync(
+    internal static async Task<Results<Ok<NewIngredientResponse>, Conflict<NewIngredientResponse>, ValidationProblem>> HandleAsync(
         [FromBody] NewIngredientRequest request,
         [FromServices] IValidator<NewIngredientRequest> validator,
         [FromServices] ICurrentUser currentUser,
@@ -28,6 +28,32 @@ internal static class Endpoint
         }
 
         var userId = currentUser.GetUserId();
+
+        if (!string.IsNullOrEmpty(request.Barcode))
+        {
+            var existingIngredient = await ingredientRepository
+                .FindOneAsync(i => i.UserId == userId && i.Barcode == request.Barcode, new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true }, cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (existingIngredient is not null)
+            {
+                var conflictResponse = new NewIngredientResponse
+                {
+                    Id = existingIngredient.Id,
+                    Barcode = existingIngredient.Barcode,
+                    Created = existingIngredient.Created,
+                    Name = existingIngredient.Name,
+                    Carbs = existingIngredient.Carbs,
+                    Protein = existingIngredient.Protein,
+                    Fat = existingIngredient.Fat,
+                    Calories = existingIngredient.Calories,
+                    Uom = (Models.UnitOfMeasurement)existingIngredient.Uom,
+                    Updated = existingIngredient.Updated,
+                };
+
+                return TypedResults.Conflict(conflictResponse);
+            }
+        }
 
         var ingredient = new Ingredient
         {
