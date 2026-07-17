@@ -1,6 +1,7 @@
 using FluentValidation;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Enums;
+using CgmLink.Data.Extensions;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -114,44 +115,11 @@ internal static class Endpoint
         var sortValues = request.GetSortValues();
         var descending = request.IsDescending();
 
-        IOrderedEnumerable<FoodResponse> ordered;
-        switch (sortValues[0])
-        {
-            case FoodSortOrder.Updated:
-                ordered = descending ? food.OrderByDescending(f => f.Updated) : food.OrderBy(f => f.Updated);
-                break;
-            case FoodSortOrder.Name:
-                ordered = descending ? food.OrderByDescending(f => f.Name) : food.OrderBy(f => f.Name);
-                break;
-            case FoodSortOrder.TotalCalories:
-                ordered = descending ? food.OrderByDescending(f => f.TotalCalories) : food.OrderBy(f => f.TotalCalories);
-                break;
-            case FoodSortOrder.TotalCarbs:
-                ordered = descending ? food.OrderByDescending(f => f.TotalCarbs) : food.OrderBy(f => f.TotalCarbs);
-                break;
-            case FoodSortOrder.TotalProtein:
-                ordered = descending ? food.OrderByDescending(f => f.TotalProtein) : food.OrderBy(f => f.TotalProtein);
-                break;
-            case FoodSortOrder.TotalFat:
-                ordered = descending ? food.OrderByDescending(f => f.TotalFat) : food.OrderBy(f => f.TotalFat);
-                break;
-            default:
-                ordered = descending ? food.OrderByDescending(f => f.Created) : food.OrderBy(f => f.Created);
-                break;
-        }
+        IOrderedEnumerable<FoodResponse> ordered = food.OrderByProperty(SortingMapping.SortPropertyMap[sortValues[0]], descending);
 
         foreach (var sortValue in sortValues.Skip(1))
         {
-            ordered = sortValue switch
-            {
-                FoodSortOrder.Updated => descending ? ordered.ThenByDescending(f => f.Updated) : ordered.ThenBy(f => f.Updated),
-                FoodSortOrder.Name => descending ? ordered.ThenByDescending(f => f.Name) : ordered.ThenBy(f => f.Name),
-                FoodSortOrder.TotalCalories => descending ? ordered.ThenByDescending(f => f.TotalCalories) : ordered.ThenBy(f => f.TotalCalories),
-                FoodSortOrder.TotalCarbs => descending ? ordered.ThenByDescending(f => f.TotalCarbs) : ordered.ThenBy(f => f.TotalCarbs),
-                FoodSortOrder.TotalProtein => descending ? ordered.ThenByDescending(f => f.TotalProtein) : ordered.ThenBy(f => f.TotalProtein),
-                FoodSortOrder.TotalFat => descending ? ordered.ThenByDescending(f => f.TotalFat) : ordered.ThenBy(f => f.TotalFat),
-                _ => descending ? ordered.ThenByDescending(f => f.Created) : ordered.ThenBy(f => f.Created)
-            };
+            ordered = ordered.ThenByProperty(SortingMapping.SortPropertyMap[sortValue], descending);
         }
 
         var sortedFood = ordered.ToList();
