@@ -36,33 +36,42 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
 
-        var mealsQuery = mealRepository.Find(m => m.UserId == userId, new FindOptions { IsAsNoTracking = true });
+        var meals = new List<Meal>();
+        var ingredients = new List<Ingredient>();
 
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (request.FoodType == null || request.FoodType == FoodType.Meal)
         {
-            var searchLower = request.Search.ToLowerInvariant();
+            var mealsQuery = mealRepository.Find(m => m.UserId == userId, new FindOptions { IsAsNoTracking = true });
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchLower = request.Search.ToLowerInvariant();
 #pragma warning disable CA1862
-            mealsQuery = mealsQuery.Where(m => m.Name.ToLower().Contains(searchLower));
+                mealsQuery = mealsQuery.Where(m => m.Name.ToLower().Contains(searchLower));
 #pragma warning restore CA1862
+            }
+
+            meals = await mealsQuery
+                .Include(m => m.MealIngredients)
+                    .ThenInclude(mi => mi.Ingredient)
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        var meals = await mealsQuery
-            .Include(m => m.MealIngredients)
-                .ThenInclude(mi => mi.Ingredient)
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
-
-        var ingredientsQuery = ingredientRepository.Find(i => i.UserId == userId, new FindOptions { IsAsNoTracking = true });
-
-        if (!string.IsNullOrWhiteSpace(request.Search))
+        if (request.FoodType == null || request.FoodType == FoodType.Ingredient)
         {
-            var searchLower = request.Search.ToLowerInvariant();
-#pragma warning disable CA1862
-            ingredientsQuery = ingredientsQuery.Where(i => i.Name.ToLower().Contains(searchLower));
-#pragma warning restore CA1862
-        }
+            var ingredientsQuery = ingredientRepository.Find(i => i.UserId == userId, new FindOptions { IsAsNoTracking = true });
 
-        var ingredients = await ingredientsQuery
-            .ToListAsync(cancellationToken).ConfigureAwait(false);
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var searchLower = request.Search.ToLowerInvariant();
+#pragma warning disable CA1862
+                ingredientsQuery = ingredientsQuery.Where(i => i.Name.ToLower().Contains(searchLower));
+#pragma warning restore CA1862
+            }
+
+            ingredients = await ingredientsQuery
+                .ToListAsync(cancellationToken).ConfigureAwait(false);
+        }
 
         var food = meals.Select(meal => new FoodResponse
         {

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using FluentValidation;
 using CgmLink.Api.Models;
+using CgmLink.Data.Enums;
 using Microsoft.Extensions.Options;
 
 namespace CgmLink.Api.Endpoints.Food.List;
@@ -14,6 +15,8 @@ public sealed record ListFoodRequest : PagedRequest
     public string? Sort { get; set; }
 
     public SortDirection? SortDirection { get; set; }
+
+    public FoodType? FoodType { get; set; }
 
     public bool IsDescending() => SortDirection == Models.SortDirection.Desc || SortDirection == null;
 
