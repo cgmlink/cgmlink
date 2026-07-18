@@ -7,11 +7,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 
 namespace CgmLink.Api.Endpoints.Meals.UpdateMeal;
 
@@ -35,7 +33,6 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
         var meal = mealRepository
             .Find(m => m.Id == request.Id && m.UserId == userId)
-            .Include(m => m.MealIngredients)
             .FirstOrDefault();
 
         if (meal is null)
@@ -54,47 +51,17 @@ internal static class Endpoint
         meal.Name = request.Name;
         meal.Updated = DateTimeOffset.UtcNow;
 
-        var existingMealIngredientsById = meal.MealIngredients.ToDictionary(mi => mi.Id);
-        var requestedExistingIds = new HashSet<Guid>(request.MealIngredients
-            .Where(mi => mi.Id.HasValue)
-            .Select(mi => mi.Id!.Value));
+        await mealIngredientRepository.DeleteManyAsync(mi => mi.MealId == meal.Id, cancellationToken).ConfigureAwait(false);
 
-        var mealIngredientIdsToDelete = meal.MealIngredients
-            .Where(mi => !requestedExistingIds.Contains(mi.Id))
-            .Select(mi => mi.Id)
-            .ToList();
-
-        if (mealIngredientIdsToDelete.Count > 0)
+        var newIngredients = request.MealIngredients.Select(i => new MealIngredient
         {
-            await mealIngredientRepository.DeleteManyAsync(mi => mealIngredientIdsToDelete.Contains(mi.Id), cancellationToken).ConfigureAwait(false);
-            meal.MealIngredients = meal.MealIngredients
-                .Where(mi => !mealIngredientIdsToDelete.Contains(mi.Id))
-                .ToList();
-        }
+            Id = Guid.NewGuid(),
+            MealId = meal.Id,
+            IngredientId = i.IngredientId,
+            Quantity = i.Quantity,
+        }).ToList();
 
-        foreach (var ingredientRequest in request.MealIngredients)
-        {
-            if (ingredientRequest.Id.HasValue)
-            {
-                if (!existingMealIngredientsById.TryGetValue(ingredientRequest.Id.Value, out var existingMealIngredient))
-                {
-                    throw new NotFoundException("MEAL_INGREDIENT_NOT_FOUND");
-                }
-
-                existingMealIngredient.IngredientId = ingredientRequest.IngredientId;
-                existingMealIngredient.Quantity = ingredientRequest.Quantity;
-                continue;
-            }
-
-            meal.MealIngredients.Add(new MealIngredient
-            {
-                Id = Guid.NewGuid(),
-                MealId = meal.Id,
-                IngredientId = ingredientRequest.IngredientId,
-                Quantity = ingredientRequest.Quantity,
-            });
-        }
-
+        await mealIngredientRepository.AddManyAsync(newIngredients, cancellationToken).ConfigureAwait(false);
         await mealRepository.UpdateAsync(meal, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.NoContent();
