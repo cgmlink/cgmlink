@@ -24,7 +24,7 @@ public class UpdateMealRequestValidatorTests
         {
             Id = Guid.NewGuid(),
             Name = string.Empty,
-            MealIngredients = new List<NewMealIngredientRequest>()
+            MealIngredients = new List<UpdateMealIngredientRequest>()
         };
 
         var result = _validator.TestValidate(request);
@@ -38,7 +38,7 @@ public class UpdateMealRequestValidatorTests
         {
             Id = Guid.NewGuid(),
             Name = "Valid Meal Name",
-            MealIngredients = new List<NewMealIngredientRequest>()
+            MealIngredients = new List<UpdateMealIngredientRequest>()
         };
 
         var result = _validator.TestValidate(request);
@@ -52,9 +52,9 @@ public class UpdateMealRequestValidatorTests
         {
             Id = Guid.NewGuid(),
             Name = "Valid Meal Name",
-            MealIngredients = new List<NewMealIngredientRequest>
+            MealIngredients = new List<UpdateMealIngredientRequest>
             {
-                new NewMealIngredientRequest
+                new UpdateMealIngredientRequest
                 {
                     IngredientId = Guid.Empty,
                     Quantity = 1
@@ -73,9 +73,9 @@ public class UpdateMealRequestValidatorTests
         {
             Id = Guid.NewGuid(),
             Name = "Valid Meal Name",
-            MealIngredients = new List<NewMealIngredientRequest>
+            MealIngredients = new List<UpdateMealIngredientRequest>
             {
-                new NewMealIngredientRequest
+                new UpdateMealIngredientRequest
                 {
                     IngredientId = Guid.NewGuid(),
                     Quantity = 1
@@ -88,23 +88,23 @@ public class UpdateMealRequestValidatorTests
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_MealIngredient_Id_Is_Omitted_For_New_Item()
+    public void Should_Have_Error_When_Quantity_Is_Zero()
     {
         var request = new UpdateMealRequest
         {
             Id = Guid.NewGuid(),
             Name = "Valid Meal Name",
-            MealIngredients = new List<NewMealIngredientRequest>
+            MealIngredients = new List<UpdateMealIngredientRequest>
             {
-                new NewMealIngredientRequest
+                new UpdateMealIngredientRequest
                 {
                     IngredientId = Guid.NewGuid(),
-                    Quantity = 1
+                    Quantity = 0
                 }
             }
         };
 
         var result = _validator.TestValidate(request);
-        result.ShouldNotHaveValidationErrorFor("MealIngredients[0].Id");
+        result.ShouldHaveValidationErrorFor("MealIngredients[0].Quantity");
     }
 }

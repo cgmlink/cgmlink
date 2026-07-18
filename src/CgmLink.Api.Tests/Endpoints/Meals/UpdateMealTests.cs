@@ -43,7 +43,7 @@ public class UpdateMealTests
         {
             Id = Guid.NewGuid(),
             Name = "",
-            MealIngredients = new List<NewMealIngredientRequest>()
+            MealIngredients = new List<UpdateMealIngredientRequest>()
         };
 
         var validationResult = new ValidationResult([
@@ -71,25 +71,23 @@ public class UpdateMealTests
     {
         var userId = Guid.NewGuid();
         var mealId = Guid.NewGuid();
-        var existingMealIngredientId = Guid.NewGuid();
-        var updatedIngredientId = Guid.NewGuid();
-        var newIngredientId = Guid.NewGuid();
+        var ingredientId1 = Guid.NewGuid();
+        var ingredientId2 = Guid.NewGuid();
 
         var request = new UpdateMealRequest
         {
             Id = mealId,
             Name = "Updated Meal",
-            MealIngredients = new List<NewMealIngredientRequest>
+            MealIngredients = new List<UpdateMealIngredientRequest>
             {
-                new NewMealIngredientRequest
+                new UpdateMealIngredientRequest
                 {
-                    Id = existingMealIngredientId,
-                    IngredientId = updatedIngredientId,
+                    IngredientId = ingredientId1,
                     Quantity = 3
                 },
-                new NewMealIngredientRequest
+                new UpdateMealIngredientRequest
                 {
-                    IngredientId = newIngredientId,
+                    IngredientId = ingredientId2,
                     Quantity = 1
                 }
             }
@@ -106,23 +104,7 @@ public class UpdateMealTests
             Id = mealId,
             UserId = userId,
             Name = "Original Meal",
-            MealIngredients = new List<MealIngredient>
-            {
-                new MealIngredient
-                {
-                    Id = existingMealIngredientId,
-                    MealId = mealId,
-                    IngredientId = Guid.NewGuid(),
-                    Quantity = 1
-                },
-                new MealIngredient
-                {
-                    Id = Guid.NewGuid(),
-                    MealId = mealId,
-                    IngredientId = Guid.NewGuid(),
-                    Quantity = 2
-                }
-            },
+            MealIngredients = new List<MealIngredient>(),
             Created = DateTimeOffset.UtcNow,
         };
 
@@ -144,13 +126,11 @@ public class UpdateMealTests
             CancellationToken.None);
 
         Assert.That(result.Result, Is.InstanceOf<NoContent>());
-        _mealRepositoryMock.Verify(m => m.UpdateAsync(It.IsAny<Meal>(), It.IsAny<CancellationToken>()), Times.Once);
         _mealIngredientRepositoryMock.Verify(m => m.DeleteManyAsync(It.IsAny<Expression<Func<MealIngredient, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mealIngredientRepositoryMock.Verify(m => m.AddManyAsync(It.IsAny<IEnumerable<MealIngredient>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _mealRepositoryMock.Verify(m => m.UpdateAsync(It.IsAny<Meal>(), It.IsAny<CancellationToken>()), Times.Once);
         Assert.That(meal.Name, Is.EqualTo("Updated Meal"));
-        Assert.That(meal.MealIngredients, Has.Count.EqualTo(2));
-        Assert.That(meal.MealIngredients.Single(mi => mi.Id == existingMealIngredientId).Quantity, Is.EqualTo(3));
-        Assert.That(meal.MealIngredients.Single(mi => mi.Id == existingMealIngredientId).IngredientId, Is.EqualTo(updatedIngredientId));
-        Assert.That(meal.MealIngredients.Count(mi => !request.MealIngredients.Where(r => r.Id.HasValue).Select(r => r.Id!.Value).Contains(mi.Id)), Is.EqualTo(1));
+        Assert.That(meal.Updated, Is.Not.Null);
     }
 
     [Test]
@@ -161,7 +141,7 @@ public class UpdateMealTests
         {
             Id = Guid.NewGuid(),
             Name = "Updated Meal",
-            MealIngredients = new List<NewMealIngredientRequest>()
+            MealIngredients = new List<UpdateMealIngredientRequest>()
         };
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
@@ -188,13 +168,12 @@ public class UpdateMealTests
         {
             Id = mealId,
             Name = "Updated Meal",
-            MealIngredients = new List<NewMealIngredientRequest>
+            MealIngredients = new List<UpdateMealIngredientRequest>
             {
-                new NewMealIngredientRequest
+                new UpdateMealIngredientRequest
                 {
                     IngredientId = ingredientId,
                     Quantity = 1,
-                    Id = Guid.NewGuid(),
                 }
             }
         };
@@ -223,61 +202,5 @@ public class UpdateMealTests
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _mealRepositoryMock.Object, _ingredientRepositoryMock.Object, _mealIngredientRepositoryMock.Object, CancellationToken.None),
             Throws.TypeOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
-    }
-
-    [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_MealIngredient_Id_Does_Not_Belong_To_Meal()
-    {
-        var userId = Guid.NewGuid();
-        var mealId = Guid.NewGuid();
-        var ingredientId = Guid.NewGuid();
-
-        var request = new UpdateMealRequest
-        {
-            Id = mealId,
-            Name = "Updated Meal",
-            MealIngredients = new List<NewMealIngredientRequest>
-            {
-                new NewMealIngredientRequest
-                {
-                    Id = Guid.NewGuid(),
-                    IngredientId = ingredientId,
-                    Quantity = 1
-                }
-            }
-        };
-
-        _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        var meal = new Meal
-        {
-            Id = mealId,
-            UserId = userId,
-            Name = "Original Meal",
-            MealIngredients = new List<MealIngredient>(),
-            Created = DateTimeOffset.UtcNow,
-        };
-
-        _mealRepositoryMock
-            .Setup(m => m.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { meal }.AsQueryable());
-
-        _ingredientRepositoryMock
-            .Setup(i => i.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(1);
-
-        Assert.That(
-            async () => await Endpoint.HandleAsync(
-                request,
-                _validatorMock.Object,
-                _currentUserMock.Object,
-                _mealRepositoryMock.Object,
-                _ingredientRepositoryMock.Object,
-                _mealIngredientRepositoryMock.Object,
-                CancellationToken.None),
-            Throws.TypeOf<NotFoundException>().With.Message.EqualTo("MEAL_INGREDIENT_NOT_FOUND"));
     }
 }

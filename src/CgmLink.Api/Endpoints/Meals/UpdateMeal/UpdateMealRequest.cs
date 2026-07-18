@@ -8,27 +8,26 @@ public sealed record UpdateMealRequest
 {
     public required Guid Id { get; set; }
     public required string Name { get; set; }
-    public ICollection<NewMealIngredientRequest> MealIngredients { get; set; } = [];
+    public ICollection<UpdateMealIngredientRequest> MealIngredients { get; set; } = [];
 
     public sealed class UpdateMealRequestValidator : AbstractValidator<UpdateMealRequest>
     {
         public UpdateMealRequestValidator()
         {
             RuleFor(x => x.Name).NotEmpty().WithMessage(Resources.ValidationMessages.NameRequired);
-            RuleForEach(x => x.MealIngredients).SetValidator(new NewMealIngredientRequest.NewMealIngredientValidator());
+            RuleForEach(x => x.MealIngredients).SetValidator(new UpdateMealIngredientRequest.UpdateMealIngredientValidator());
         }
     }
 }
 
-public sealed record NewMealIngredientRequest
+public sealed record UpdateMealIngredientRequest
 {
-    public Guid? Id { get; set; }
     public required Guid IngredientId { get; set; }
     public required decimal Quantity { get; set; }
 
-    public sealed class NewMealIngredientValidator : AbstractValidator<NewMealIngredientRequest>
+    public sealed class UpdateMealIngredientValidator : AbstractValidator<UpdateMealIngredientRequest>
     {
-        public NewMealIngredientValidator()
+        public UpdateMealIngredientValidator()
         {
             RuleFor(x => x.IngredientId).NotEmpty().WithMessage(Resources.ValidationMessages.IngredientIdInvalid);
             RuleFor(x => x.Quantity).GreaterThan(0).WithMessage(Resources.ValidationMessages.QuantityGreaterThanZero);
