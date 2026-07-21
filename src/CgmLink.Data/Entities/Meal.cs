@@ -45,7 +45,7 @@ public class Meal : ISoftDeletable
     /// The date and time the meal was last updated.
     /// </summary>
     public DateTimeOffset? Updated { get; set; }
-    
+
     /// <inheritdoc/>
     public DateTimeOffset? Deleted { get; set; }
 

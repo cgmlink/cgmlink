@@ -75,7 +75,7 @@ public class Ingredient : ISoftDeletable
     /// The unit of measurement of the ingredient that the nutritional values are based on.
     /// </summary>
     public required UnitOfMeasurement Uom { get; set; }
-    
+
     /// <inheritdoc/>
     public DateTimeOffset? Deleted { get; set; }
 
