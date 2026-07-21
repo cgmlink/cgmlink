@@ -12,7 +12,7 @@ namespace CgmLink.Data.Entities;
 /// </summary>
 [ExcludeFromCodeCoverage]
 [Table("ingredients")]
-public class Ingredient
+public class Ingredient : ISoftDeletable
 {
     /// <summary>
     /// The unique identifier for the ingredient.
@@ -75,6 +75,9 @@ public class Ingredient
     /// The unit of measurement of the ingredient that the nutritional values are based on.
     /// </summary>
     public required UnitOfMeasurement Uom { get; set; }
+
+    /// <inheritdoc/>
+    public DateTimeOffset? Deleted { get; set; }
 
     /// <summary>
     /// The list of ingredients associated with this ingredient.

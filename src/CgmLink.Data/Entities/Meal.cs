@@ -12,7 +12,7 @@ namespace CgmLink.Data.Entities;
 /// </summary>
 [ExcludeFromCodeCoverage]
 [Table("meals")]
-public class Meal
+public class Meal : ISoftDeletable
 {
     /// <summary>
     /// The unique identifier for the meal.
@@ -45,6 +45,9 @@ public class Meal
     /// The date and time the meal was last updated.
     /// </summary>
     public DateTimeOffset? Updated { get; set; }
+
+    /// <inheritdoc/>
+    public DateTimeOffset? Deleted { get; set; }
 
     /// <summary>
     /// The list of ingredients associated with the meal.
