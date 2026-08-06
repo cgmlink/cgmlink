@@ -19,4 +19,5 @@ public sealed class UserSettingsResponse
     public int DailyCarbTarget { get; init; }
     public int DailyProteinTarget { get; init; }
     public int DailyFatTarget { get; init; }
+    public bool UseLinearIob { get; init; }
 }

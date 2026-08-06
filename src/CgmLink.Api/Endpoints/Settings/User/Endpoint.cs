@@ -45,6 +45,7 @@ internal static class Endpoint
             DailyCarbTarget = user.Settings.DailyCarbTarget,
             DailyProteinTarget = user.Settings.DailyProteinTarget,
             DailyFatTarget = user.Settings.DailyFatTarget,
+            UseLinearIob = user.Settings.UseLinearIob,
         };
 
         return TypedResults.Ok(response);

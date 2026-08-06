@@ -71,6 +71,11 @@ internal static class Endpoint
             user.Settings.DailyFatTarget = request.DailyFatTarget.Value;
         }
 
+        if (request.UseLinearIob is not null)
+        {
+            user.Settings.UseLinearIob = request.UseLinearIob.Value;
+        }
+
         await userRepository.UpdateAsync(user, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.NoContent();
