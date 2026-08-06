@@ -45,7 +45,8 @@ public class EndpointTests
             DailyCalorieTarget = 2000,
             DailyCarbTarget = 250,
             DailyProteinTarget = 100,
-            DailyFatTarget = 70
+            DailyFatTarget = 70,
+            UseLinearIob = true
         };
 
         _currentUserMock.Setup(cu => cu.GetUserId()).Returns(userId);
@@ -69,6 +70,7 @@ public class EndpointTests
             Assert.That(user.Settings.DailyCarbTarget, Is.EqualTo(250));
             Assert.That(user.Settings.DailyProteinTarget, Is.EqualTo(100));
             Assert.That(user.Settings.DailyFatTarget, Is.EqualTo(70));
+            Assert.That(user.Settings.UseLinearIob, Is.True);
         });
     }
 
