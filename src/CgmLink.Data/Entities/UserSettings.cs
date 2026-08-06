@@ -31,4 +31,6 @@ public class UserSettings
     public int DailyProteinTarget { get; set; } = 150;
 
     public int DailyFatTarget { get; set; } = 120;
+
+    public bool UseLinearIob { get; set; } = false;
 }

@@ -43,7 +43,8 @@ public class EndpointTests
                 DailyCalorieTarget = 2000,
                 DailyCarbTarget = 250,
                 DailyProteinTarget = 100,
-                DailyFatTarget = 70
+                DailyFatTarget = 70,
+                UseLinearIob = true
             }
         };
 
@@ -64,6 +65,7 @@ public class EndpointTests
             Assert.That(response.DailyCarbTarget, Is.EqualTo(250));
             Assert.That(response.DailyProteinTarget, Is.EqualTo(100));
             Assert.That(response.DailyFatTarget, Is.EqualTo(70));
+            Assert.That(response.UseLinearIob, Is.True);
         });
     }
 
