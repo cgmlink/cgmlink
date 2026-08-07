@@ -49,6 +49,11 @@ internal static class InsightsEndpoints
             .WithName("TotalNutritionInsight")
             .RequireAuthorization();
 
+        group.MapGet("/hourly-average-glucose", HourlyAverageGlucose.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("HourlyAverageGlucoseInsight")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }
