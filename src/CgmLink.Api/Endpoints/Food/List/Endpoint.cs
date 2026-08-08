@@ -114,11 +114,19 @@ internal static class Endpoint
         var sortValues = request.GetSortValues();
         var descending = request.IsDescending();
 
-        IOrderedEnumerable<FoodResponse> ordered = food.OrderByProperty(SortingMapping.SortPropertyMap[sortValues[0]], descending);
+        IOrderedEnumerable<FoodResponse> ordered = sortValues[0] == FoodSortOrder.Updated
+            ? (descending
+                ? food.OrderByDescending(f => f.Updated ?? f.Created)
+                : food.OrderBy(f => f.Updated ?? f.Created))
+            : food.OrderByProperty(SortingMapping.SortPropertyMap[sortValues[0]], descending);
 
         foreach (var sortValue in sortValues.Skip(1))
         {
-            ordered = ordered.ThenByProperty(SortingMapping.SortPropertyMap[sortValue], descending);
+            ordered = sortValue == FoodSortOrder.Updated
+                ? (descending
+                    ? ordered.ThenByDescending(f => f.Updated ?? f.Created)
+                    : ordered.ThenBy(f => f.Updated ?? f.Created))
+                : ordered.ThenByProperty(SortingMapping.SortPropertyMap[sortValue], descending);
         }
 
         var sortedFood = ordered.ToList();
