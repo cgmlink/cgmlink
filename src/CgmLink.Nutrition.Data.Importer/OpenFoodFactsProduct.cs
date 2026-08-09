@@ -38,10 +38,10 @@ public sealed class OpenFoodFactsProduct
     [JsonProperty("serving_quantity")]
     public double? ServingQuantity { get; set; }
 
-    [JsonProperty("image_url")]
+    [JsonProperty("image_front_url")]
     public string? ImageUrlValue { get; set; }
 
-    [JsonProperty("image_thumb_url")]
+    [JsonProperty("image_front_thumb_url")]
     public string? ImageThumbUrlValue { get; set; }
 
     [JsonExtensionData]
