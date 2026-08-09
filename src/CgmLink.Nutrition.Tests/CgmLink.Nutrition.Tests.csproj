@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\CgmLink.Data.Tests\CgmLink.Data.Tests.csproj" />
+    <ProjectReference Include="..\CgmLink.Nutrition.Data.Importer\CgmLink.Nutrition.Data.Importer.csproj" />
     <ProjectReference Include="..\CgmLink.Nutrition.Data\CgmLink.Nutrition.Data.csproj" />
     <ProjectReference Include="..\CgmLink.Nutrition\CgmLink.Nutrition.csproj" />
   </ItemGroup>
