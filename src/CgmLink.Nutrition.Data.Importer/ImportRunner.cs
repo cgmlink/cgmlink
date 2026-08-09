@@ -15,9 +15,9 @@ public static class ImportRunner
         {
             await dbContext.Database.MigrateAsync().ConfigureAwait(false);
         }
-        
+
         using var reader = File.OpenText(options.Path);
-        
+
         switch (options.Mode)
         {
             case ImportMode.Rebuild:
