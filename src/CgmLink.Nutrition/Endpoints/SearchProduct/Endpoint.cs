@@ -16,7 +16,7 @@ internal static class Endpoint
 {
     private const int DefaultMaxResults = 50;
 
-    internal static async Task<Results<Ok<IEnumerable<ProductResponse>>, UnauthorizedHttpResult>> HandleAsync(
+    internal static async Task<Results<Ok<IEnumerable<ProductSearchResponse>>, UnauthorizedHttpResult>> HandleAsync(
         [FromRoute] string term,
         [FromQuery] int? max,
         [FromServices] IRepository<Product> repository,
@@ -53,7 +53,7 @@ internal static class Endpoint
             .Where(p => !existingBarcodes.Contains(p.Code))
             .ToArray();
 
-        var response = filteredProducts.Select(product => new ProductResponse()
+        var response = filteredProducts.Select(product => new ProductSearchResponse()
         {
             Id = product.Id,
             ProductType = product.ProductType,
@@ -84,6 +84,7 @@ internal static class Endpoint
             NutritionDataPreparedPer = product.NutritionDataPreparedPer,
             Code = product.Code,
             ServingQuantity = product.ServingQuantity,
+            ImageThumbUrl = product.ImageThumbUrl,
         });
 
         return TypedResults.Ok(response);

@@ -53,6 +53,8 @@ internal static class Endpoint
             NutritionDataPreparedPer = product.NutritionDataPreparedPer,
             Code = product.Code,
             ServingQuantity = product.ServingQuantity,
+            ImageUrl = product.ImageUrl,
+            ImageThumbUrl = product.ImageThumbUrl,
         };
 
         return TypedResults.Ok(response);
