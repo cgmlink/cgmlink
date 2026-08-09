@@ -7,6 +7,7 @@ using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Tests;
 using CgmLink.Identity.Authentication;
+using CgmLink.Nutrition.Endpoints.SearchProduct;
 using CgmLink.Nutrition.Data.Entities;
 using CgmLink.Nutrition.Data.Repository;
 using CgmLink.Nutrition.Endpoints.GetProduct;
@@ -50,8 +51,8 @@ public class SearchProductEndpointTests
     {
         var products = GenerateProducts().ToList();
 
-        var expected = products.Take(50).Select(p => new ProductResponse
-        { Id = p.Id, ProductName = p.ProductName, Code = p.Code, Nutriments = new NutrimentsResponse() });
+        var expected = products.Take(50).Select(p => new ProductSearchResponse
+        { Id = p.Id, ProductName = p.ProductName, Code = p.Code, Nutriments = new NutrimentsResponse(), ImageThumbUrl = p.ImageThumbUrl });
 
         _repoMock.Setup(r => r.Find(
                 It.IsAny<System.Linq.Expressions.Expression<System.Func<Product, bool>>>(),
@@ -66,8 +67,8 @@ public class SearchProductEndpointTests
 
         var result = await Endpoint.HandleAsync("search", null, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
-        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductResponse>>>());
-        var okResult = result.Result as Ok<IEnumerable<ProductResponse>>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
+        var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
 
         var actual = okResult!.Value!.ToList();
         Assert.That(actual, Has.Count.EqualTo(50));
@@ -95,8 +96,8 @@ public class SearchProductEndpointTests
 
         var result = await Endpoint.HandleAsync("search", limit, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
-        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductResponse>>>());
-        var okResult = result.Result as Ok<IEnumerable<ProductResponse>>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
+        var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
 
         var actual = okResult!.Value!.ToList();
         return actual.Count;
@@ -119,8 +120,8 @@ public class SearchProductEndpointTests
 
         var result = await Endpoint.HandleAsync("search", null, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
-        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductResponse>>>());
-        var okResult = result.Result as Ok<IEnumerable<ProductResponse>>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
+        var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
         var actual = okResult!.Value!.ToList();
         Assert.That(actual, Has.Count.EqualTo(10));
     }
@@ -140,6 +141,8 @@ public class SearchProductEndpointTests
             NutritionDataPreparedPer = "prepared",
             Code = "ABC123",
             ServingQuantity = 50.5,
+            ImageUrl = "https://images.example/full.jpg",
+            ImageThumbUrl = "https://images.example/thumb.jpg",
             Nutriments = new Nutriments
             {
                 EnergyUnit = "kJ",
@@ -172,8 +175,8 @@ public class SearchProductEndpointTests
 
         var result = await Endpoint.HandleAsync("Test Product", 1, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
-        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductResponse>>>());
-        var okResult = result.Result as Ok<IEnumerable<ProductResponse>>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
+        var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
         var actual = okResult!.Value!.Single();
         using (Assert.EnterMultipleScope())
         {
@@ -187,6 +190,7 @@ public class SearchProductEndpointTests
             Assert.That(actual.NutritionDataPreparedPer, Is.EqualTo(product.NutritionDataPreparedPer));
             Assert.That(actual.Code, Is.EqualTo(product.Code));
             Assert.That(actual.ServingQuantity, Is.EqualTo(product.ServingQuantity));
+            Assert.That(actual.ImageThumbUrl, Is.EqualTo(product.ImageThumbUrl));
             var n = actual.Nutriments;
             Assert.That(n, Is.Not.Null);
             Assert.That(n!.EnergyUnit, Is.EqualTo(product.Nutriments.EnergyUnit));
@@ -207,6 +211,37 @@ public class SearchProductEndpointTests
             Assert.That(n.FatValue, Is.EqualTo(product.Nutriments.FatValue));
         }
         ;
+    }
+
+    [Test]
+    public async Task HandleAsync_Does_Not_Expose_Full_Image_Url_In_Search_Response()
+    {
+        var product = new Product
+        {
+            Id = "p3",
+            ProductName = "Image Product",
+            Code = "CODE3",
+            ImageUrl = "https://images.example/full.jpg",
+            ImageThumbUrl = "https://images.example/thumb.jpg",
+            Nutriments = new Nutriments()
+        };
+
+        _repoMock.Setup(r => r.Find(
+                It.IsAny<System.Linq.Expressions.Expression<System.Func<Product, bool>>>(),
+                It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Product>(new[] { product }));
+        _gpRepoMock.Setup(r => r.Find(
+                It.IsAny<System.Linq.Expressions.Expression<System.Func<Ingredient, bool>>>(),
+                It.IsAny<GPRepository.FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(GenerateIngredients(_userId, 0)));
+
+        var result = await Endpoint.HandleAsync("Image Product", 1, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+
+        var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
+        var actual = okResult!.Value!.Single();
+
+        Assert.That(actual.ImageThumbUrl, Is.EqualTo(product.ImageThumbUrl));
+        Assert.That(actual.GetType().GetProperty("ImageUrl"), Is.Null);
     }
 
     [Test]
@@ -236,8 +271,8 @@ public class SearchProductEndpointTests
             .Returns(new TestAsyncEnumerable<Ingredient>(GenerateIngredients(_userId, 0)));
 
         var result = await Endpoint.HandleAsync("No Nutriments", 1, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
-        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductResponse>>>());
-        var okResult = result.Result as Ok<IEnumerable<ProductResponse>>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
+        var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
         var actual = okResult!.Value!.Single();
         Assert.That(actual.Nutriments, Is.Not.Null);
         using (Assert.EnterMultipleScope())
@@ -266,7 +301,14 @@ public class SearchProductEndpointTests
     {
         for (var i = 0; i < count; i++)
         {
-            yield return new Product { Id = $"{i}", ProductName = $"Product {i}", Code = $"{i}", Nutriments = new Nutriments() };
+            yield return new Product
+            {
+                Id = $"{i}",
+                ProductName = $"Product {i}",
+                Code = $"{i}",
+                ImageThumbUrl = $"https://images.example/{i}.jpg",
+                Nutriments = new Nutriments()
+            };
         }
     }
 

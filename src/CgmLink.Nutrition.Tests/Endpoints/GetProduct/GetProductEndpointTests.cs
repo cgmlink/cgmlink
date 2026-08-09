@@ -21,6 +21,8 @@ public class GetProductEndpointTests
             Id = "1",
             Code = code,
             ProductName = "Test Product",
+            ImageUrl = "https://images.example/full.jpg",
+            ImageThumbUrl = "https://images.example/thumb.jpg",
             Nutriments = new Nutriments()
         };
         var repoMock = new Mock<IRepository<Product>>();
@@ -37,6 +39,8 @@ public class GetProductEndpointTests
         Assert.That(okResult!.Value.Id, Is.EqualTo(product.Id));
         Assert.That(okResult.Value.ProductName, Is.EqualTo(product.ProductName));
         Assert.That(okResult.Value.Code, Is.EqualTo(product.Code));
+        Assert.That(okResult.Value.ImageUrl, Is.EqualTo(product.ImageUrl));
+        Assert.That(okResult.Value.ImageThumbUrl, Is.EqualTo(product.ImageThumbUrl));
     }
 
     [Test]

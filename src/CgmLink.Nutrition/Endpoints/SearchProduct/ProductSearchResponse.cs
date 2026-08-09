@@ -1,6 +1,8 @@
-namespace CgmLink.Nutrition.Endpoints.GetProduct;
+using CgmLink.Nutrition.Endpoints.GetProduct;
 
-public record ProductResponse
+namespace CgmLink.Nutrition.Endpoints.SearchProduct;
+
+public record ProductSearchResponse
 {
     public string Id { get; set; }
 
@@ -23,8 +25,6 @@ public record ProductResponse
     public string? Code { get; set; }
 
     public double? ServingQuantity { get; set; }
-
-    public string? ImageUrl { get; set; }
 
     public string? ImageThumbUrl { get; set; }
 }
