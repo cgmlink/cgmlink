@@ -551,6 +551,48 @@ public class ListFoodTests
     }
 
     [Test]
+    public async Task HandleAsync_Sorts_By_Updated_Falling_Back_To_Created_When_Null()
+    {
+        var userId = Guid.NewGuid();
+        var request = new ListFoodRequest { Sort = "Updated", SortDirection = SortDirection.Desc, Page = 0, PageSize = 10 };
+
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient
+            {
+                Id = Guid.NewGuid(), UserId = userId, Name = "UpdatedLongAgo",
+                Created = DateTimeOffset.UtcNow.AddDays(-30), Updated = DateTimeOffset.UtcNow.AddDays(-10),
+                Uom = UnitOfMeasurement.Grams
+            },
+            new Ingredient
+            {
+                Id = Guid.NewGuid(), UserId = userId, Name = "NeverUpdatedButRecent",
+                Created = DateTimeOffset.UtcNow.AddDays(-1), Updated = null,
+                Uom = UnitOfMeasurement.Grams
+            },
+            new Ingredient
+            {
+                Id = Guid.NewGuid(), UserId = userId, Name = "UpdatedRecently",
+                Created = DateTimeOffset.UtcNow.AddDays(-20), Updated = DateTimeOffset.UtcNow,
+                Uom = UnitOfMeasurement.Grams
+            }
+        };
+
+        _validatorMock.Setup(v => v.ValidateAsync(request, default)).ReturnsAsync(new ValidationResult());
+        _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
+        _mealRepositoryMock.Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal>()));
+        _ingredientRepositoryMock.Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _mealRepositoryMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
+
+        var okResult = result.Result as Ok<ListFoodResponse>;
+        var names = okResult!.Value.Food.Select(f => f.Name).ToList();
+        Assert.That(names, Is.EqualTo(new[] { "UpdatedRecently", "NeverUpdatedButRecent", "UpdatedLongAgo" }));
+    }
+
+    [Test]
     public async Task HandleAsync_FoodType_Meal_With_Search_Filters_Correctly()
     {
         var userId = Guid.NewGuid();
