@@ -1,9 +1,11 @@
 namespace CgmLink.AspNetCore.Settings;
 
-internal sealed record SecurityHeaderSettings(
-    bool EnableHsts = true,
-    bool EnableReferrerPolicy = true,
-    string ReferrerPolicy = "no-referrer",
-    bool EnableContentSecurityPolicy = true,
-    string ContentSecurityPolicy =
-        "default-src 'self'; object-src 'none'; frame-ancestors 'none'; sandbox allow-forms allow-same-origin allow-scripts; base-uri 'self';upgrade-insecure-requests;");
+public sealed record SecurityHeaderSettings
+{
+    public bool EnableHsts { get; } = true;
+    public bool EnableReferrerPolicy { get; } = true;
+    public string ReferrerPolicy { get; } = "no-referrer";
+    public bool EnableContentSecurityPolicy { get; } = true;
+    public string ContentSecurityPolicy { get; }
+        = "default-src 'self'; object-src 'none'; frame-ancestors 'none'; sandbox allow-forms allow-same-origin allow-scripts; base-uri 'self';upgrade-insecure-requests;";
+}

@@ -25,7 +25,7 @@ public static class SecurityExtensions
                 return true;
             }, "Invalid security header settings")
             .ValidateOnStart();
-        return services;
+        return services.AddSingleton<SecurityHeadersMiddleware>();
     }
 
 

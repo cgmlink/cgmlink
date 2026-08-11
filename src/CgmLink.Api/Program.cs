@@ -7,6 +7,7 @@ using CgmLink.Api.Middleware;
 using CgmLink.Api.Models;
 using CgmLink.Api.Swagger;
 using CgmLink.AspNetCore.Extensions;
+using CgmLink.AspNetCore.Settings;
 using CgmLink.Data;
 using CgmLink.Data.Repository;
 using CgmLink.Identity;
@@ -17,7 +18,9 @@ using CgmLink.Sync.LibreLink;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi;
 using Serilog;
 
@@ -73,6 +76,8 @@ builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
+builder.Services.AddSecurity(builder.Configuration.GetSection("Security"));
+
 builder.Services.Configure<LibreLinkOptions>(builder.Configuration.GetSection("LibreLink"));
 
 builder.Services.AddLibreLinkClientFactory();
@@ -97,6 +102,12 @@ builder.Services.AddLogging(logging =>
 builder.AddObservability();
 
 var app = builder.Build();
+
+var securityHeaderSettings = app.Services.GetRequiredService<IOptions<SecurityHeaderSettings>>().Value;
+if (!app.Environment.IsDevelopment() && securityHeaderSettings.EnableHsts)
+{
+    app.UseHsts();
+}
 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
