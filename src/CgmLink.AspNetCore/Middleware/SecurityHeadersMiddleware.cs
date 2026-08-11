@@ -18,7 +18,7 @@ internal sealed class SecurityHeadersMiddleware : IMiddleware
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
         var headers = context.Response.Headers;
-        
+
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
         EnsureContains(headers, "X-Content-Type-Options", "nosniff");
         // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
@@ -36,7 +36,7 @@ internal sealed class SecurityHeadersMiddleware : IMiddleware
 
         await next(context).ConfigureAwait(false);
     }
-    
+
     private static bool EnsureContains(IHeaderDictionary headers, string key, string value)
     {
         if (string.IsNullOrEmpty(key))

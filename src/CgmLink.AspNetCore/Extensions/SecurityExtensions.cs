@@ -17,7 +17,7 @@ public static class SecurityExtensions
                 {
                     return false;
                 }
-                
+
                 if (settings.EnableContentSecurityPolicy && string.IsNullOrEmpty(settings.ContentSecurityPolicy))
                 {
                     return false;
