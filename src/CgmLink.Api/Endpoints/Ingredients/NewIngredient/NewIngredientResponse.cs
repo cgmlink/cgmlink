@@ -7,6 +7,8 @@ public sealed record NewIngredientResponse
 {
     public required Guid Id { get; set; }
     public string? Barcode { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public required DateTimeOffset Created { get; set; }
     public required string Name { get; set; }
     public decimal Carbs { get; set; }
