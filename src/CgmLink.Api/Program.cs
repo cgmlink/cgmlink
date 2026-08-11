@@ -6,6 +6,7 @@ using CgmLink.Api.Endpoints;
 using CgmLink.Api.Middleware;
 using CgmLink.Api.Models;
 using CgmLink.Api.Swagger;
+using CgmLink.AspNetCore.Extensions;
 using CgmLink.Data;
 using CgmLink.Data.Repository;
 using CgmLink.Identity;
@@ -99,6 +100,7 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 app.UseMiddleware<ExceptionMiddleware>();
+app.UseSecurity();
 
 app.UseSwagger();
 app.UseSwaggerUI();

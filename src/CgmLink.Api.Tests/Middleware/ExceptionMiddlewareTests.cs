@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using CgmLink.Api.Middleware;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Identity.Authentication;
-using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -26,6 +25,7 @@ internal sealed class ExceptionMiddlewareTests
     public void SetUp()
     {
         _httpContext = new DefaultHttpContext();
+        _httpContext.Response.Body = new MemoryStream();
         _currentUser = new Mock<ICurrentUser>();
         _logger = new Mock<ILogger<ExceptionMiddleware>>();
 
@@ -89,7 +89,18 @@ internal sealed class ExceptionMiddlewareTests
 
         await _sut.InvokeAsync(_httpContext, next);
 
-        Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+        _httpContext.Response.Body.Position = 0;
+        using var result = await JsonDocument.ParseAsync(_httpContext.Response.Body);
+        var root = result.RootElement;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status500InternalServerError));
+            Assert.That(root.GetProperty("message").GetString(), Is.EqualTo("INTERNAL_SERVER_ERROR"));
+            Assert.That(root.TryGetProperty("source", out _), Is.False);
+            Assert.That(root.GetProperty("messages").GetArrayLength(), Is.EqualTo(0));
+            Assert.That(root.TryGetProperty("data", out _), Is.False);
+        });
     }
 
     [Test]

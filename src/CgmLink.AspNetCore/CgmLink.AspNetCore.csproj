@@ -9,6 +9,11 @@
 
     <ItemGroup>
       <PackageReference Include="Microsoft.AspNetCore.Hosting.Abstractions" Version="2.3.11" />
+      <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <InternalsVisibleTo Include="CgmLink.AspNetCore.Tests" />
     </ItemGroup>
 
 </Project>

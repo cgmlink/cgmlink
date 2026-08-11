@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading.Tasks;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Identity.Authentication;
@@ -11,7 +12,10 @@ namespace CgmLink.Api.Middleware;
 
 internal partial class ExceptionMiddleware : IMiddleware
 {
-    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web);
+    private static readonly JsonSerializerOptions JsonSerializerOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
     private readonly ICurrentUser? _currentUser;
     private readonly ILogger<ExceptionMiddleware> _logger;
 
@@ -83,12 +87,12 @@ internal partial class ExceptionMiddleware : IMiddleware
 
             var result = new ErrorResult
             {
-                Source = e.TargetSite?.DeclaringType?.FullName,
-                Message = e.Message,
+                Source = context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? null : e.TargetSite?.DeclaringType?.FullName,
+                Message = context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? "INTERNAL_SERVER_ERROR" : e.Message,
                 ErrorId = errorId,
                 SupportMessage = "SUPPORT_MESSAGE",
                 StatusCode = context.Response.StatusCode,
-                Messages = messages,
+                Messages = context.Response.StatusCode >= StatusCodes.Status500InternalServerError ? [] : messages,
                 Data = data,
             };
             LogException(e);
