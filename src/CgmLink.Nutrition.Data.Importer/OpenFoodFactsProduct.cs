@@ -1,10 +1,11 @@
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace CgmLink.Nutrition.Data.Importer;
 
 public sealed class OpenFoodFactsProduct
 {
+    private const string ProductImagesBaseUrl = "https://images.openfoodfacts.org/images/products";
+
     [JsonProperty("_id")]
     public string? Id { get; set; }
 
@@ -35,48 +36,80 @@ public sealed class OpenFoodFactsProduct
     [JsonProperty("code")]
     public string? Code { get; set; }
 
+    [JsonProperty("lc")]
+    public string? LanguageCode { get; set; }
+
     [JsonProperty("serving_quantity")]
     public double? ServingQuantity { get; set; }
 
-    [JsonProperty("image_front_url")]
-    public string? ImageUrlValue { get; set; }
+    [JsonProperty("images")]
+    public IDictionary<string, OpenFoodFactsImage>? Images { get; set; }
 
-    [JsonProperty("image_front_thumb_url")]
-    public string? ImageThumbUrlValue { get; set; }
+    public string? ImageUrl => BuildSelectedFrontImageUrl("full");
 
-    [JsonExtensionData]
-    public IDictionary<string, JToken>? AdditionalData { get; set; }
+    public string? ImageThumbUrl => BuildSelectedFrontImageUrl("100");
 
-    public string? ImageUrl => FirstNonEmpty(ImageUrlValue, AdditionalData, "ImageUrl", "imageUrl");
-
-    public string? ImageThumbUrl => FirstNonEmpty(ImageThumbUrlValue, AdditionalData, "ImageThumbUrl", "imageThumbUrl");
-
-    private static string? FirstNonEmpty(string? primary, IDictionary<string, JToken>? additionalData, params string[] keys)
+    private string? BuildSelectedFrontImageUrl(string resolution)
     {
-        if (!string.IsNullOrWhiteSpace(primary))
-        {
-            return primary;
-        }
-
-        if (additionalData is null)
+        var imageKey = GetFrontImageKey();
+        if (string.IsNullOrWhiteSpace(imageKey) ||
+            Images is null ||
+            !Images.TryGetValue(imageKey, out var image) ||
+            string.IsNullOrWhiteSpace(image.Rev))
         {
             return null;
         }
 
-        foreach (var key in keys)
+        var folder = ComputeProductImageFolder(Code);
+        if (folder is null)
         {
-            if (additionalData.TryGetValue(key, out var value))
+            return null;
+        }
+
+        return $"{ProductImagesBaseUrl}/{folder}/{imageKey}.{image.Rev}.{resolution}.jpg";
+    }
+
+    private string? GetFrontImageKey()
+    {
+        if (Images is null || Images.Count == 0)
+        {
+            return null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(LanguageCode))
+        {
+            var preferredKey = $"front_{LanguageCode}";
+            if (Images.ContainsKey(preferredKey))
             {
-                var candidate = value.ToObject<string>();
-                if (!string.IsNullOrWhiteSpace(candidate))
-                {
-                    return candidate;
-                }
+                return preferredKey;
             }
         }
 
-        return null;
+        return Images.Keys
+            .Where(k => k.StartsWith("front_", StringComparison.OrdinalIgnoreCase))
+            .OrderBy(k => k, StringComparer.Ordinal)
+            .FirstOrDefault();
     }
+
+    public static string? ComputeProductImageFolder(string? code)
+    {
+        if (string.IsNullOrWhiteSpace(code) || code.Any(c => !char.IsDigit(c)))
+        {
+            return null;
+        }
+
+        var normalizedCode = code.Length < 13
+            ? code.PadLeft(13, '0')
+            : code;
+
+        return $"{normalizedCode[..3]}/{normalizedCode[3..6]}/{normalizedCode[6..9]}/{normalizedCode[9..]}";
+    }
+}
+
+public sealed class OpenFoodFactsImage
+{
+    [JsonProperty("rev")]
+    public string? Rev { get; set; }
 }
 
 public sealed class OpenFoodFactsNutriments
