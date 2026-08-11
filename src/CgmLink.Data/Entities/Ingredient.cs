@@ -72,6 +72,16 @@ public class Ingredient : ISoftDeletable
     public string? Barcode { get; set; } = null;
 
     /// <summary>
+    /// The URL of the full-size image for the ingredient, sourced from the nutrition data provider.
+    /// </summary>
+    public string? ImageUrl { get; set; } = null;
+
+    /// <summary>
+    /// The URL of the thumbnail image for the ingredient, sourced from the nutrition data provider.
+    /// </summary>
+    public string? ThumbnailUrl { get; set; } = null;
+
+    /// <summary>
     /// The unit of measurement of the ingredient that the nutritional values are based on.
     /// </summary>
     public required UnitOfMeasurement Uom { get; set; }

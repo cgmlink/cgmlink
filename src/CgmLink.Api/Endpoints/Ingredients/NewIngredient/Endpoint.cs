@@ -41,6 +41,8 @@ internal static class Endpoint
                 {
                     Id = existingIngredient.Id,
                     Barcode = existingIngredient.Barcode,
+                    ImageUrl = existingIngredient.ImageUrl,
+                    ThumbnailUrl = existingIngredient.ThumbnailUrl,
                     Created = existingIngredient.Created,
                     Name = existingIngredient.Name,
                     Carbs = existingIngredient.Carbs,
@@ -58,6 +60,8 @@ internal static class Endpoint
         var ingredient = new Ingredient
         {
             Barcode = request.Barcode,
+            ImageUrl = request.ImageUrl,
+            ThumbnailUrl = request.ThumbnailUrl,
             Name = request.Name,
             Created = DateTimeOffset.UtcNow,
             Carbs = request.Carbs,
@@ -74,6 +78,8 @@ internal static class Endpoint
         {
             Id = ingredient.Id,
             Barcode = ingredient.Barcode,
+            ImageUrl = ingredient.ImageUrl,
+            ThumbnailUrl = ingredient.ThumbnailUrl,
             Created = ingredient.Created,
             Name = ingredient.Name,
             Carbs = ingredient.Carbs,

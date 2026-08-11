@@ -47,7 +47,7 @@ public class NewIngredientTests
     [Test]
     public async Task HandleAsync_Returns_Ok_With_Response_When_Request_Is_Valid()
     {
-        var request = new NewIngredientRequest { Name = "Test", Carbs = 10, Protein = 5, Fat = 2, Calories = 100, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Grams };
+        var request = new NewIngredientRequest { Name = "Test", ImageUrl = "https://images.example/full.jpg", ThumbnailUrl = "https://images.example/thumb.jpg", Carbs = 10, Protein = 5, Fat = 2, Calories = 100, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Grams };
         var validationResult = new FluentValidation.Results.ValidationResult();
         var userId = Guid.NewGuid();
 
@@ -74,6 +74,8 @@ public class NewIngredientTests
             Assert.That(okResult.Value.Calories, Is.EqualTo(request.Calories));
             Assert.That(okResult.Value.Uom, Is.EqualTo(request.Uom));
             Assert.That(okResult.Value.Barcode, Is.Null);
+            Assert.That(okResult.Value.ImageUrl, Is.EqualTo(request.ImageUrl));
+            Assert.That(okResult.Value.ThumbnailUrl, Is.EqualTo(request.ThumbnailUrl));
         });
     }
 
@@ -119,6 +121,8 @@ public class NewIngredientTests
             UserId = userId,
             Name = "Existing Ingredient",
             Barcode = "123456789",
+            ImageUrl = "https://images.example/full.jpg",
+            ThumbnailUrl = "https://images.example/thumb.jpg",
             Created = DateTimeOffset.UtcNow.AddDays(-1),
             Carbs = 20,
             Protein = 10,
@@ -151,6 +155,8 @@ public class NewIngredientTests
             Assert.That(conflictResult!.Value.Id, Is.EqualTo(existingIngredient.Id));
             Assert.That(conflictResult.Value.Name, Is.EqualTo(existingIngredient.Name));
             Assert.That(conflictResult.Value.Barcode, Is.EqualTo(existingIngredient.Barcode));
+            Assert.That(conflictResult.Value.ImageUrl, Is.EqualTo(existingIngredient.ImageUrl));
+            Assert.That(conflictResult.Value.ThumbnailUrl, Is.EqualTo(existingIngredient.ThumbnailUrl));
             Assert.That(conflictResult.Value.Carbs, Is.EqualTo(existingIngredient.Carbs));
             Assert.That(conflictResult.Value.Protein, Is.EqualTo(existingIngredient.Protein));
             Assert.That(conflictResult.Value.Fat, Is.EqualTo(existingIngredient.Fat));

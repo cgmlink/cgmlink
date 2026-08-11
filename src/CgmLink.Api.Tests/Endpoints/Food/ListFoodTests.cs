@@ -103,6 +103,8 @@ public class ListFoodTests
             Protein = 5,
             Fat = 2,
             Calories = 100,
+            ImageUrl = "https://images.example/meal-ingredient/full.jpg",
+            ThumbnailUrl = "https://images.example/meal-ingredient/thumb.jpg",
             Uom = UnitOfMeasurement.Grams
         };
 
@@ -124,7 +126,13 @@ public class ListFoodTests
 
         var ingredients = new List<Ingredient>
         {
-            new Ingredient { Id = Guid.NewGuid(), UserId = userId, Name = "Ingredient1", Created = DateTimeOffset.UtcNow, Uom = UnitOfMeasurement.Grams }
+            new Ingredient
+            {
+                Id = Guid.NewGuid(), UserId = userId, Name = "Ingredient1", Created = DateTimeOffset.UtcNow,
+                ImageUrl = "https://images.example/ingredient1/full.jpg",
+                ThumbnailUrl = "https://images.example/ingredient1/thumb.jpg",
+                Uom = UnitOfMeasurement.Grams
+            }
         };
 
         _validatorMock.Setup(v => v.ValidateAsync(request, default)).ReturnsAsync(new ValidationResult());
@@ -149,10 +157,14 @@ public class ListFoodTests
             Assert.That(mealResponse.TotalProtein, Is.EqualTo(10));
             Assert.That(mealResponse.TotalFat, Is.EqualTo(4));
             Assert.That(mealResponse.Ingredients, Has.Count.EqualTo(1));
+            Assert.That(mealResponse.Ingredients![0].ImageUrl, Is.EqualTo(ingredient.ImageUrl));
+            Assert.That(mealResponse.Ingredients[0].ThumbnailUrl, Is.EqualTo(ingredient.ThumbnailUrl));
 
             var ingredientResponse = okResult.Value.Food.First(f => f.FoodType == FoodType.Ingredient);
             Assert.That(ingredientResponse.Name, Is.EqualTo("Ingredient1"));
             Assert.That(ingredientResponse.FoodType, Is.EqualTo(FoodType.Ingredient));
+            Assert.That(ingredientResponse.ImageUrl, Is.EqualTo("https://images.example/ingredient1/full.jpg"));
+            Assert.That(ingredientResponse.ThumbnailUrl, Is.EqualTo("https://images.example/ingredient1/thumb.jpg"));
         });
     }
 

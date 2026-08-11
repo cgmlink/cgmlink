@@ -23,6 +23,8 @@ public sealed record FoodResponse
     public required decimal TotalProtein { get; set; }
     public required decimal TotalFat { get; set; }
     public string? Barcode { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public UnitOfMeasurement? Uom { get; set; }
     public List<FoodIngredientResponse>? Ingredients { get; set; } = [];
 }
@@ -37,4 +39,6 @@ public sealed record FoodIngredientResponse
     public required decimal Fat { get; set; }
     public required decimal Calories { get; set; }
     public required UnitOfMeasurement Uom { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
 }

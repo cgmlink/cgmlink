@@ -6,6 +6,8 @@ namespace CgmLink.Api.Endpoints.Ingredients.NewIngredient;
 public record NewIngredientRequest
 {
     public string? Barcode { get; set; }
+    public string? ImageUrl { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public required string Name { get; set; }
     public decimal Carbs { get; set; }
     public decimal Protein { get; set; }

@@ -93,7 +93,9 @@ internal static class Endpoint
                 Protein = mi.Ingredient?.Protein ?? 0,
                 Fat = mi.Ingredient?.Fat ?? 0,
                 Calories = mi.Ingredient?.Calories ?? 0,
-                Uom = (UnitOfMeasurement)(mi.Ingredient?.Uom ?? Data.Enums.UnitOfMeasurement.Unit)
+                Uom = (UnitOfMeasurement)(mi.Ingredient?.Uom ?? Data.Enums.UnitOfMeasurement.Unit),
+                ImageUrl = mi.Ingredient?.ImageUrl,
+                ThumbnailUrl = mi.Ingredient?.ThumbnailUrl
             }).ToList()
         }).Union(ingredients.Select(ingredient => new FoodResponse
         {
@@ -107,6 +109,8 @@ internal static class Endpoint
             TotalProtein = ingredient.Protein,
             TotalFat = ingredient.Fat,
             Barcode = ingredient.Barcode,
+            ImageUrl = ingredient.ImageUrl,
+            ThumbnailUrl = ingredient.ThumbnailUrl,
             Uom = (UnitOfMeasurement)ingredient.Uom,
             Ingredients = []
         })).ToList();
