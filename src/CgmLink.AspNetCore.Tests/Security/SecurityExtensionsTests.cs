@@ -15,7 +15,8 @@ internal sealed class SecurityExtensionsTests
         var context = new DefaultHttpContext();
         context.Request.Path = "/swagger/index.html";
         var sut = CreateMiddleware(
-            new SecurityHeaderSettings {
+            new SecurityHeaderSettings
+            {
                 EnableReferrerPolicy = true,
                 ReferrerPolicy = "strict-origin",
                 EnableContentSecurityPolicy = true,
@@ -39,7 +40,8 @@ internal sealed class SecurityExtensionsTests
         var context = new DefaultHttpContext();
         context.Request.Path = "/health";
         var sut = CreateMiddleware(
-            new SecurityHeaderSettings {
+            new SecurityHeaderSettings
+            {
                 EnableReferrerPolicy = false,
                 EnableContentSecurityPolicy = true,
                 ContentSecurityPolicy = "default-src 'self'"
@@ -66,7 +68,8 @@ internal sealed class SecurityExtensionsTests
         context.Response.Headers["Referrer-Policy"] = "origin";
         context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self'";
         var sut = CreateMiddleware(
-            new SecurityHeaderSettings {
+            new SecurityHeaderSettings
+            {
                 EnableReferrerPolicy = true,
                 ReferrerPolicy = "strict-origin",
                 EnableContentSecurityPolicy = true,
