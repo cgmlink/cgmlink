@@ -23,6 +23,8 @@ services:
       Data__ConnectionString: "Server=mssql-db;Database=CgmLink;User Id=sa;Password=${SA_PASSWORD};TrustServerCertificate=True"
       Identity__TokenExpirationInMinutes: "60"
       Identity__TokenSigningKey: ${IDENTITY_TOKEN_SIGNING_KEY}
+      Identity__Issuer: ${IDENTITY_ISSUER}
+      Identity__Audience: ${IDENTITY_AUDIENCE}
       Nutrition__ConnectionString: ${NUTRITION_CONNECTION_STRING}
       Mail__SmtpHost: ${SMTP_HOST}
       Mail__Port: ${SMTP_PORT}

@@ -33,6 +33,8 @@ internal sealed class TokenService : ITokenService
         {
             Subject = new ClaimsIdentity(GetClaims(user)),
             Expires = DateTime.UtcNow.AddMinutes(_options.TokenExpirationInMinutes),
+            Issuer = _options.Issuer,
+            Audience = _options.Audience,
             SigningCredentials =
                 new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature),
         };
@@ -64,5 +66,6 @@ internal sealed class TokenService : ITokenService
     {
         yield return new Claim(ClaimTypes.NameIdentifier, user.Id.ToString());
         yield return new Claim(ClaimTypes.Email, user.Email);
+        yield return new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString());
     }
 }

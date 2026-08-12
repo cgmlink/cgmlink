@@ -8,6 +8,6 @@ public static class HealthChecksBuilderExtensions
 {
     public static IHealthChecksBuilder AddDatabaseHealthChecks(this IHealthChecksBuilder builder)
     {
-        return builder.AddDbContextCheck<CgmLinkDbContext>("CgmLink-Database");
+        return builder.AddDbContextCheck<CgmLinkDbContext>("CgmLink-Database", tags: ["ready"]);
     }
 }

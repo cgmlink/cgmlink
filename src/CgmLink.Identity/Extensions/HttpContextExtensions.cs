@@ -7,9 +7,7 @@ internal static class HttpContextExtensions
 {
     internal static string IpAddress(this HttpContext context)
     {
-        return context.Request.Headers.TryGetValue("X-Forwarded-For", out var value)
-            ? value.ToString()
-            : context.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? string.Empty;
+        return context.Connection.RemoteIpAddress?.MapToIPv4().ToString() ?? string.Empty;
     }
 
     internal static void SetRefreshTokenCookie(this HttpContext context, string refreshToken, IdentityOptions options)
@@ -22,6 +20,8 @@ internal static class HttpContextExtensions
 #else
             Secure = true,
 #endif
+            SameSite = SameSiteMode.Strict,
+            Path = options.RefreshTokenCookiePath,
             Expires = DateTimeOffset.UtcNow.AddDays(options.RefreshTokenExpirationInDays),
         };
 

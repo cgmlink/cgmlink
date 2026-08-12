@@ -9,14 +9,15 @@ namespace CgmLink.Identity.Tests.Extensions;
 internal sealed class HttpContextExtensionTests
 {
     [Test]
-    public void IpAddress_With_X_Forwarded_For_Header_Returns_Correct_Ip()
+    public void IpAddress_Ignores_X_Forwarded_For_Header()
     {
         var context = new DefaultHttpContext();
         context.Request.Headers["X-Forwarded-For"] = "192.168.1.1";
+        context.Connection.RemoteIpAddress = System.Net.IPAddress.Parse("10.0.0.1");
 
         var ipAddress = context.IpAddress();
 
-        Assert.That(ipAddress, Is.EqualTo("192.168.1.1"));
+        Assert.That(ipAddress, Is.EqualTo("10.0.0.1"));
     }
 
     [Test]
@@ -53,7 +54,8 @@ internal sealed class HttpContextExtensionTests
         var options = new IdentityOptions
         {
             RefreshTokenCookieName = "RefreshToken",
-            RefreshTokenExpirationInDays = 7
+            RefreshTokenExpirationInDays = 7,
+            RefreshTokenCookiePath = "/api/identity"
         };
 
         contextMock.Object.SetRefreshTokenCookie("test-refresh-token", options);
@@ -61,7 +63,10 @@ internal sealed class HttpContextExtensionTests
         cookiesMock.Verify(c => c.Append(
             It.Is<string>(name => name == "RefreshToken"),
             It.Is<string>(value => value == "test-refresh-token"),
-            It.Is<CookieOptions>(opts => opts.HttpOnly && opts.Expires > DateTimeOffset.UtcNow)
+            It.Is<CookieOptions>(opts => opts.HttpOnly &&
+                                          opts.SameSite == SameSiteMode.Strict &&
+                                          opts.Path == "/api/identity" &&
+                                          opts.Expires > DateTimeOffset.UtcNow)
         ), Times.Once);
     }
 }

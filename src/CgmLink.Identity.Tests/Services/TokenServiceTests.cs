@@ -24,7 +24,9 @@ internal sealed class TokenServiceTests
         _mockOptions.Setup(o => o.Value).Returns(new IdentityOptions
         {
             TokenSigningKey = Guid.NewGuid().ToString(),
-            TokenExpirationInMinutes = 30
+            TokenExpirationInMinutes = 30,
+            Issuer = "cgm-link",
+            Audience = "cgm-link-clients"
         });
         _mockUserRepository = new Mock<IRepository<User>>();
         _tokenService = new TokenService(_mockOptions.Object, _mockUserRepository.Object);
@@ -49,7 +51,7 @@ internal sealed class TokenServiceTests
     public void GenerateJwtToken_ValidUser_ReturnsToken()
     {
         var user = new Patient { Id = Guid.NewGuid(), Email = "user@example.com", PasswordHash = "hash" };
-        var expectedClaimTypes = new[] { "nameid", "email" };
+        var expectedClaimTypes = new[] { "nameid", "email", JwtRegisteredClaimNames.Jti };
         var expectedClaimValues = new[] { user.Id.ToString(), user.Email };
 
 
@@ -62,6 +64,9 @@ internal sealed class TokenServiceTests
             var jwtToken = tokenHandler.ReadJwtToken(token);
             Assert.That(jwtToken.Claims.Select(x => x.Type), Is.SupersetOf(expectedClaimTypes));
             Assert.That(jwtToken.Claims.Select(x => x.Value), Is.SupersetOf(expectedClaimValues));
+            Assert.That(jwtToken.Issuer, Is.EqualTo("cgm-link"));
+            Assert.That(jwtToken.Audiences, Is.EquivalentTo(new[] { "cgm-link-clients" }));
+            Assert.That(jwtToken.Claims.Single(x => x.Type == JwtRegisteredClaimNames.Jti).Value, Is.Not.Empty);
         });
     }
 
@@ -77,7 +82,9 @@ internal sealed class TokenServiceTests
         _mockOptions.Setup(o => o.Value).Returns(new IdentityOptions
         {
             TokenSigningKey = "",
-            TokenExpirationInMinutes = 30
+            TokenExpirationInMinutes = 30,
+            Issuer = "cgm-link",
+            Audience = "cgm-link-clients"
         });
         var tokenService = new TokenService(_mockOptions.Object, _mockUserRepository.Object);
         var user = new Patient { Id = Guid.NewGuid(), Email = "user@example.com", PasswordHash = "hash" };
