@@ -15,11 +15,12 @@ internal sealed class SecurityExtensionsTests
         var context = new DefaultHttpContext();
         context.Request.Path = "/swagger/index.html";
         var sut = CreateMiddleware(
-            new SecurityHeaderSettings(
-                EnableReferrerPolicy: true,
-                ReferrerPolicy: "strict-origin",
-                EnableContentSecurityPolicy: true,
-                ContentSecurityPolicy: "default-src 'self'"));
+            new SecurityHeaderSettings {
+                EnableReferrerPolicy = true,
+                ReferrerPolicy = "strict-origin",
+                EnableContentSecurityPolicy = true,
+                ContentSecurityPolicy = "default-src 'self'"
+            });
 
         await sut.InvokeAsync(context, _ => Task.CompletedTask);
 
@@ -38,10 +39,11 @@ internal sealed class SecurityExtensionsTests
         var context = new DefaultHttpContext();
         context.Request.Path = "/health";
         var sut = CreateMiddleware(
-            new SecurityHeaderSettings(
-                EnableReferrerPolicy: false,
-                EnableContentSecurityPolicy: true,
-                ContentSecurityPolicy: "default-src 'self'"));
+            new SecurityHeaderSettings {
+                EnableReferrerPolicy = false,
+                EnableContentSecurityPolicy = true,
+                ContentSecurityPolicy = "default-src 'self'"
+            });
 
         await sut.InvokeAsync(context, _ => Task.CompletedTask);
 
@@ -64,11 +66,12 @@ internal sealed class SecurityExtensionsTests
         context.Response.Headers["Referrer-Policy"] = "origin";
         context.Response.Headers["Content-Security-Policy"] = "frame-ancestors 'self'";
         var sut = CreateMiddleware(
-            new SecurityHeaderSettings(
-                EnableReferrerPolicy: true,
-                ReferrerPolicy: "strict-origin",
-                EnableContentSecurityPolicy: true,
-                ContentSecurityPolicy: "default-src 'self'"));
+            new SecurityHeaderSettings {
+                EnableReferrerPolicy = true,
+                ReferrerPolicy = "strict-origin",
+                EnableContentSecurityPolicy = true,
+                ContentSecurityPolicy = "default-src 'self'"
+            });
 
         await sut.InvokeAsync(context, _ => Task.CompletedTask);
 
