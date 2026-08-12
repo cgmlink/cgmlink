@@ -9,7 +9,7 @@ public sealed class IdentityOptions
     public string TokenSigningKey { get; init; } = "";
 
     [Required] public int TokenExpirationInMinutes { get; init; } = 60;
-    
+
     [Required] public string Issuer { get; init; } = "";
 
     [Required] public string Audience { get; init; } = "";
