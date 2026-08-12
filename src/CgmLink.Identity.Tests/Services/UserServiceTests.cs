@@ -10,6 +10,7 @@ using CgmLink.Data.Repository;
 using CgmLink.Identity.Models;
 using CgmLink.Identity.Services;
 using CgmLink.Mail;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
 
@@ -23,6 +24,7 @@ internal sealed class UserServiceTests
     private Mock<ITokenService> _tokenService;
     private Mock<IMailService> _mailService;
     private Mock<ITemplateService> _templateService;
+    private Mock<ILogger<UserService>> _logger;
     private IdentityOptions _options;
     private Mock<IOptions<IdentityOptions>> _identityOptions;
     private UserService _sut;
@@ -35,12 +37,13 @@ internal sealed class UserServiceTests
         _tokenService = new Mock<ITokenService>();
         _mailService = new Mock<IMailService>();
         _templateService = new Mock<ITemplateService>();
+        _logger = new Mock<ILogger<UserService>>();
         _identityOptions = new Mock<IOptions<IdentityOptions>>();
         _options = new IdentityOptions() { RequireEmailVerification = false, VerifyEmailBaseUri = "https://localhost/" };
         _identityOptions.Setup(x => x.Value).Returns(_options);
 
         _sut = new UserService(_userRepository.Object, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
-            _templateService.Object, _identityOptions.Object);
+            _templateService.Object, _identityOptions.Object, _logger.Object);
     }
 
     [Test]
@@ -50,19 +53,22 @@ internal sealed class UserServiceTests
         {
             Assert.That(
                 () => new UserService(null!, _alarmRepository.Object, _tokenService.Object, _mailService.Object, _templateService.Object,
-                    _identityOptions.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, null!, _tokenService.Object, _mailService.Object, _templateService.Object,
-                    _identityOptions.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, null!, _mailService.Object, _templateService.Object,
-                    _identityOptions.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, _tokenService.Object, _mailService.Object, null!,
-                    _identityOptions.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
-                    _templateService.Object, null!), Throws.ArgumentNullException);
+                    _templateService.Object, null!, _logger.Object), Throws.ArgumentNullException);
+            Assert.That(
+                () => new UserService(_userRepository.Object!, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
+                    _templateService.Object, _identityOptions.Object, null!), Throws.ArgumentNullException);
         });
     }
 
@@ -519,6 +525,15 @@ internal sealed class UserServiceTests
             Assert.That(revokedToken.IsRevoked, Is.True);
             Assert.That(childToken.IsRevoked, Is.True);
         });
+
+        _logger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, _) => v.ToString()!.Contains("Refresh token replay detected")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 
     [Test]

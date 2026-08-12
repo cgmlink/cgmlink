@@ -11,6 +11,7 @@ using CgmLink.Identity.Models;
 using CgmLink.Identity.Templates;
 using CgmLink.Mail;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using static BCrypt.Net.BCrypt;
 
@@ -24,10 +25,11 @@ public sealed class UserService : IUserService
     private readonly IMailService _mailService;
     private readonly ITemplateService _templateService;
     private readonly IdentityOptions _options;
+    private readonly ILogger<UserService> _logger;
 
     public UserService(IRepository<User> repository, IRepository<AlarmRule> alarmRepository, ITokenService tokenService,
         IMailService mailService,
-        ITemplateService templateService, IOptions<IdentityOptions> options)
+        ITemplateService templateService, IOptions<IdentityOptions> options, ILogger<UserService> logger)
     {
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _alarmRepository = alarmRepository ?? throw new ArgumentNullException(nameof(alarmRepository));
@@ -35,6 +37,7 @@ public sealed class UserService : IUserService
         _mailService = mailService ?? throw new ArgumentNullException(nameof(mailService));
         _templateService = templateService ?? throw new ArgumentNullException(nameof(templateService));
         _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request, string ipAddress,
@@ -218,6 +221,7 @@ public sealed class UserService : IUserService
 
         if (refreshToken?.IsRevoked ?? false)
         {
+            _logger.LogWarning("Refresh token replay detected for user {UserId} from {IpAddress}", user.Id, ipAddress);
             RevokeRefreshTokensRecursively(refreshToken, user, ipAddress,
                 $"Attempted use of revoked ancestor token: {token}");
             await _repository.UpdateAsync(user, cancellationToken).ConfigureAwait(false);
