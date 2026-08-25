@@ -3,6 +3,7 @@ using CgmLink.Nutrition.Data.Repository;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace CgmLink.Nutrition.Endpoints.GetProduct;
 
@@ -11,6 +12,7 @@ internal static class Endpoint
     internal static async Task<Results<Ok<ProductResponse>, NotFound, UnauthorizedHttpResult>> HandleAsync(
         [FromRoute] string code,
         [FromServices] IRepository<Product> repository,
+        [FromServices] IRepository<ProductBrand> brandRepository,
         CancellationToken cancellationToken)
     {
         var product = await repository.FindOneAsync(p => p.Code == code,
@@ -21,6 +23,12 @@ internal static class Endpoint
         {
             return TypedResults.NotFound();
         }
+
+        var brands = await brandRepository
+            .Find(b => b.ProductId == product.Id, new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true })
+            .Select(b => b.Name)
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
 
         var response = new ProductResponse()
         {
@@ -49,12 +57,23 @@ internal static class Endpoint
                 Energy = product.Nutriments?.Energy,
                 Fat = product.Nutriments?.Fat,
                 FatValue = product.Nutriments?.FatValue,
+                Energy100g = product.Nutriments?.Energy100g,
+                EnergyServing = product.Nutriments?.EnergyServing,
+                EnergyKcal100g = product.Nutriments?.EnergyKcal100g,
+                EnergyKcalServing = product.Nutriments?.EnergyKcalServing,
+                Fat100g = product.Nutriments?.Fat100g,
+                FatServing = product.Nutriments?.FatServing,
+                Carbohydrates100g = product.Nutriments?.Carbohydrates100g,
+                CarbohydratesServing = product.Nutriments?.CarbohydratesServing,
+                Proteins100g = product.Nutriments?.Proteins100g,
+                ProteinsServing = product.Nutriments?.ProteinsServing,
             },
             NutritionDataPreparedPer = product.NutritionDataPreparedPer,
             Code = product.Code,
             ServingQuantity = product.ServingQuantity,
             ImageUrl = product.ImageUrl,
             ImageThumbUrl = product.ImageThumbUrl,
+            Brands = brands,
         };
 
         return TypedResults.Ok(response);

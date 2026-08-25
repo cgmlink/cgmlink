@@ -249,4 +249,7 @@
   <data name="InjectionIdInvalid" xml:space="preserve">
     <value>INJECTION_ID_INVALID</value>
   </data>
+  <data name="UomInvalidForNutritionProduct" xml:space="preserve">
+    <value>UOM_INVALID_FOR_NUTRITION_PRODUCT</value>
+  </data>
 </root>

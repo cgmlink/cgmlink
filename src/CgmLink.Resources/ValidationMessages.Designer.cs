@@ -455,5 +455,14 @@ namespace CgmLink.Resources {
                 return ResourceManager.GetString("UnitsGreaterThanZero", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to UOM_INVALID_FOR_NUTRITION_PRODUCT.
+        /// </summary>
+        public static string UomInvalidForNutritionProduct {
+            get {
+                return ResourceManager.GetString("UomInvalidForNutritionProduct", resourceCulture);
+            }
+        }
     }
 }

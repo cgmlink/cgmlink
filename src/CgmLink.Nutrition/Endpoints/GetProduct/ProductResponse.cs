@@ -27,4 +27,6 @@ public record ProductResponse
     public string? ImageUrl { get; set; }
 
     public string? ImageThumbUrl { get; set; }
+
+    public IReadOnlyList<string> Brands { get; set; } = [];
 }

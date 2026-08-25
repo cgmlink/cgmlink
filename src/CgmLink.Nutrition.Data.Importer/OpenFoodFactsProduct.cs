@@ -21,6 +21,9 @@ public sealed class OpenFoodFactsProduct
     [JsonProperty("product_name")]
     public string? ProductName { get; set; }
 
+    [JsonProperty("brands")]
+    public string? Brands { get; set; }
+
     [JsonProperty("product_quantity")]
     public double? ProductQuantity { get; set; }
 
@@ -161,4 +164,34 @@ public sealed class OpenFoodFactsNutriments
 
     [JsonProperty("fat_value")]
     public float? FatValue { get; set; }
+
+    [JsonProperty("energy_100g")]
+    public double? Energy100g { get; set; }
+
+    [JsonProperty("energy_serving")]
+    public double? EnergyServing { get; set; }
+
+    [JsonProperty("energy-kcal_100g")]
+    public double? EnergyKcal100g { get; set; }
+
+    [JsonProperty("energy-kcal_serving")]
+    public double? EnergyKcalServing { get; set; }
+
+    [JsonProperty("fat_100g")]
+    public double? Fat100g { get; set; }
+
+    [JsonProperty("fat_serving")]
+    public double? FatServing { get; set; }
+
+    [JsonProperty("carbohydrates_100g")]
+    public double? Carbohydrates100g { get; set; }
+
+    [JsonProperty("carbohydrates_serving")]
+    public double? CarbohydratesServing { get; set; }
+
+    [JsonProperty("proteins_100g")]
+    public double? Proteins100g { get; set; }
+
+    [JsonProperty("proteins_serving")]
+    public double? ProteinsServing { get; set; }
 }

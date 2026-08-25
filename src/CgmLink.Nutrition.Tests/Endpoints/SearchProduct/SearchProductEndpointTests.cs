@@ -24,6 +24,7 @@ public class SearchProductEndpointTests
 {
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IRepository<Product>> _repoMock;
+    private Mock<IRepository<ProductBrand>> _brandRepoMock;
     private Mock<GPRepository.IRepository<Ingredient>> _gpRepoMock;
     private Mock<ICurrentUser> _currentUserMock;
 
@@ -31,8 +32,14 @@ public class SearchProductEndpointTests
     public void SetUp()
     {
         _repoMock = new Mock<IRepository<Product>>();
+        _brandRepoMock = new Mock<IRepository<ProductBrand>>();
         _gpRepoMock = new Mock<GPRepository.IRepository<Ingredient>>();
         _currentUserMock = new Mock<ICurrentUser>();
+
+        _brandRepoMock.Setup(r => r.Find(
+                It.IsAny<System.Linq.Expressions.Expression<System.Func<ProductBrand, bool>>>(),
+                It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<ProductBrand>([]));
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
     }
@@ -42,7 +49,7 @@ public class SearchProductEndpointTests
     {
         _currentUserMock.Setup(x => x.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink)); ;
 
-        Assert.That(() => Endpoint.HandleAsync("search", null, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None),
+        Assert.That(() => Endpoint.HandleAsync("search", null, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));
     }
 
@@ -65,7 +72,7 @@ public class SearchProductEndpointTests
                 It.IsAny<GPRepository.FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
 
-        var result = await Endpoint.HandleAsync("search", null, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync("search", null, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
         var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
@@ -94,7 +101,7 @@ public class SearchProductEndpointTests
                 It.IsAny<GPRepository.FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
 
-        var result = await Endpoint.HandleAsync("search", limit, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync("search", limit, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
         var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
@@ -118,7 +125,7 @@ public class SearchProductEndpointTests
                 It.IsAny<GPRepository.FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
 
-        var result = await Endpoint.HandleAsync("search", null, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync("search", null, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
         var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
@@ -173,7 +180,7 @@ public class SearchProductEndpointTests
                 It.IsAny<GPRepository.FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(GenerateIngredients(_userId, 0)));
 
-        var result = await Endpoint.HandleAsync("Test Product", 1, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync("Test Product", 1, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
         var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
@@ -235,7 +242,7 @@ public class SearchProductEndpointTests
                 It.IsAny<GPRepository.FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(GenerateIngredients(_userId, 0)));
 
-        var result = await Endpoint.HandleAsync("Image Product", 1, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync("Image Product", 1, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
 
         var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
         var actual = okResult!.Value!.Single();
@@ -270,7 +277,7 @@ public class SearchProductEndpointTests
                 It.IsAny<GPRepository.FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(GenerateIngredients(_userId, 0)));
 
-        var result = await Endpoint.HandleAsync("No Nutriments", 1, _repoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync("No Nutriments", 1, _repoMock.Object, _brandRepoMock.Object, _gpRepoMock.Object, _currentUserMock.Object, CancellationToken.None);
         Assert.That(result.Result, Is.TypeOf<Ok<IEnumerable<ProductSearchResponse>>>());
         var okResult = result.Result as Ok<IEnumerable<ProductSearchResponse>>;
         var actual = okResult!.Value!.Single();

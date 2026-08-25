@@ -24,6 +24,7 @@ public class ListIngredientsTests
     private Mock<IValidator<ListIngredientsRequest>> _validatorMock;
     private Mock<ICurrentUser> _currentUserMock;
     private Mock<IRepository<Ingredient>> _repositoryMock;
+    private Mock<IRepository<IngredientBrand>> _brandRepositoryMock;
 
     [SetUp]
     public void SetUp()
@@ -31,6 +32,11 @@ public class ListIngredientsTests
         _validatorMock = new Mock<IValidator<ListIngredientsRequest>>();
         _currentUserMock = new Mock<ICurrentUser>();
         _repositoryMock = new Mock<IRepository<Ingredient>>();
+        _brandRepositoryMock = new Mock<IRepository<IngredientBrand>>();
+
+        _brandRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<IngredientBrand, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<IngredientBrand>([]));
     }
 
     [Test]
@@ -43,7 +49,7 @@ public class ListIngredientsTests
                 new ValidationFailure("Page", "Page must be greater than 0")
             ]));
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.InstanceOf<ValidationProblem>());
     }
@@ -70,7 +76,7 @@ public class ListIngredientsTests
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ingredients.Count);
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.InstanceOf<Ok<ListIngredientsResponse>>());
         var okResult = result.Result as Ok<ListIngredientsResponse>;
@@ -100,7 +106,7 @@ public class ListIngredientsTests
         _repositoryMock.Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
                        .Returns((Expression<Func<Ingredient, bool>> predicate, FindOptions _) => new TestAsyncEnumerable<Ingredient>(ingredients.Where(predicate)));
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         _repositoryMock.Verify(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()), Times.Once);
 
@@ -134,7 +140,7 @@ public class ListIngredientsTests
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ingredients.Count);
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.Multiple(() =>
         {

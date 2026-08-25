@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +22,7 @@ internal static class Endpoint
         [FromServices] IValidator<ListIngredientsRequest> validator,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IRepository<Ingredient> repository,
+        [FromServices] IRepository<IngredientBrand> brandRepository,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
@@ -58,6 +60,22 @@ internal static class Endpoint
                 Updated = i.Updated
             })
             .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var ingredientIds = ingredients.Select(i => i.Id).ToArray();
+        var brandsByIngredientId = (await brandRepository
+                .Find(b => ingredientIds.Contains(b.IngredientId), new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false))
+            .GroupBy(b => b.IngredientId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(b => b.Name).ToList());
+
+        foreach (var ingredient in ingredients)
+        {
+            if (brandsByIngredientId.TryGetValue(ingredient.Id, out var brandNames))
+            {
+                ingredient.Brands = brandNames;
+            }
+        }
 
         var totalMeals = await repository.CountAsync(i => i.UserId == userId, cancellationToken).ConfigureAwait(false);
         var response = new ListIngredientsResponse

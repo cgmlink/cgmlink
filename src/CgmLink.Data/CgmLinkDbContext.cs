@@ -11,6 +11,7 @@ public class CgmLinkDbContext : DbContext
     public DbSet<Patient> Patients { get; set; }
     public DbSet<Reading> Readings { get; set; }
     public DbSet<Ingredient> Ingredients { get; set; }
+    public DbSet<IngredientBrand> IngredientBrands { get; set; }
     public DbSet<Meal> Meals { get; set; }
     public DbSet<MealIngredient> MealIngredients { get; set; }
     public DbSet<Insulin> Insulins { get; set; }

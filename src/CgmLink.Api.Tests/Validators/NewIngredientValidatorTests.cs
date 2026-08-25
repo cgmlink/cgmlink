@@ -118,4 +118,60 @@ public class NewIngredientRequestValidatorTests
         var result = _validator.TestValidate(model);
         result.ShouldNotHaveAnyValidationErrors();
     }
+
+    [Test]
+    public void Should_Have_Error_When_Barcode_Set_And_Uom_Is_Not_Unit_Or_Hectograms()
+    {
+        var model = new NewIngredientRequest
+        {
+            Name = "Test Ingredient",
+            Barcode = "123456789",
+            Carbs = 10,
+            Protein = 5,
+            Fat = 2,
+            Calories = 100,
+            Uom = UnitOfMeasurement.Grams
+        };
+
+        var result = _validator.TestValidate(model);
+        result.ShouldHaveValidationErrorFor(x => x.Uom);
+    }
+
+    [Test]
+    [TestCase(UnitOfMeasurement.Unit)]
+    [TestCase(UnitOfMeasurement.Hectograms)]
+    public void Should_Not_Have_Error_When_Barcode_Set_And_Uom_Is_Unit_Or_Hectograms(UnitOfMeasurement uom)
+    {
+        var model = new NewIngredientRequest
+        {
+            Name = "Test Ingredient",
+            Barcode = "123456789",
+            Carbs = 10,
+            Protein = 5,
+            Fat = 2,
+            Calories = 100,
+            Uom = uom
+        };
+
+        var result = _validator.TestValidate(model);
+        result.ShouldNotHaveValidationErrorFor(x => x.Uom);
+    }
+
+    [Test]
+    public void Should_Not_Have_Error_When_Barcode_Is_Null_Regardless_Of_Uom()
+    {
+        var model = new NewIngredientRequest
+        {
+            Name = "Test Ingredient",
+            Barcode = null,
+            Carbs = 10,
+            Protein = 5,
+            Fat = 2,
+            Calories = 100,
+            Uom = UnitOfMeasurement.Kilograms
+        };
+
+        var result = _validator.TestValidate(model);
+        result.ShouldNotHaveValidationErrorFor(x => x.Uom);
+    }
 }
