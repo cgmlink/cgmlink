@@ -4,11 +4,13 @@ using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Enums;
 using CgmLink.Data.Repository;
+using CgmLink.Data.Tests;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +23,7 @@ public sealed class UpdateIngredientTests
     private Mock<IValidator<UpdateIngredientRequest>> _validatorMock;
     private Mock<ICurrentUser> _currentUserMock;
     private Mock<IRepository<Ingredient>> _repositoryMock;
+    private Mock<IRepository<IngredientBrand>> _brandRepositoryMock;
 
     [SetUp]
     public void SetUp()
@@ -28,6 +31,17 @@ public sealed class UpdateIngredientTests
         _validatorMock = new Mock<IValidator<UpdateIngredientRequest>>();
         _currentUserMock = new Mock<ICurrentUser>();
         _repositoryMock = new Mock<IRepository<Ingredient>>();
+        _brandRepositoryMock = new Mock<IRepository<IngredientBrand>>();
+
+        _brandRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<IngredientBrand, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<IngredientBrand>([]));
+        _brandRepositoryMock
+            .Setup(r => r.AddManyAsync(It.IsAny<IEnumerable<IngredientBrand>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _brandRepositoryMock
+            .Setup(r => r.DeleteManyAsync(It.IsAny<Expression<Func<IngredientBrand, bool>>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     [Test]
@@ -45,7 +59,7 @@ public sealed class UpdateIngredientTests
                 new FluentValidation.Results.ValidationFailure("Calories", "Calories must be greater than or equal to 0")
             ]));
 
-        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.InstanceOf<ValidationProblem>());
         var validationProblem = (ValidationProblem)result.Result;
@@ -60,7 +74,7 @@ public sealed class UpdateIngredientTests
         var request = new UpdateIngredientRequest { Name = "Ingredient", Carbs = 0, Protein = 0, Fat = 0, Calories = 0, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Unit };
         _validatorMock.Setup(v => v.ValidateAsync(request, default)).ReturnsAsync(new FluentValidation.Results.ValidationResult());
         _currentUserMock.Setup(c => c.GetUserId()).Throws(new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink));
-        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None),
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None),
             Throws.TypeOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));
     }
 
@@ -74,7 +88,7 @@ public sealed class UpdateIngredientTests
         _repositoryMock.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((Ingredient)null);
 
-        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None),
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None),
             Throws.TypeOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
     }
 
@@ -89,7 +103,7 @@ public sealed class UpdateIngredientTests
         _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
         _repositoryMock.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ingredient);
-        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -118,7 +132,7 @@ public sealed class UpdateIngredientTests
         _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
         _repositoryMock.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ingredient);
-        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         using (Assert.EnterMultipleScope())
         {
@@ -134,5 +148,45 @@ public sealed class UpdateIngredientTests
             Assert.That(okResult.Value.Updated, Is.EqualTo(DateTimeOffset.UtcNow).Within(TimeSpan.FromMinutes(1)));
             Assert.That(okResult.Value.Barcode, Is.EqualTo("123456789"));
         }
+    }
+
+    [Test]
+    public async Task HandleAsync_Replaces_Brands_When_Brands_Provided()
+    {
+        var userId = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+        var request = new UpdateIngredientRequest { Name = "Ingredient", Brands = ["New Brand"], Carbs = 0, Protein = 0, Fat = 0, Calories = 0, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Unit };
+        var ingredient = new Ingredient { Id = ingredientId, Created = DateTimeOffset.UtcNow, UserId = userId, Name = "Old Ingredient", Carbs = 0, Protein = 0, Fat = 0, Calories = 0, Uom = UnitOfMeasurement.Unit };
+        _validatorMock.Setup(v => v.ValidateAsync(request, default)).ReturnsAsync(new FluentValidation.Results.ValidationResult());
+        _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
+        _repositoryMock.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredient);
+
+        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
+
+        var okResult = (Ok<UpdateIngredientResponse>)result.Result;
+        Assert.That(okResult.Value.Brands, Is.EquivalentTo(new[] { "New Brand" }));
+
+        _brandRepositoryMock.Verify(r => r.DeleteManyAsync(It.IsAny<Expression<Func<IngredientBrand, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _brandRepositoryMock.Verify(r => r.AddManyAsync(It.IsAny<IEnumerable<IngredientBrand>>(), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task HandleAsync_Leaves_Brands_Unchanged_When_Brands_Not_Provided()
+    {
+        var userId = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+        var request = new UpdateIngredientRequest { Name = "Ingredient", Carbs = 0, Protein = 0, Fat = 0, Calories = 0, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Unit };
+        var ingredient = new Ingredient { Id = ingredientId, Created = DateTimeOffset.UtcNow, UserId = userId, Name = "Old Ingredient", Carbs = 0, Protein = 0, Fat = 0, Calories = 0, Uom = UnitOfMeasurement.Unit };
+        _validatorMock.Setup(v => v.ValidateAsync(request, default)).ReturnsAsync(new FluentValidation.Results.ValidationResult());
+        _currentUserMock.Setup(c => c.GetUserId()).Returns(userId);
+        _repositoryMock.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredient);
+
+        var result = await Endpoint.HandleAsync(ingredientId, request, _validatorMock.Object, _currentUserMock.Object, _repositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(result.Result, Is.InstanceOf<Ok<UpdateIngredientResponse>>());
+        _brandRepositoryMock.Verify(r => r.DeleteManyAsync(It.IsAny<Expression<Func<IngredientBrand, bool>>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _brandRepositoryMock.Verify(r => r.AddManyAsync(It.IsAny<IEnumerable<IngredientBrand>>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

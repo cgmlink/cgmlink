@@ -34,6 +34,7 @@ public static class ImportRunner
     internal static async Task RebuildAsync(CgmLinkNutritionDbContext dbContext, TextReader reader, int batchSize)
     {
         var products = new List<Product>(batchSize);
+        var brands = new List<ProductBrand>(batchSize);
         await foreach (var sourceProduct in ReadProductsAsync(reader))
         {
             if (sourceProduct.Nutriments is null)
@@ -41,18 +42,23 @@ public static class ImportRunner
                 continue;
             }
 
-            products.Add(MapProduct(sourceProduct));
+            var product = MapProduct(sourceProduct);
+            products.Add(product);
+            brands.AddRange(MapProductBrands(product.Id, sourceProduct.Brands));
 
             if (products.Count >= batchSize)
             {
                 await dbContext.BulkInsertAsync(products);
+                await dbContext.BulkInsertAsync(brands);
                 products.Clear();
+                brands.Clear();
             }
         }
 
         if (products.Count > 0)
         {
             await dbContext.BulkInsertAsync(products);
+            await dbContext.BulkInsertAsync(brands);
         }
     }
 
@@ -116,7 +122,17 @@ public static class ImportRunner
                     Carbohydrates = sourceProduct.Nutriments.Carbohydrates,
                     Energy = sourceProduct.Nutriments.Energy,
                     Fat = sourceProduct.Nutriments.Fat,
-                    FatValue = sourceProduct.Nutriments.FatValue
+                    FatValue = sourceProduct.Nutriments.FatValue,
+                    Energy100g = sourceProduct.Nutriments.Energy100g,
+                    EnergyServing = sourceProduct.Nutriments.EnergyServing,
+                    EnergyKcal100g = sourceProduct.Nutriments.EnergyKcal100g,
+                    EnergyKcalServing = sourceProduct.Nutriments.EnergyKcalServing,
+                    Fat100g = sourceProduct.Nutriments.Fat100g,
+                    FatServing = sourceProduct.Nutriments.FatServing,
+                    Carbohydrates100g = sourceProduct.Nutriments.Carbohydrates100g,
+                    CarbohydratesServing = sourceProduct.Nutriments.CarbohydratesServing,
+                    Proteins100g = sourceProduct.Nutriments.Proteins100g,
+                    ProteinsServing = sourceProduct.Nutriments.ProteinsServing
                 },
             NutritionDataPreparedPer = sourceProduct.NutritionDataPreparedPer,
             Code = sourceProduct.Code,
@@ -124,6 +140,24 @@ public static class ImportRunner
             ImageUrl = sourceProduct.ImageUrl,
             ImageThumbUrl = sourceProduct.ImageThumbUrl
         };
+    }
+
+    public static IEnumerable<ProductBrand> MapProductBrands(string productId, string? rawBrands)
+    {
+        if (string.IsNullOrWhiteSpace(rawBrands))
+        {
+            yield break;
+        }
+
+        foreach (var name in rawBrands.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            yield return new ProductBrand
+            {
+                Id = Guid.NewGuid().ToString(),
+                ProductId = productId,
+                Name = name
+            };
+        }
     }
 
     public static void ApplyBackfill(Product target, ProductImageData imageData, bool overwriteMissingImages)

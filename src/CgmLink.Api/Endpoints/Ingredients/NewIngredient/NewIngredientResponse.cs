@@ -1,5 +1,6 @@
 ﻿using CgmLink.Api.Models;
 using System;
+using System.Collections.Generic;
 
 namespace CgmLink.Api.Endpoints.Ingredients.NewIngredient;
 
@@ -9,6 +10,7 @@ public sealed record NewIngredientResponse
     public string? Barcode { get; set; }
     public string? ImageUrl { get; set; }
     public string? ThumbnailUrl { get; set; }
+    public IReadOnlyList<string> Brands { get; set; } = [];
     public required DateTimeOffset Created { get; set; }
     public required string Name { get; set; }
     public decimal Carbs { get; set; }

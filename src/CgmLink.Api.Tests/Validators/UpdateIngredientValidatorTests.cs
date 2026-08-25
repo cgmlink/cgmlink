@@ -52,4 +52,40 @@ public class UpdateIngredientValidatorTests
         var result = _validator.TestValidate(model);
         result.ShouldNotHaveAnyValidationErrors();
     }
+
+    [Test]
+    public void Should_Have_Error_When_Barcode_Set_And_Uom_Is_Not_Unit_Or_Hectograms()
+    {
+        var model = new UpdateIngredientRequest
+        {
+            Name = "Valid Ingredient",
+            Barcode = "123456789",
+            Carbs = 10,
+            Protein = 5,
+            Fat = 2,
+            Calories = 100,
+            Uom = UnitOfMeasurement.Litres
+        };
+        var result = _validator.TestValidate(model);
+        result.ShouldHaveValidationErrorFor(x => x.Uom);
+    }
+
+    [Test]
+    [TestCase(UnitOfMeasurement.Unit)]
+    [TestCase(UnitOfMeasurement.Hectograms)]
+    public void Should_Not_Have_Error_When_Barcode_Set_And_Uom_Is_Unit_Or_Hectograms(UnitOfMeasurement uom)
+    {
+        var model = new UpdateIngredientRequest
+        {
+            Name = "Valid Ingredient",
+            Barcode = "123456789",
+            Carbs = 10,
+            Protein = 5,
+            Fat = 2,
+            Calories = 100,
+            Uom = uom
+        };
+        var result = _validator.TestValidate(model);
+        result.ShouldNotHaveValidationErrorFor(x => x.Uom);
+    }
 }

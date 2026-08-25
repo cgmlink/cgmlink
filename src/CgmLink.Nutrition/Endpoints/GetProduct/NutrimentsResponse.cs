@@ -33,4 +33,24 @@ public record NutrimentsResponse
     public float? Fat { get; set; }
 
     public float? FatValue { get; set; }
+
+    public double? Energy100g { get; set; }
+
+    public double? EnergyServing { get; set; }
+
+    public double? EnergyKcal100g { get; set; }
+
+    public double? EnergyKcalServing { get; set; }
+
+    public double? Fat100g { get; set; }
+
+    public double? FatServing { get; set; }
+
+    public double? Carbohydrates100g { get; set; }
+
+    public double? CarbohydratesServing { get; set; }
+
+    public double? Proteins100g { get; set; }
+
+    public double? ProteinsServing { get; set; }
 }

@@ -27,4 +27,6 @@ public record ProductSearchResponse
     public double? ServingQuantity { get; set; }
 
     public string? ImageThumbUrl { get; set; }
+
+    public IReadOnlyList<string> Brands { get; set; } = [];
 }

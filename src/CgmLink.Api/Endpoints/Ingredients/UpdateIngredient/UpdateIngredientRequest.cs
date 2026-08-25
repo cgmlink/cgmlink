@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using System.Collections.Generic;
+using FluentValidation;
 using CgmLink.Api.Models;
 
 namespace CgmLink.Api.Endpoints.Ingredients.UpdateIngredient;
@@ -6,6 +7,7 @@ namespace CgmLink.Api.Endpoints.Ingredients.UpdateIngredient;
 public sealed record UpdateIngredientRequest
 {
     public string? Barcode { get; set; }
+    public IReadOnlyList<string>? Brands { get; set; }
     public required string Name { get; set; }
     public required decimal Carbs { get; set; }
     public required decimal Protein { get; set; }
@@ -32,6 +34,10 @@ public sealed record UpdateIngredientRequest
             RuleFor(x => x.Calories)
                 .GreaterThanOrEqualTo(0)
                 .WithMessage(Resources.ValidationMessages.CaloriesGreaterThanOrEqualToZero);
+            RuleFor(x => x.Uom)
+                .Must(uom => uom is UnitOfMeasurement.Unit or UnitOfMeasurement.Hectograms)
+                .When(x => !string.IsNullOrWhiteSpace(x.Barcode))
+                .WithMessage(Resources.ValidationMessages.UomInvalidForNutritionProduct);
         }
     }
 }

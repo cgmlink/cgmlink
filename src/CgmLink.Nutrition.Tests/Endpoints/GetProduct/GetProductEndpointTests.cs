@@ -32,7 +32,13 @@ public class GetProductEndpointTests
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(product);
 
-        var result = await Endpoint.HandleAsync(code, repoMock.Object, CancellationToken.None);
+        var brandRepoMock = new Mock<IRepository<ProductBrand>>();
+        brandRepoMock.Setup(r => r.Find(
+                It.IsAny<System.Linq.Expressions.Expression<System.Func<ProductBrand, bool>>>(),
+                It.IsAny<FindOptions>()))
+            .Returns(new CgmLink.Data.Tests.TestAsyncEnumerable<ProductBrand>([]));
+
+        var result = await Endpoint.HandleAsync(code, repoMock.Object, brandRepoMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<ProductResponse>>());
         var okResult = result.Result as Ok<ProductResponse>;
@@ -54,7 +60,9 @@ public class GetProductEndpointTests
             It.IsAny<CancellationToken>()))
             .ReturnsAsync((Product?)null);
 
-        var result = await Endpoint.HandleAsync(code, repoMock.Object, CancellationToken.None);
+        var brandRepoMock = new Mock<IRepository<ProductBrand>>();
+
+        var result = await Endpoint.HandleAsync(code, repoMock.Object, brandRepoMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<NotFound>());
     }

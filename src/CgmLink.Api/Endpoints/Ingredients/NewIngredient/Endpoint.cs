@@ -5,7 +5,9 @@ using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Data.Enums;
@@ -19,6 +21,7 @@ internal static class Endpoint
         [FromServices] IValidator<NewIngredientRequest> validator,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IRepository<Ingredient> ingredientRepository,
+        [FromServices] IRepository<IngredientBrand> brandRepository,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
@@ -37,12 +40,19 @@ internal static class Endpoint
 
             if (existingIngredient is not null)
             {
+                var existingBrands = await brandRepository
+                    .Find(b => b.IngredientId == existingIngredient.Id, new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true })
+                    .Select(b => b.Name)
+                    .ToListAsync(cancellationToken)
+                    .ConfigureAwait(false);
+
                 var conflictResponse = new NewIngredientResponse
                 {
                     Id = existingIngredient.Id,
                     Barcode = existingIngredient.Barcode,
                     ImageUrl = existingIngredient.ImageUrl,
                     ThumbnailUrl = existingIngredient.ThumbnailUrl,
+                    Brands = existingBrands,
                     Created = existingIngredient.Created,
                     Name = existingIngredient.Name,
                     Carbs = existingIngredient.Carbs,
@@ -74,12 +84,24 @@ internal static class Endpoint
 
         await ingredientRepository.AddAsync(ingredient, cancellationToken).ConfigureAwait(false);
 
+        var brandNames = request.Brands is { Count: > 0 }
+            ? request.Brands.Where(b => !string.IsNullOrWhiteSpace(b)).Distinct().ToList()
+            : [];
+
+        if (brandNames.Count > 0)
+        {
+            await brandRepository
+                .AddManyAsync(brandNames.Select(name => new IngredientBrand { IngredientId = ingredient.Id, Name = name }), cancellationToken)
+                .ConfigureAwait(false);
+        }
+
         var response = new NewIngredientResponse
         {
             Id = ingredient.Id,
             Barcode = ingredient.Barcode,
             ImageUrl = ingredient.ImageUrl,
             ThumbnailUrl = ingredient.ThumbnailUrl,
+            Brands = brandNames,
             Created = ingredient.Created,
             Name = ingredient.Name,
             Carbs = ingredient.Carbs,

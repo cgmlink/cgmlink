@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -6,6 +7,7 @@ using CgmLink.Api.Endpoints.Ingredients.NewIngredient;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Enums;
 using CgmLink.Data.Repository;
+using CgmLink.Data.Tests;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
@@ -19,6 +21,7 @@ public class NewIngredientTests
     private Mock<IValidator<NewIngredientRequest>> _validatorMock;
     private Mock<ICurrentUser> _currentUserMock;
     private Mock<IRepository<Ingredient>> _ingredientRepositoryMock;
+    private Mock<IRepository<IngredientBrand>> _brandRepositoryMock;
 
     [SetUp]
     public void SetUp()
@@ -26,6 +29,14 @@ public class NewIngredientTests
         _validatorMock = new Mock<IValidator<NewIngredientRequest>>();
         _currentUserMock = new Mock<ICurrentUser>();
         _ingredientRepositoryMock = new Mock<IRepository<Ingredient>>();
+        _brandRepositoryMock = new Mock<IRepository<IngredientBrand>>();
+
+        _brandRepositoryMock
+            .Setup(r => r.Find(It.IsAny<System.Linq.Expressions.Expression<Func<IngredientBrand, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<IngredientBrand>([]));
+        _brandRepositoryMock
+            .Setup(r => r.AddManyAsync(It.IsAny<System.Collections.Generic.IEnumerable<IngredientBrand>>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
     }
 
     [Test]
@@ -39,7 +50,7 @@ public class NewIngredientTests
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(validationResult);
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
     }
@@ -61,7 +72,7 @@ public class NewIngredientTests
 
         _ingredientRepositoryMock.Setup(r => r.Add(It.IsAny<Ingredient>()));
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<NewIngredientResponse>>());
         var okResult = result.Result as Ok<NewIngredientResponse>;
@@ -100,7 +111,7 @@ public class NewIngredientTests
 
         _ingredientRepositoryMock.Setup(r => r.Add(It.IsAny<Ingredient>()));
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
@@ -146,7 +157,7 @@ public class NewIngredientTests
             .Setup(r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(existingIngredient);
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Conflict<NewIngredientResponse>>());
         var conflictResult = result.Result as Conflict<NewIngredientResponse>;
@@ -185,11 +196,39 @@ public class NewIngredientTests
 
         _ingredientRepositoryMock.Setup(r => r.Add(It.IsAny<Ingredient>()));
 
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<NewIngredientResponse>>());
         _ingredientRepositoryMock.Verify(
             r => r.FindOneAsync(It.IsAny<System.Linq.Expressions.Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Test]
+    public async Task HandleAsync_Persists_And_Returns_Brands_When_Provided()
+    {
+        var request = new NewIngredientRequest { Name = "Test", Brands = ["Brand A", "Brand B", "Brand A", "  "], Carbs = 10, Protein = 5, Fat = 2, Calories = 100, Uom = (Models.UnitOfMeasurement)UnitOfMeasurement.Grams };
+        var validationResult = new FluentValidation.Results.ValidationResult();
+        var userId = Guid.NewGuid();
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _ingredientRepositoryMock.Object, _brandRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<Ok<NewIngredientResponse>>());
+        var okResult = result.Result as Ok<NewIngredientResponse>;
+        Assert.That(okResult!.Value.Brands, Is.EquivalentTo(new[] { "Brand A", "Brand B" }));
+
+        _brandRepositoryMock.Verify(
+            r => r.AddManyAsync(
+                It.Is<System.Collections.Generic.IEnumerable<IngredientBrand>>(brands => brands.Select(b => b.Name).OrderBy(n => n).SequenceEqual(new[] { "Brand A", "Brand B" })),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 }

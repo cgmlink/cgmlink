@@ -20,6 +20,7 @@ internal static class Endpoint
         [FromRoute] string term,
         [FromQuery] int? max,
         [FromServices] IRepository<Product> repository,
+        [FromServices] IRepository<ProductBrand> brandRepository,
         [FromServices] GPRepository.IRepository<Ingredient> ingredientRepository,
         [FromServices] ICurrentUser currentUser,
         CancellationToken cancellationToken)
@@ -53,6 +54,15 @@ internal static class Endpoint
             .Where(p => !existingBarcodes.Contains(p.Code))
             .ToArray();
 
+        var filteredProductIds = filteredProducts.Select(p => p.Id).ToArray();
+
+        var brandsByProductId = (await brandRepository
+                .Find(b => filteredProductIds.Contains(b.ProductId), new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true })
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false))
+            .GroupBy(b => b.ProductId)
+            .ToDictionary(g => g.Key, g => (IReadOnlyList<string>)g.Select(b => b.Name).ToList());
+
         var response = filteredProducts.Select(product => new ProductSearchResponse()
         {
             Id = product.Id,
@@ -80,11 +90,22 @@ internal static class Endpoint
                 Energy = product.Nutriments?.Energy,
                 Fat = product.Nutriments?.Fat,
                 FatValue = product.Nutriments?.FatValue,
+                Energy100g = product.Nutriments?.Energy100g,
+                EnergyServing = product.Nutriments?.EnergyServing,
+                EnergyKcal100g = product.Nutriments?.EnergyKcal100g,
+                EnergyKcalServing = product.Nutriments?.EnergyKcalServing,
+                Fat100g = product.Nutriments?.Fat100g,
+                FatServing = product.Nutriments?.FatServing,
+                Carbohydrates100g = product.Nutriments?.Carbohydrates100g,
+                CarbohydratesServing = product.Nutriments?.CarbohydratesServing,
+                Proteins100g = product.Nutriments?.Proteins100g,
+                ProteinsServing = product.Nutriments?.ProteinsServing,
             },
             NutritionDataPreparedPer = product.NutritionDataPreparedPer,
             Code = product.Code,
             ServingQuantity = product.ServingQuantity,
             ImageThumbUrl = product.ImageThumbUrl,
+            Brands = brandsByProductId.TryGetValue(product.Id, out var brandNames) ? brandNames : [],
         });
 
         return TypedResults.Ok(response);
