@@ -4,6 +4,7 @@ using CgmLink.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgmLink.Data.Migrators.MSSQL.Migrations
 {
     [DbContext(typeof(CgmLinkDbContext))]
-    partial class CgmLinkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260813162618_MakePenInsulinOptional")]
+    partial class MakePenInsulinOptional
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -93,25 +96,6 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("ingredients");
-                });
-
-            modelBuilder.Entity("CgmLink.Data.Entities.IngredientBrand", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("IngredientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("IngredientId");
-
-                    b.ToTable("ingredients_brands");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Injection", b =>
@@ -499,17 +483,6 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("CgmLink.Data.Entities.IngredientBrand", b =>
-                {
-                    b.HasOne("CgmLink.Data.Entities.Ingredient", "Ingredient")
-                        .WithMany()
-                        .HasForeignKey("IngredientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Ingredient");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Injection", b =>

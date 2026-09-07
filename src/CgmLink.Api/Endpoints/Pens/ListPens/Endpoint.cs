@@ -42,7 +42,7 @@ internal static class Endpoint
                 Colour = (Models.PenColour)p.Colour,
                 Serial = p.Serial,
                 InsulinId = p.InsulinId,
-                InsulinName = p.Insulin != null ? p.Insulin.Name : "",
+                InsulinName = p.Insulin != null ? p.Insulin.Name : null,
                 StartTime = p.StartTime,
             })
             .ToList();

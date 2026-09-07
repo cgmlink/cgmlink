@@ -25,9 +25,9 @@ public class Pen
     public virtual User? User { get; set; }
 
     /// <summary>
-    /// The unique identifier for the insulin associated with the pen.
+    /// The unique identifier for the insulin associated with the pen, if any.
     /// </summary>
-    public required Guid InsulinId { get; set; }
+    public Guid? InsulinId { get; set; }
 
     /// <summary>
     /// The insulin associated with the pen.
