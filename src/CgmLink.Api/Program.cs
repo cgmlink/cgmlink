@@ -13,7 +13,6 @@ using CgmLink.Data.Repository;
 using CgmLink.Identity;
 using CgmLink.LibreLinkClient;
 using CgmLink.Mail;
-using CgmLink.Nutrition;
 using CgmLink.Sync.LibreLink;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -66,7 +65,6 @@ builder.Services.AddValidatorsFromAssemblyContaining(typeof(Program));
 builder.Services.AddHealthChecks().AddDatabaseHealthChecks();
 builder.Services.AddData(builder.Configuration.GetSection("Data").Bind);
 builder.Services.AddIdentity(builder.Configuration.GetSection("Identity").Bind);
-builder.Services.AddNutrition(builder.Configuration.GetSection("Nutrition").Bind);
 
 builder.Services.AddTransient<ExceptionMiddleware>();
 
@@ -124,7 +122,6 @@ app.UseHealthChecks("/health");
 
 app.MapIdentityEndpoints();
 app.MapCgmLinkEndpoints();
-app.MapNutritionEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
