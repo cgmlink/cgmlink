@@ -14,6 +14,11 @@ public class CgmLinkDbContext : DbContext
     public DbSet<Sensor> Sensors { get; set; }
     public DbSet<AlarmRule> AlarmRules { get; set; }
     public DbSet<Pen> Pens { get; set; }
+    public DbSet<Ingredient> Ingredients { get; set; }
+    public DbSet<IngredientServing> IngredientServings { get; set; }
+    public DbSet<UserIngredient> UserIngredients { get; set; }
+    public DbSet<Meal> Meals { get; set; }
+    public DbSet<MealIngredient> MealIngredients { get; set; }
 
     public CgmLinkDbContext(DbContextOptions<CgmLinkDbContext> options) : base(options)
     {
