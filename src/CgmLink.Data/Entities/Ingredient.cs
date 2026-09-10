@@ -32,7 +32,6 @@ public class Ingredient
     /// <summary>
     /// The barcode of the ingredient, unique across all users, when scanned.
     /// </summary>
-    [MaxLength(64)]
     public string? Barcode { get; set; }
 
     /// <summary>
