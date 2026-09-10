@@ -4,6 +4,7 @@ using CgmLink.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgmLink.Data.Migrators.MSSQL.Migrations
 {
     [DbContext(typeof(CgmLinkDbContext))]
-    partial class CgmLinkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260910121649_food-entities")]
+    partial class foodentities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -49,7 +52,8 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Barcode")
-                        .HasColumnType("nvarchar(450)");
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
 
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("datetimeoffset");
