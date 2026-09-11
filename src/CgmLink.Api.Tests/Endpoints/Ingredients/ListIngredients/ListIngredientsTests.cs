@@ -132,6 +132,39 @@ public class ListIngredientsTests
     }
 
     [Test]
+    public async Task HandleAsync_Should_Exclude_Soft_Deleted_Ingredients_When_Request_Is_Valid()
+    {
+        var deleted = new Ingredient
+        {
+            Id = Guid.NewGuid(),
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            Deleted = DateTimeOffset.UtcNow,
+            Users = { new UserIngredient { UserId = _userId, IngredientId = Guid.NewGuid(), Created = DateTimeOffset.UtcNow } },
+        };
+
+        Expression<Func<Ingredient, bool>> predicate = null;
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((expression, _) => predicate = expression)
+            .Returns(new[] { deleted }.AsQueryable());
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
+            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(predicate, Is.Not.Null);
+        Assert.That(predicate.Compile()(deleted), Is.False);
+        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
+    }
+
+    [Test]
     public async Task HandleAsync_Should_Paginate_Ingredients()
     {
         var ingredients = new List<Ingredient>

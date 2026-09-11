@@ -14,7 +14,7 @@ namespace CgmLink.Data.Entities;
 [ExcludeFromCodeCoverage]
 [Table("ingredients")]
 [Index(nameof(Barcode), IsUnique = true)]
-public class Ingredient
+public class Ingredient : ISoftDeletable
 {
     /// <summary>
     /// The unique identifier for the ingredient.
@@ -60,6 +60,11 @@ public class Ingredient
     /// The date and time the ingredient was last updated.
     /// </summary>
     public DateTimeOffset? Updated { get; set; }
+
+    /// <summary>
+    /// The date and time the ingredient was soft-deleted.
+    /// </summary>
+    public DateTimeOffset? Deleted { get; set; }
 
     /// <summary>
     /// The serving sizes available for the ingredient.

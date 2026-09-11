@@ -142,6 +142,28 @@ public class GetIngredientTests
     }
 
     [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Is_Soft_Deleted()
+    {
+        var ingredientId = Guid.NewGuid();
+        var ingredient = new Ingredient
+        {
+            Id = ingredientId,
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            Deleted = DateTimeOffset.UtcNow,
+            Users = { new UserIngredient { UserId = _userId, IngredientId = ingredientId, Created = DateTimeOffset.UtcNow } },
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { ingredient }));
+
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
+                _ingredientsRepositoryMock.Object, CancellationToken.None),
+            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
+    }
+
+    [Test]
     public void HandleAsync_Should_Throw_UnauthorizedAccessException_When_User_Is_Not_Logged_In()
     {
         var ingredientId = Guid.NewGuid();
