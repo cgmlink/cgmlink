@@ -18,6 +18,11 @@ public static class IngredientsEndpoints
             .WithName("ListIngredients")
             .RequireAuthorization();
 
+        group.MapGet("/{id:guid}", GetIngredient.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("GetIngredient")
+            .RequireAuthorization();
+
         group.MapPost("/", NewIngredient.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("CreateIngredient")
