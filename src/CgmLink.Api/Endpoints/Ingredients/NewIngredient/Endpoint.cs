@@ -59,7 +59,7 @@ internal static class Endpoint
                     await ingredientsRepository.UpdateAsync(ingredient, cancellationToken).ConfigureAwait(false);
                 }
 
-                return TypedResults.Created($"/api/v1/ingredients/{ingredient.Id}", ingredient.ToResponse());
+                return TypedResults.Created($"/api/v1/ingredients/{ingredient.Id}", NewIngredientResponse.ToResponse(ingredient));
             }
         }
 
@@ -98,6 +98,6 @@ internal static class Endpoint
 
         await ingredientsRepository.AddAsync(ingredient, cancellationToken).ConfigureAwait(false);
 
-        return TypedResults.Created($"/api/v1/ingredients/{ingredient.Id}", ingredient.ToResponse());
+        return TypedResults.Created($"/api/v1/ingredients/{ingredient.Id}", NewIngredientResponse.ToResponse(ingredient));
     }
 }

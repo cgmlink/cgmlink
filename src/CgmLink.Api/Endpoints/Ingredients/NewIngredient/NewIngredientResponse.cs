@@ -27,11 +27,8 @@ public sealed record NewIngredientResponse
         public required decimal Protein { get; init; }
         public required decimal Fat { get; init; }
     }
-}
 
-internal static class NewIngredientResponseExtensions
-{
-    internal static NewIngredientResponse ToResponse(this Ingredient ingredient)
+    public static NewIngredientResponse ToResponse(Ingredient ingredient)
     {
         return new NewIngredientResponse
         {
