@@ -421,6 +421,24 @@ namespace CgmLink.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to SORT_BY_INVALID.
+        /// </summary>
+        public static string SortByInvalid {
+            get {
+                return ResourceManager.GetString("SortByInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SORT_DIRECTION_INVALID.
+        /// </summary>
+        public static string SortDirectionInvalid {
+            get {
+                return ResourceManager.GetString("SortDirectionInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to TERMS_NOT_ACCEPTED.
         /// </summary>
         public static string TermsNotAccepted {

@@ -1,5 +1,7 @@
 using FluentValidation;
+using CgmLink.Api.Models;
 using CgmLink.Data.Entities;
+using CgmLink.Data.Extensions;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -28,9 +30,11 @@ internal static class Endpoint
         }
 
         var userId = currentUser.GetUserId();
+        var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? nameof(Ingredient.Created) : request.SortBy;
+        var descending = request.SortDirection == SortDirection.Desc;
 
         var ingredients = ingredientsRepository.Find(i => i.Users.Any(u => u.UserId == userId), new FindOptions { IsAsNoTracking = true })
-            .OrderByDescending(i => i.Created)
+            .OrderByProperty(sortBy, descending)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .Select(i => new GetIngredientResponse

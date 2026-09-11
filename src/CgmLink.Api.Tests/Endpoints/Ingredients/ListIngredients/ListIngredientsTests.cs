@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Ingredients.ListIngredients;
+using CgmLink.Api.Models;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
@@ -160,5 +161,71 @@ public class ListIngredientsTests
             Assert.That(okResult.Value.Ingredients.First().Name, Is.EqualTo("Milk"));
             Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(2));
         });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Sort_By_Requested_Field_Ascending()
+    {
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient { Id = Guid.NewGuid(), Name = "Zebra", Created = DateTimeOffset.UtcNow },
+            new Ingredient { Id = Guid.NewGuid(), Name = "Apple", Created = DateTimeOffset.UtcNow },
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(ingredients.AsQueryable());
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredients.Count);
+
+        var request = new ListIngredientsRequest
+        {
+            Page = 0,
+            PageSize = 10,
+            SortBy = nameof(Ingredient.Name),
+            SortDirection = SortDirection.Asc,
+        };
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
+            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
+        var okResult = result.Result as Ok<ListIngredientsResponse>;
+        Assert.That(okResult!.Value.Ingredients.Select(i => i.Name), Is.EqualTo(new[] { "Apple", "Zebra" }));
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Sort_By_Requested_Field_Descending()
+    {
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient { Id = Guid.NewGuid(), Name = "Apple", Created = DateTimeOffset.UtcNow },
+            new Ingredient { Id = Guid.NewGuid(), Name = "Zebra", Created = DateTimeOffset.UtcNow },
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(ingredients.AsQueryable());
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredients.Count);
+
+        var request = new ListIngredientsRequest
+        {
+            Page = 0,
+            PageSize = 10,
+            SortBy = nameof(Ingredient.Name),
+            SortDirection = SortDirection.Desc,
+        };
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
+            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
+        var okResult = result.Result as Ok<ListIngredientsResponse>;
+        Assert.That(okResult!.Value.Ingredients.Select(i => i.Name), Is.EqualTo(new[] { "Zebra", "Apple" }));
     }
 }
