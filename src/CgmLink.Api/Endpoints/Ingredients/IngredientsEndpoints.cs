@@ -28,6 +28,11 @@ public static class IngredientsEndpoints
             .WithName("CreateIngredient")
             .RequireAuthorization();
 
+        group.MapPatch("/{id:guid}", UpdateIngredient.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("UpdateIngredient")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }
