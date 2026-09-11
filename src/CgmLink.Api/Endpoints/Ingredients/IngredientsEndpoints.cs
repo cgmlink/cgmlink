@@ -13,29 +13,9 @@ public static class IngredientsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/ingredients")
             .WithTags("Ingredients");
 
-        group.MapGet("/", List.Endpoint.HandleAsync)
-            .WithName("ListIngredients")
-            .HasApiVersion(1.0)
-            .RequireAuthorization();
-
-        group.MapGet("/{id:guid}", GetIngredient.Endpoint.HandleAsync)
-            .HasApiVersion(1.0)
-            .WithName("GetIngredient")
-            .RequireAuthorization();
-
         group.MapPost("/", NewIngredient.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("CreateIngredient")
-            .RequireAuthorization();
-
-        group.MapPatch("/{id:guid}", UpdateIngredient.Endpoint.HandleAsync)
-            .HasApiVersion(1.0)
-            .WithName("UpdateIngredient")
-            .RequireAuthorization();
-
-        group.MapDelete("/{id:guid}", RemoveIngredient.Endpoint.HandleAsync)
-            .HasApiVersion(1.0)
-            .WithName("DeleteIngredient")
             .RequireAuthorization();
 
         return endpoints;

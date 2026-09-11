@@ -34,7 +34,16 @@ public class TestAsyncQueryProvider<TEntity> : IAsyncQueryProvider
 
     public TResult ExecuteAsync<TResult>(Expression expression, CancellationToken cancellationToken = default)
     {
-        return Task.FromResult(Execute<TResult>(expression)).Result;
+        var resultType = typeof(TResult).GetGenericArguments()[0];
+        var executionResult = typeof(IQueryProvider)
+            .GetMethods()
+            .First(method => method.Name == nameof(IQueryProvider.Execute) && method.IsGenericMethod)
+            .MakeGenericMethod(resultType)
+            .Invoke(this, new object[] { expression });
+        var task = typeof(Task).GetMethod(nameof(Task.FromResult))!
+            .MakeGenericMethod(resultType)
+            .Invoke(null, new[] { executionResult })!;
+        return (TResult)task;
     }
 }
 

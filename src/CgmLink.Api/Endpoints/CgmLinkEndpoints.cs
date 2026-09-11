@@ -8,7 +8,6 @@ using CgmLink.Api.Endpoints.Sensors;
 using CgmLink.Api.Endpoints.Settings;
 using CgmLink.Api.Endpoints.Pens;
 using CgmLink.Api.Endpoints.Ingredients;
-using CgmLink.Api.Endpoints.Meals;
 
 namespace CgmLink.Api.Endpoints;
 
@@ -25,7 +24,6 @@ public static class CgmLinkEndpoints
         endpoints.MapSensorsEndpoints();
         endpoints.MapPensEndpoints();
         endpoints.MapIngredientsEndpoints();
-        endpoints.MapMealsEndpoints();
 
         return endpoints;
     }
