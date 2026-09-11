@@ -252,4 +252,10 @@
   <data name="UomInvalidForNutritionProduct" xml:space="preserve">
     <value>UOM_INVALID_FOR_NUTRITION_PRODUCT</value>
   </data>
+  <data name="SortByInvalid" xml:space="preserve">
+    <value>SORT_BY_INVALID</value>
+  </data>
+  <data name="SortDirectionInvalid" xml:space="preserve">
+    <value>SORT_DIRECTION_INVALID</value>
+  </data>
 </root>

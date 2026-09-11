@@ -13,6 +13,11 @@ public static class IngredientsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/ingredients")
             .WithTags("Ingredients");
 
+        group.MapGet("/", ListIngredients.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("ListIngredients")
+            .RequireAuthorization();
+
         group.MapPost("/", NewIngredient.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("CreateIngredient")
