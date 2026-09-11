@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using CgmLink.Data.Enums;
+using FluentValidation;
 using Microsoft.Extensions.Options;
 using System.ComponentModel.DataAnnotations;
 
@@ -12,12 +13,17 @@ public record PagedRequest
     [Required]
     public int PageSize { get; set; }
 
+    public string? SortBy { get; set; }
+
+    public SortDirection SortDirection { get; set; } = SortDirection.Desc;
+
     public class PagedRequestValidator<T> : AbstractValidator<T> where T : PagedRequest
     {
         public PagedRequestValidator(IOptions<ApiSettings> apiSettings)
         {
             RuleFor(x => x.Page).GreaterThanOrEqualTo(0);
             RuleFor(x => x.PageSize).InclusiveBetween(1, apiSettings.Value.MaxPageSize);
+            RuleFor(x => x.SortDirection).IsInEnum().WithMessage(Resources.ValidationMessages.SortDirectionInvalid);
         }
     }
 }

@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using CgmLink.Data.Entities;
+using CgmLink.Data.Extensions;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -30,7 +31,7 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
 
         var pens = pensRepository.Find(p => p.UserId == userId, new FindOptions { IsAsNoTracking = true })
-            .OrderByDescending(p => p.Created)
+            .ApplySort(ListPensRequest.SortFields, request.SortBy, request.SortDirection)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .Select(p => new PenResponse

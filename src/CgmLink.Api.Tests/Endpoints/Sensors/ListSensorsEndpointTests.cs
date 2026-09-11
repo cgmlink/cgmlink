@@ -1,6 +1,7 @@
 ﻿using FluentValidation;
 using CgmLink.Api.Endpoints.Sensors.List;
 using CgmLink.Api.Models;
+using CgmLink.Data.Enums;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -122,5 +123,36 @@ public class ListSensorsEndpointTests
             Assert.That(response?.Sensors.Count, Is.EqualTo(sensors.Count));
             Assert.That(response?.NumberOfPages, Is.EqualTo(1));
         });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Sort_Sensors_By_Requested_Field_And_Direction()
+    {
+        var request = new ListSensorsRequest { Page = 0, PageSize = 10, SortBy = "Started", SortDirection = SortDirection.Asc };
+        var userId = Guid.NewGuid();
+        var sensors = new List<Sensor>
+        {
+            new Sensor { Id = Guid.NewGuid(), UserId = userId, SensorId = "Sensor1", Started = DateTimeOffset.UtcNow.AddDays(1), Expires = DateTimeOffset.UtcNow.AddDays(8), Created = DateTimeOffset.UtcNow },
+            new Sensor { Id = Guid.NewGuid(), UserId = userId, SensorId = "Sensor2", Started = DateTimeOffset.UtcNow.AddDays(-1), Expires = DateTimeOffset.UtcNow.AddDays(6), Created = DateTimeOffset.UtcNow },
+        };
+
+        _validatorMock
+            .Setup(v => v.ValidateAsync(request, default))
+            .ReturnsAsync(new FluentValidation.Results.ValidationResult());
+        _currentUserMock
+            .Setup(c => c.GetUserId())
+            .Returns(userId);
+        _sensorRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Sensor, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(sensors.AsQueryable());
+        _sensorRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Sensor, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(sensors.Count);
+
+        var result = await Endpoint.HandleAsync(request, _validatorMock.Object, _currentUserMock.Object, _sensorRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<Ok<ListSensorsResponse>>());
+        var response = (result.Result as Ok<ListSensorsResponse>)?.Value;
+        Assert.That(response?.Sensors.Select(s => s.SensorId), Is.EqualTo(new[] { "Sensor2", "Sensor1" }));
     }
 }

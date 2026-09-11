@@ -1,4 +1,5 @@
-﻿using FluentValidation;
+﻿using CgmLink.Data.Extensions;
+using FluentValidation;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
@@ -30,7 +31,7 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
 
         var sensors = sensorRepository.Find(s => s.UserId == userId, new FindOptions { IsAsNoTracking = true })
-            .OrderByDescending(s => s.Created)
+            .ApplySort(ListSensorsRequest.SortFields, request.SortBy, request.SortDirection)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .Select(s => new ListSensorResponse

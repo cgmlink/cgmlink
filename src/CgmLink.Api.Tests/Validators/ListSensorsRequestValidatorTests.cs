@@ -1,6 +1,7 @@
 ﻿using FluentValidation.TestHelper;
 using CgmLink.Api.Endpoints.Sensors.List;
 using CgmLink.Api.Models;
+using CgmLink.Data.Enums;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 
@@ -66,6 +67,63 @@ class ListSensorsRequestValidatorTests
         {
             Page = 1,
             PageSize = 10
+        };
+
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Test]
+    public void Should_Have_Error_When_SortDirection_Is_Invalid()
+    {
+        var request = new ListSensorsRequest
+        {
+            Page = 1,
+            PageSize = 10,
+            SortDirection = (SortDirection)(-1)
+        };
+
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.SortDirection);
+    }
+
+    [Test]
+    public void Should_Have_Error_When_SortBy_Is_Not_Allowed()
+    {
+        var request = new ListSensorsRequest
+        {
+            Page = 1,
+            PageSize = 10,
+            SortBy = "Bogus"
+        };
+
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.SortBy);
+    }
+
+    [Test]
+    public void Should_Not_Have_Error_When_SortBy_Is_Allowed()
+    {
+        var request = new ListSensorsRequest
+        {
+            Page = 1,
+            PageSize = 10,
+            SortBy = "Started",
+            SortDirection = SortDirection.Asc
+        };
+
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveAnyValidationErrors();
+    }
+
+    [Test]
+    public void Should_Not_Have_Error_When_SortBy_Is_Blank()
+    {
+        var request = new ListSensorsRequest
+        {
+            Page = 1,
+            PageSize = 10,
+            SortBy = ""
         };
 
         var result = _validator.TestValidate(request);

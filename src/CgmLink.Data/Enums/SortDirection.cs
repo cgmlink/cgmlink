@@ -1,4 +1,4 @@
-namespace CgmLink.Api.Models;
+namespace CgmLink.Data.Enums;
 
 public enum SortDirection
 {

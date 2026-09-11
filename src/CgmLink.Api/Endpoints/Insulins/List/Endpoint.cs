@@ -1,5 +1,6 @@
 ﻿using FluentValidation;
 using CgmLink.Data.Entities;
+using CgmLink.Data.Extensions;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
 using Microsoft.AspNetCore.Http;
@@ -30,7 +31,7 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
 
         var insulins = repository.Find(i => i.UserId == userId && (request.Type == null || i.Type == (Data.Enums.InsulinType)request.Type), new FindOptions { IsAsNoTracking = true })
-            .OrderByDescending(i => i.Created)
+            .ApplySort(ListInsulinsRequest.SortFields, request.SortBy, request.SortDirection)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .Select(i => new GetInsulinResponse

@@ -1,33 +1,26 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using CgmLink.Data.Enums;
 
 namespace CgmLink.Data.Extensions;
 
 public static class QueryableExtensions
 {
-    public static IOrderedQueryable<T> OrderByProperty<T>(this IQueryable<T> source, string propertyPath, bool descending = false)
+    public static IOrderedQueryable<T> ApplySort<T>(
+        this IQueryable<T> source,
+        IReadOnlyDictionary<string, Expression<Func<T, object>>> sortFields,
+        string? sortBy = null,
+        SortDirection direction = SortDirection.Desc)
     {
-        return OrderByUsing(source, propertyPath, descending ? "OrderByDescending" : "OrderBy");
-    }
+        var field = string.IsNullOrWhiteSpace(sortBy) ? "Created" : sortBy;
+        var keySelector = sortFields.GetValueOrDefault(field) ?? sortFields.GetValueOrDefault("Created");
+        if (keySelector is null)
+        {
+            throw new ArgumentException($"Unknown sort field '{field}'.", nameof(sortBy));
+        }
 
-    public static IOrderedQueryable<T> ThenByProperty<T>(this IOrderedQueryable<T> source, string propertyPath, bool descending = false)
-    {
-        return OrderByUsing(source, propertyPath, descending ? "ThenByDescending" : "ThenBy");
-    }
-
-    private static IOrderedQueryable<T> OrderByUsing<T>(this IQueryable<T> source, string propertyPath, string method)
-    {
-        var parameter = Expression.Parameter(typeof(T), "item");
-        var member = propertyPath.Split('.')
-            .Aggregate((Expression)parameter, Expression.PropertyOrField);
-        var keySelector = Expression.Lambda(member, parameter);
-        var methodCall = Expression.Call(
-            typeof(Queryable),
-            method,
-            [parameter.Type, member.Type],
-            source.Expression,
-            Expression.Quote(keySelector));
-
-        return (IOrderedQueryable<T>)source.Provider.CreateQuery(methodCall);
+        return direction == SortDirection.Asc ? source.OrderBy(keySelector) : source.OrderByDescending(keySelector);
     }
 }
