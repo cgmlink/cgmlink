@@ -18,12 +18,12 @@ internal static class Endpoint
         [FromRoute] Guid id,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IRepository<Meal> mealsRepository,
+        [FromServices] IRepository<MealIngredient> mealIngredientsRepository,
         CancellationToken cancellationToken)
     {
         var userId = currentUser.GetUserId();
 
         var meal = await mealsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
-            .Include(m => m.Ingredients)
             .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId && m.Deleted == null, cancellationToken)
             .ConfigureAwait(false);
 
@@ -32,6 +32,10 @@ internal static class Endpoint
             throw new NotFoundException("MEAL_NOT_FOUND");
         }
 
-        return TypedResults.Ok(GetMealResponse.ToResponse(meal));
+        var ingredientCount = await mealIngredientsRepository
+            .CountAsync(mi => mi.MealId == id, cancellationToken)
+            .ConfigureAwait(false);
+
+        return TypedResults.Ok(GetMealResponse.ToResponse(meal, ingredientCount));
     }
 }

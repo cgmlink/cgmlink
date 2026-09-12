@@ -1,7 +1,5 @@
 using CgmLink.Data.Entities;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace CgmLink.Api.Endpoints.Meals.GetMeal;
 
@@ -17,9 +15,9 @@ public sealed record GetMealResponse
     public required decimal Fat { get; init; }
     public required DateTimeOffset Created { get; init; }
     public DateTimeOffset? Updated { get; init; }
-    public ICollection<Guid>? IngredientIds { get; init; }
+    public required int IngredientCount { get; init; }
 
-    public static GetMealResponse ToResponse(Meal meal)
+    public static GetMealResponse ToResponse(Meal meal, int ingredientCount)
     {
         return new GetMealResponse
         {
@@ -33,9 +31,7 @@ public sealed record GetMealResponse
             Fat = meal.Fat,
             Created = meal.Created,
             Updated = meal.Updated,
-            IngredientIds = meal.Ingredients?
-                .Select(mi => mi.IngredientId)
-                .ToList(),
+            IngredientCount = ingredientCount,
         };
     }
 }
