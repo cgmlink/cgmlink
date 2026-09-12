@@ -25,7 +25,7 @@ internal static class Endpoint
 
         var meal = await mealsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
             .Where(m => m.Id == id && m.UserId == userId && m.Deleted == null)
-            .Select(m => GetMealResponse.ToResponse(m, m.Ingredients.Count()))
+            .Select(m => GetMealResponse.ToResponse(m, m.Ingredients.Count))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
