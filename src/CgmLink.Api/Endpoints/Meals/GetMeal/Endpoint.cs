@@ -25,7 +25,7 @@ internal static class Endpoint
 
         var meal = await mealsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
             .Where(m => m.Id == id && m.UserId == userId && m.Deleted == null)
-            .Select(m => new { m, IngredientCount = m.Ingredients.Count() })
+            .Select(m => GetMealResponse.ToResponse(m, m.Ingredients.Count()))
             .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
@@ -34,6 +34,6 @@ internal static class Endpoint
             throw new NotFoundException("MEAL_NOT_FOUND");
         }
 
-        return TypedResults.Ok(GetMealResponse.ToResponse(meal.m, meal.IngredientCount));
+        return TypedResults.Ok(meal);
     }
 }
