@@ -18,6 +18,11 @@ public static class MealsEndpoints
             .WithName("GetMeal")
             .RequireAuthorization();
 
+        group.MapPost("/", NewMeal.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("CreateMeal")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }
