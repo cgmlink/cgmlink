@@ -64,6 +64,26 @@ public class Meal : ISoftDeletable
     public DateTimeOffset? Deleted { get; set; }
 
     /// <summary>
+    /// The total calories of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Calories { get; set; }
+
+    /// <summary>
+    /// The total carbohydrates in grams of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Carbs { get; set; }
+
+    /// <summary>
+    /// The total protein in grams of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Protein { get; set; }
+
+    /// <summary>
+    /// The total fat in grams of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Fat { get; set; }
+
+    /// <summary>
     /// The ingredients that make up the meal.
     /// </summary>
     public virtual ICollection<MealIngredient> Ingredients { get; set; } = [];
