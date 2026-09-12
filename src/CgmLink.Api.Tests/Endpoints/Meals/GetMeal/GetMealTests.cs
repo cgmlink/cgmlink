@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Meals.GetMeal;
@@ -20,21 +19,15 @@ public class GetMealTests
 {
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IRepository<Meal>> _mealsRepositoryMock;
-    private Mock<IRepository<MealIngredient>> _mealIngredientsRepositoryMock;
     private Mock<ICurrentUser> _currentUserMock;
 
     [SetUp]
     public void SetUp()
     {
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
-        _mealIngredientsRepositoryMock = new Mock<IRepository<MealIngredient>>();
         _currentUserMock = new Mock<ICurrentUser>();
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
-
-        _mealIngredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<MealIngredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
     }
 
     private Meal CreateMeal(Guid id)
@@ -68,12 +61,8 @@ public class GetMealTests
         var meal = CreateMeal(mealId);
         SetupMeal(meal);
 
-        _mealIngredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<MealIngredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(3);
-
         var result = await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
-            _mealsRepositoryMock.Object, _mealIngredientsRepositoryMock.Object, CancellationToken.None);
+            _mealsRepositoryMock.Object, CancellationToken.None);
 
         _mealsRepositoryMock.Verify(r => r.GetAll(It.Is<FindOptions>(o => o.IsAsNoTracking)), Times.Once);
 
@@ -87,7 +76,7 @@ public class GetMealTests
             Assert.That(okResult.Value.Carbs, Is.EqualTo(50));
             Assert.That(okResult.Value.Protein, Is.EqualTo(25));
             Assert.That(okResult.Value.Fat, Is.EqualTo(20));
-            Assert.That(okResult.Value.IngredientCount, Is.EqualTo(3));
+            Assert.That(okResult.Value.IngredientCount, Is.EqualTo(0));
         });
     }
 
@@ -96,18 +85,26 @@ public class GetMealTests
     {
         var mealId = Guid.NewGuid();
         var meal = CreateMeal(mealId);
+        meal.Ingredients.Add(new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = mealId,
+            IngredientId = Guid.NewGuid(),
+            Quantity = 1,
+            Created = DateTimeOffset.UtcNow,
+        });
+        meal.Ingredients.Add(new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = mealId,
+            IngredientId = Guid.NewGuid(),
+            Quantity = 1,
+            Created = DateTimeOffset.UtcNow,
+        });
         SetupMeal(meal);
 
-        _mealIngredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<MealIngredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(2);
-
         var result = await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
-            _mealsRepositoryMock.Object, _mealIngredientsRepositoryMock.Object, CancellationToken.None);
-
-        _mealIngredientsRepositoryMock.Verify(
-            r => r.CountAsync(It.IsAny<Expression<Func<MealIngredient, bool>>>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+            _mealsRepositoryMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<Ok<GetMealResponse>>());
         var okResult = result.Result as Ok<GetMealResponse>;
@@ -124,12 +121,8 @@ public class GetMealTests
             .Returns(new TestAsyncEnumerable<Meal>(new List<Meal>()));
 
         Assert.That(async () => await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
-                _mealsRepositoryMock.Object, _mealIngredientsRepositoryMock.Object, CancellationToken.None),
+                _mealsRepositoryMock.Object, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("MEAL_NOT_FOUND"));
-
-        _mealIngredientsRepositoryMock.Verify(
-            r => r.CountAsync(It.IsAny<Expression<Func<MealIngredient, bool>>>(), It.IsAny<CancellationToken>()),
-            Times.Never);
     }
 
     [Test]
@@ -150,7 +143,7 @@ public class GetMealTests
         SetupMeal(meal);
 
         Assert.That(async () => await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
-                _mealsRepositoryMock.Object, _mealIngredientsRepositoryMock.Object, CancellationToken.None),
+                _mealsRepositoryMock.Object, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("MEAL_NOT_FOUND"));
     }
 
@@ -163,7 +156,7 @@ public class GetMealTests
         SetupMeal(meal);
 
         Assert.That(async () => await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
-                _mealsRepositoryMock.Object, _mealIngredientsRepositoryMock.Object, CancellationToken.None),
+                _mealsRepositoryMock.Object, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("MEAL_NOT_FOUND"));
     }
 
@@ -177,7 +170,7 @@ public class GetMealTests
             .Throws<UnauthorizedAccessException>();
 
         Assert.That(async () => await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
-                _mealsRepositoryMock.Object, _mealIngredientsRepositoryMock.Object, CancellationToken.None),
+                _mealsRepositoryMock.Object, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedAccessException>());
     }
 }
