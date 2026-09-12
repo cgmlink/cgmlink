@@ -47,7 +47,7 @@ namespace CgmLink.Api.Tests.Validators
                     It.IsAny<System.Linq.Expressions.Expression<Func<Insulin, bool>>>(),
                     It.IsAny<FindOptions>(),
                     It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new Insulin { Id = request.InsulinId, UserId = _userId, Name = "Test", Type = (Data.Enums.InsulinType)InsulinType.Bolus });
+                .ReturnsAsync(new Insulin { Id = request.InsulinId!.Value, UserId = _userId, Name = "Test", Type = (Data.Enums.InsulinType)InsulinType.Bolus });
 
             var result = await _validator.TestValidateAsync(request).ConfigureAwait(false);
 
