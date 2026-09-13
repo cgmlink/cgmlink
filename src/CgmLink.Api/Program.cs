@@ -5,6 +5,7 @@ using FluentValidation;
 using CgmLink.Api.Endpoints;
 using CgmLink.Api.Middleware;
 using CgmLink.Api.Models;
+using CgmLink.Api.Services;
 using CgmLink.Api.Swagger;
 using CgmLink.AspNetCore.Extensions;
 using CgmLink.AspNetCore.Settings;
@@ -71,6 +72,7 @@ builder.Services.AddTransient<ExceptionMiddleware>();
 builder.Services.AddScoped<CgmLinkDbInitializer>();
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("Api"));
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IMealService, MealService>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
