@@ -13,9 +13,9 @@ public sealed record ListMealsRequest : PagedRequest
         nameof(Meal.Created),
         nameof(Meal.Updated),
         nameof(Meal.Name),
-        nameof(Meal.Calories), 
-        nameof(Meal.Carbs), 
-        nameof(Meal.Protein), 
+        nameof(Meal.Calories),
+        nameof(Meal.Carbs),
+        nameof(Meal.Protein),
         nameof(Meal.Fat)
     ];
 
