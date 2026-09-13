@@ -12,13 +12,12 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-permissions:
-  actions: read
-  contents: read
-
 jobs:
   dependency-scan:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v6
       - name: Setup .NET
@@ -32,6 +31,9 @@ jobs:
 
   secret-scan:
     runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
     steps:
       - uses: actions/checkout@v6
         with:
