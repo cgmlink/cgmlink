@@ -5,6 +5,7 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Meals.NewMeal;
+using CgmLink.Api.Services;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
@@ -27,6 +28,7 @@ public class NewMealTests
     private Mock<IRepository<Ingredient>> _ingredientsRepositoryMock;
     private Mock<IRepository<User>> _usersRepositoryMock;
     private Mock<ICurrentUser> _currentUserMock;
+    private Mock<IMealService> _mealServiceMock;
 
     [SetUp]
     public void SetUp()
@@ -36,6 +38,7 @@ public class NewMealTests
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _usersRepositoryMock = new Mock<IRepository<User>>();
         _currentUserMock = new Mock<ICurrentUser>();
+        _mealServiceMock = new Mock<IMealService>();
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 
@@ -109,7 +112,7 @@ public class NewMealTests
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-            _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None);
+            _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
     }
@@ -125,7 +128,7 @@ public class NewMealTests
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-                _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None),
+                _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));
     }
 
@@ -152,17 +155,32 @@ public class NewMealTests
             }
         };
 
+        _mealServiceMock
+            .Setup(s => s.RecalculateNutrition(It.IsAny<Meal>()))
+            .Returns((Meal meal) =>
+            {
+                meal.Calories = 100;
+                meal.Carbs = 10;
+                meal.Protein = 5;
+                meal.Fat = 2;
+                return meal;
+            });
+
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-            _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None);
+            _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None);
+
+        _mealServiceMock.Verify(s => s.RecalculateNutrition(It.Is<Meal>(m =>
+            m.Ingredients.Count == 1
+        )), Times.Once);
 
         _mealsRepositoryMock.Verify(r => r.AddAsync(It.Is<Meal>(m =>
             m.Name == request.Name &&
             m.UserId == _userId &&
-            m.Calories == 200 &&
-            m.Carbs == 20 &&
-            m.Protein == 10 &&
-            m.Fat == 4 &&
+            m.Calories == 100 &&
+            m.Carbs == 10 &&
+            m.Protein == 5 &&
+            m.Fat == 2 &&
             m.Ingredients.Count == 1
         ), It.IsAny<CancellationToken>()), Times.Once);
 
@@ -171,10 +189,10 @@ public class NewMealTests
         Assert.Multiple(() =>
         {
             Assert.That(created!.Value.Name, Is.EqualTo(request.Name));
-            Assert.That(created.Value.Calories, Is.EqualTo(200));
-            Assert.That(created.Value.Carbs, Is.EqualTo(20));
-            Assert.That(created.Value.Protein, Is.EqualTo(10));
-            Assert.That(created.Value.Fat, Is.EqualTo(4));
+            Assert.That(created.Value.Calories, Is.EqualTo(100));
+            Assert.That(created.Value.Carbs, Is.EqualTo(10));
+            Assert.That(created.Value.Protein, Is.EqualTo(5));
+            Assert.That(created.Value.Fat, Is.EqualTo(2));
             Assert.That(created.Value.IngredientCount, Is.EqualTo(1));
             Assert.That(created.Value.Created, Is.EqualTo(DateTimeOffset.UtcNow).Within(TimeSpan.FromSeconds(1)));
             Assert.That(created.Value.Id, Is.Not.EqualTo(Guid.Empty));
@@ -182,7 +200,7 @@ public class NewMealTests
     }
 
     [Test]
-    public async Task HandleAsync_Should_Calculate_Total_Nutrition_For_Multiple_Ingredients()
+    public async Task HandleAsync_Should_Persist_Nutrition_From_Meal_Service_When_Request_Has_Multiple_Ingredients()
     {
         var ingredientId1 = Guid.NewGuid();
         var ingredientId2 = Guid.NewGuid();
@@ -192,12 +210,7 @@ public class NewMealTests
         var ingredient1 = CreateIngredient(ingredientId1);
         ingredient1.Servings.Add(CreateServing(servingId1, ingredientId1));
         var ingredient2 = CreateIngredient(ingredientId2);
-        var serving2 = CreateServing(servingId2, ingredientId2);
-        serving2.Calories = 50;
-        serving2.Carbs = 5;
-        serving2.Protein = 3;
-        serving2.Fat = 1;
-        ingredient2.Servings.Add(serving2);
+        ingredient2.Servings.Add(CreateServing(servingId2, ingredientId2));
         SetupIngredients(new List<Ingredient> { ingredient1, ingredient2 });
 
         var request = new NewMealRequest
@@ -220,25 +233,40 @@ public class NewMealTests
             }
         };
 
+        _mealServiceMock
+            .Setup(s => s.RecalculateNutrition(It.IsAny<Meal>()))
+            .Returns((Meal meal) =>
+            {
+                meal.Calories = 150;
+                meal.Carbs = 15;
+                meal.Protein = 6;
+                meal.Fat = 3;
+                return meal;
+            });
+
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-            _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None);
+            _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None);
+
+        _mealServiceMock.Verify(s => s.RecalculateNutrition(It.Is<Meal>(m =>
+            m.Ingredients.Count == 2
+        )), Times.Once);
 
         _mealsRepositoryMock.Verify(r => r.AddAsync(It.Is<Meal>(m =>
-            m.Calories == 250 &&
-            m.Carbs == 25 &&
-            m.Protein == 13 &&
-            m.Fat == 5 &&
+            m.Calories == 150 &&
+            m.Carbs == 15 &&
+            m.Protein == 6 &&
+            m.Fat == 3 &&
             m.Ingredients.Count == 2
         ), It.IsAny<CancellationToken>()), Times.Once);
 
         var created = result.Result as Created<NewMealResponse>;
         Assert.Multiple(() =>
         {
-            Assert.That(created!.Value.Calories, Is.EqualTo(250));
-            Assert.That(created.Value.Carbs, Is.EqualTo(25));
-            Assert.That(created.Value.Protein, Is.EqualTo(13));
-            Assert.That(created.Value.Fat, Is.EqualTo(5));
+            Assert.That(created!.Value.Calories, Is.EqualTo(150));
+            Assert.That(created.Value.Carbs, Is.EqualTo(15));
+            Assert.That(created.Value.Protein, Is.EqualTo(6));
+            Assert.That(created.Value.Fat, Is.EqualTo(3));
             Assert.That(created.Value.IngredientCount, Is.EqualTo(2));
         });
     }
@@ -262,7 +290,7 @@ public class NewMealTests
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-                _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None),
+                _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
     }
 
@@ -296,7 +324,7 @@ public class NewMealTests
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-                _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None),
+                _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
     }
 
@@ -324,7 +352,7 @@ public class NewMealTests
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _mealsRepositoryMock.Object, _ingredientsRepositoryMock.Object,
-                _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None),
+                _usersRepositoryMock.Object, _currentUserMock.Object, _mealServiceMock.Object, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
     }
 }

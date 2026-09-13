@@ -1,4 +1,5 @@
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Api.Services;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
@@ -24,6 +25,7 @@ internal static class Endpoint
         [FromServices] IRepository<Ingredient> ingredientsRepository,
         [FromServices] IRepository<User> usersRepository,
         [FromServices] ICurrentUser currentUser,
+        [FromServices] IMealService mealService,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
@@ -57,44 +59,34 @@ internal static class Endpoint
             }
         }
 
-        var calories = 0m;
-        var carbs = 0m;
-        var protein = 0m;
-        var fat = 0m;
-        foreach (var mealIngredient in request.Ingredients)
-        {
-            var ingredient = ingredients[mealIngredient.IngredientId];
-            var serving = ingredient.Servings.Single(s => s.Id == mealIngredient.ServingId);
-            calories += serving.Calories * mealIngredient.Quantity;
-            carbs += serving.Carbs * mealIngredient.Quantity;
-            protein += serving.Protein * mealIngredient.Quantity;
-            fat += serving.Fat * mealIngredient.Quantity;
-        }
-
         var meal = new Meal
         {
             Name = request.Name,
             ImageUrl = request.ImageUrl,
             ThumbnailUrl = request.ThumbnailUrl,
             UserId = userId,
-            Calories = calories,
-            Carbs = carbs,
-            Protein = protein,
-            Fat = fat,
+            Calories = 0m,
+            Carbs = 0m,
+            Protein = 0m,
+            Fat = 0m,
             Created = DateTimeOffset.UtcNow,
         };
 
         foreach (var mealIngredient in request.Ingredients)
         {
+            var ingredient = ingredients[mealIngredient.IngredientId];
             meal.Ingredients.Add(new MealIngredient
             {
                 MealId = meal.Id,
                 IngredientId = mealIngredient.IngredientId,
                 ServingId = mealIngredient.ServingId,
+                Serving = ingredient.Servings.Single(s => s.Id == mealIngredient.ServingId),
                 Quantity = mealIngredient.Quantity,
                 Created = DateTimeOffset.UtcNow,
             });
         }
+
+        mealService.RecalculateNutrition(meal);
 
         await mealsRepository.AddAsync(meal, cancellationToken).ConfigureAwait(false);
 
