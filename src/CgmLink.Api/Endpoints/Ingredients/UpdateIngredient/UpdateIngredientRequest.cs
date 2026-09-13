@@ -40,6 +40,11 @@ public sealed record UpdateIngredientRequest
                 .WithMessage(ValidationMessages.NameRequired)
                 .When(x => x.Name is not null);
 
+            RuleFor(x => x.Servings)
+                .NotEmpty()
+                .WithMessage(ValidationMessages.IngredientsNotEmpty)
+                .When(x => x.Servings is not null);
+
             RuleForEach(x => x.Servings)
                 .ChildRules(serving =>
                 {

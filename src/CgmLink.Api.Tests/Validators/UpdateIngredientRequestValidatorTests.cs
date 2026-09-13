@@ -68,4 +68,16 @@ class UpdateIngredientRequestValidatorTests
         var result = _validator.TestValidate(request);
         result.ShouldHaveValidationErrorFor(x => x.Name);
     }
+
+    [Test]
+    public void Should_Have_Error_When_Servings_Is_Empty()
+    {
+        var request = new UpdateIngredientRequest
+        {
+            Name = "Milk",
+            Servings = [],
+        };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(x => x.Servings);
+    }
 }
