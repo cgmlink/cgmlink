@@ -599,20 +599,44 @@
   const mealIngRowsEl = $("mealIngredientRows");
   const mealIngHint = $("mealIngHint");
 
-  function mealCardHtml(d) {
-    return '<div class="card"><div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
+  function mealCardHtml(d, ingredients) {
+    let h = '<div class="card"><div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
       '<button class="small secondary" data-close-meal>Close</button></div></div>' +
       '<div class="meta-line">Id: ' + esc(d.id || "-") + " &middot; Created " + fmtDate(d.created) +
       (d.updated ? " &middot; Updated " + fmtDate(d.updated) : "") +
       " &middot; " + d.ingredientCount + " ingredient(s)" + '</div>' +
       '<table><thead><tr><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>' +
       "<tr><td>" + d.calories + " kcal</td><td>" + d.carbs + " g</td><td>" + d.protein + " g</td><td>" + d.fat + " g</td></tr>" +
-      "</tbody></table></div>";
+      "</tbody></table>";
+    h += '<div class="muted" style="margin:12px 0 6px;">Ingredients</div>';
+    if (ingredients && ingredients.length) {
+      h += "<table><thead><tr><th>Name</th><th>Serving</th><th>Quantity</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      ingredients.forEach((mi) => {
+        const serving = mi.serving ? esc(mi.serving.description || "-") : "-";
+        h += "<tr><td>" + esc(mi.ingredientName) + "</td>" +
+          "<td>" + serving + "</td>" +
+          "<td>" + mi.quantity + "</td>" +
+          "<td>" + mi.calories + " kcal</td>" +
+          "<td>" + mi.carbs + " g</td>" +
+          "<td>" + mi.protein + " g</td>" +
+          "<td>" + mi.fat + " g</td></tr>";
+      });
+      h += "</tbody></table>";
+    } else {
+      h += '<div class="muted">No ingredients.</div>';
+    }
+    h += "</div>";
+    return h;
   }
 
-  function showMealCard(d) {
+  async function getMealIngredients(id) {
+    const out = await run("list meal ingredients", () => requestJson("api/v1/meals/" + id + "/ingredients", "GET"));
+    return (out && out.ok && out.data && out.data.ingredients) ? out.data.ingredients : [];
+  }
+
+  function showMealCard(d, ingredients) {
     const box = $("mealDetail");
-    box.innerHTML = mealCardHtml(d);
+    box.innerHTML = mealCardHtml(d, ingredients || []);
     box.querySelector("[data-close-meal]").addEventListener("click", () => { box.innerHTML = ""; });
   }
 
@@ -620,7 +644,7 @@
     const id = $("mealId").value.trim();
     if (!id) { showResponse({ status: "form", text: "Enter a meal id." }); return; }
     const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
-    if (out && out.ok && out.data) showMealCard(out.data);
+    if (out && out.ok && out.data) showMealCard(out.data, await getMealIngredients(id));
     else $("mealDetail").innerHTML = "";
   }
 
@@ -710,7 +734,7 @@
       }));
     if (!out || !out.ok) return;
     $("mealId").value = out.data.id || "";
-    showMealCard(out.data);
+    showMealCard(out.data, await getMealIngredients(out.data.id));
     resetMealForm();
   }
 
