@@ -87,7 +87,7 @@
   .meta-line { color: var(--muted); font-size: 12px; margin: 2px 0 10px; word-break: break-word; }
   .meta-line a { color: var(--accent); }
   tr.expansion > td { padding: 0; background: var(--panel); border-left: 2px solid var(--accent); }
-  #ingredientsTableBox tbody tr.expansion:hover > td { background: var(--panel); }
+  #ingredientsTableBox tbody tr.expansion:hover > td, #mealsTableBox tbody tr.expansion:hover > td { background: var(--panel); }
   tr.expansion .card { margin-top: 0; border: 0; }
 
   pre { background: #0b1220; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow: auto; max-height: 55vh; white-space: pre-wrap; word-break: break-word; font: 12px/1.5 "Consolas", monospace; }
@@ -163,12 +163,20 @@
       </div>
 
       <div id="tab-meals" hidden>
-        <p class="muted">There is no list-meals endpoint yet, so look up a meal by its id (you can grab one from the database seed script), or build a new meal from your ingredients below.</p>
+        <div class="toolbar">
+          <button id="refreshMealsBtn" class="secondary">Refresh list</button>
+          <span id="mealCount" class="muted" style="align-self:center;"></span>
+        </div>
+        <div id="mealsTableBox">
+          <div class="empty">Click "Refresh list" to load the meals for the signed-in user.</div>
+        </div>
+
+        <div id="mealDetail"></div>
+
         <div class="row">
-          <input id="mealId" type="text" placeholder="00000000-0000-0000-0000-000000000000" style="font-family:'Consolas',monospace;" />
+          <input id="mealId" type="text" placeholder="Or look up a meal by its id..." style="font-family:'Consolas',monospace;" />
           <button id="getMealBtn" style="flex:0 0 auto;">Get meal</button>
         </div>
-        <div id="mealDetail"></div>
 
         <div class="card">
           <h3>New meal</h3>
@@ -348,6 +356,7 @@
       setToken(out.data.token);
       authMessage("Signed in as " + (out.data.email || email.value), "ok");
       refreshIngredients();
+      refreshMeals();
     } else if (out.ok && out.data && !out.data.token) {
       setToken(null);
       authMessage("Login returned HTTP 200 but no token. Response:\n" + out.text, "err");
@@ -370,6 +379,7 @@
         setToken(out.data.token);
         authMessage("Registered and signed in as " + email.value, "ok");
         refreshIngredients();
+        refreshMeals();
       } else {
         authMessage("Registered. Now log in with the same email and password.", "ok");
       }
@@ -594,10 +604,72 @@
 
   /* ---------- meals ---------- */
 
+  let mealsCache = [];
   let mealIngredients = null;
   let mealServingCache = {};
   const mealIngRowsEl = $("mealIngredientRows");
   const mealIngHint = $("mealIngHint");
+
+  async function refreshMeals() {
+    if (!token) return;
+    const out = await run("list meals", () =>
+      requestJson("api/v1/meals?page=0&pageSize=25&sortBy=Created&sortDirection=Desc", "GET"));
+    if (!out || !out.ok || !out.data) return;
+    mealsCache = (out.data.meals || []);
+    renderMealsTable();
+    $("mealCount").textContent = mealsCache.length + " meal(s)";
+  }
+
+  function renderMealsTable() {
+    const box = $("mealsTableBox");
+    if (!mealsCache.length) {
+      box.innerHTML = '<div class="empty">No meals found for this user yet. Create a new meal below, or look up by ID.</div>';
+      return;
+    }
+    const rows = mealsCache.map((m) =>
+      "<tr id='meal-" + m.id + "'>" +
+        "<td>" + esc(m.name) + "</td>" +
+        "<td>" + m.calories + " kcal</td>" +
+        "<td>" + m.carbs + " g</td>" +
+        "<td>" + m.protein + " g</td>" +
+        "<td>" + m.fat + " g</td>" +
+        "<td>" + m.ingredientCount + "</td>" +
+        "<td class='muted'>" + fmtDate(m.created) + "</td>" +
+        "<td style='text-align:right;'>" +
+          "<button class='small secondary' data-view-meal='" + m.id + "'>View</button>" +
+        "</td>" +
+      "</tr>").join("");
+    box.innerHTML =
+      "<table><thead><tr><th>Name</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th><th>Ingredients</th><th>Created</th><th style='text-align:right;'>Actions</th></tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>";
+    box.querySelectorAll("[data-view-meal]").forEach((b) => b.addEventListener("click", () => viewMealFromList(b.dataset.viewMeal)));
+  }
+
+  function clearMealExpansions() {
+    document.querySelectorAll("#mealsTableBox tr.expansion").forEach((tr) => tr.remove());
+  }
+
+  function expandMealUnder(id) {
+    clearMealExpansions();
+    const row = document.getElementById("meal-" + id);
+    if (!row) return null;
+    const tr = document.createElement("tr");
+    tr.className = "expansion";
+    const td = document.createElement("td");
+    td.colSpan = 8;
+    tr.appendChild(td);
+    row.after(tr);
+    return td;
+  }
+
+  async function viewMealFromList(id) {
+    const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const cell = expandMealUnder(id);
+    if (!cell) return;
+    cell.innerHTML = mealCardHtml(out.data, await getMealIngredients(id));
+    cell.querySelector("[data-close-meal]").addEventListener("click", clearMealExpansions);
+  }
 
   function mealCardHtml(d, ingredients) {
     let h = '<div class="card"><div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
@@ -769,6 +841,7 @@
   $("igSaveBtn").addEventListener("click", saveIngredient);
   $("getMealBtn").addEventListener("click", getMeal);
   $("mealId").addEventListener("keydown", (e) => { if (e.key === "Enter") getMeal(); });
+  $("refreshMealsBtn").addEventListener("click", refreshMeals);
   $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
   $("mealResetBtn").addEventListener("click", resetMealForm);
   $("mealCreateBtn").addEventListener("click", createMeal);
@@ -780,7 +853,7 @@
     baseUrl.addEventListener("change", () => { try { localStorage.setItem(BASE_KEY, baseUrl.value.trim()); } catch (_) {} });
     try {
       const saved = localStorage.getItem(TOKEN_KEY);
-      if (saved) { setToken(saved); refreshIngredients(); }
+      if (saved) { setToken(saved); refreshIngredients(); refreshMeals(); }
     } catch (_) { }
     renderAuth();
   })();

@@ -13,6 +13,11 @@ public static class MealsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/meals")
             .WithTags("Meals");
 
+        group.MapGet("/", List.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("ListMeals")
+            .RequireAuthorization();
+
         group.MapGet("/{id:guid}", GetMeal.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("GetMeal")
