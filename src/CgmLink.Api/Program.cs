@@ -111,8 +111,12 @@ if (!app.Environment.IsDevelopment() && securityHeaderSettings.EnableHsts)
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseSecurity();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseStaticFiles();
+}
 
 app.UseHttpsRedirection();
 

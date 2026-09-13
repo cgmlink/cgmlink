@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -18,13 +19,14 @@ internal static class Endpoint
         [FromRoute] Guid id,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IRepository<Meal> mealsRepository,
-        [FromServices] IRepository<MealIngredient> mealIngredientsRepository,
         CancellationToken cancellationToken)
     {
         var userId = currentUser.GetUserId();
 
         var meal = await mealsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
-            .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId && m.Deleted == null, cancellationToken)
+            .Where(m => m.Id == id && m.UserId == userId && m.Deleted == null)
+            .Select(m => GetMealResponse.ToResponse(m, m.Ingredients.Count))
+            .FirstOrDefaultAsync(cancellationToken)
             .ConfigureAwait(false);
 
         if (meal is null)
@@ -32,10 +34,6 @@ internal static class Endpoint
             throw new NotFoundException("MEAL_NOT_FOUND");
         }
 
-        var ingredientCount = await mealIngredientsRepository
-            .CountAsync(mi => mi.MealId == id, cancellationToken)
-            .ConfigureAwait(false);
-
-        return TypedResults.Ok(GetMealResponse.ToResponse(meal, ingredientCount));
+        return TypedResults.Ok(meal);
     }
 }
