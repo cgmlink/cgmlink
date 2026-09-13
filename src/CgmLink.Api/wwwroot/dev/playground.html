@@ -134,6 +134,19 @@
           <button id="refreshBtn" class="secondary">Refresh list</button>
           <button id="newIngredientBtn" class="secondary">New ingredient</button>
           <span id="ingCount" class="muted" style="align-self:center;"></span>
+          <span class="muted" style="margin-left:auto; display:flex; gap:6px; align-items:center;">
+            Page
+            <select id="ingPageSel" style="width:auto;"></select>
+            of <span id="ingNumberOfPages">-</span>
+            <button id="ingPrevBtn" class="secondary small">Prev</button>
+            <button id="ingNextBtn" class="secondary small">Next</button>
+            <select id="ingPageSizeSel" style="width:auto;">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            per page
+          </span>
         </div>
         <div id="ingredientsTableBox">
           <div class="empty">Click "Refresh list" to load the ingredients for the signed-in user.</div>
@@ -166,9 +179,41 @@
         <div class="toolbar">
           <button id="refreshMealsBtn" class="secondary">Refresh list</button>
           <span id="mealCount" class="muted" style="align-self:center;"></span>
+          <span class="muted" style="margin-left:auto; display:flex; gap:6px; align-items:center;">
+            Page
+            <select id="mealsPageSel" style="width:auto;"></select>
+            of <span id="mealsNumberOfPages">-</span>
+            <button id="mealsPrevBtn" class="secondary small">Prev</button>
+            <button id="mealsNextBtn" class="secondary small">Next</button>
+            <select id="mealsPageSizeSel" style="width:auto;">
+              <option value="25" selected>25</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            per page
+          </span>
         </div>
         <div id="mealsTableBox">
           <div class="empty">Click "Refresh list" to load the meals for the signed-in user.</div>
+        </div>
+
+        <div id="mealForm" class="card" hidden>
+          <h3 id="mealFormTitle">Edit meal</h3>
+          <div class="form-grid">
+            <div class="full"><label>Name</label><input id="mfName" type="text" placeholder="e.g. Breakfast" /></div>
+            <div><label>Image URL (optional)</label><input id="mfImageUrl" type="text" placeholder="leave blank" /></div>
+            <div><label>Thumbnail URL (optional)</label><input id="mfThumbnailUrl" type="text" placeholder="leave blank" /></div>
+          </div>
+          <label>Ingredients *</label>
+          <div id="mealFormIngredientRows"></div>
+          <div class="row">
+            <button id="addMealFormIngredientBtn" class="secondary small">+ Add ingredient</button>
+            <span id="mealFormIngHint" class="muted small" style="align-self:center;"></span>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button id="mfCancelBtn" class="secondary">Cancel</button>
+            <button id="mfSaveBtn">Save changes</button>
+          </div>
         </div>
 
         <div id="mealDetail"></div>
@@ -242,6 +287,9 @@
   let token = null;
   let ingredientsCache = [];
   let editingIngredientId = null;
+  let ingPage = 0;
+  let ingNumberOfPages = 0;
+  let ingPageSize = 25;
 
   /* ---------- helpers ---------- */
 
@@ -265,6 +313,11 @@
     $("getMealBtn").disabled = !on;
     $("addMealIngredientBtn").disabled = !on;
     $("mealCreateBtn").disabled = !on;
+    $("addMealFormIngredientBtn").disabled = !on;
+    $("mfSaveBtn").disabled = !on;
+    ["ingPageSel", "ingPrevBtn", "ingNextBtn", "ingPageSizeSel",
+     "mealsPageSel", "mealsPrevBtn", "mealsNextBtn", "mealsPageSizeSel"]
+      .forEach((id) => { const el = $(id); if (el) el.disabled = !on; });
   }
 
   function showResponse(res, ms) {
@@ -393,11 +446,34 @@
   async function refreshIngredients() {
     if (!token) return;
     const out = await run("list ingredients", () =>
-      requestJson("api/v1/ingredients?page=0&pageSize=25&sortBy=Created&sortDirection=Desc", "GET"));
+      requestJson("api/v1/ingredients?page=" + ingPage + "&pageSize=" + ingPageSize + "&sortBy=Created&sortDirection=Desc", "GET"));
     if (!out || !out.ok || !out.data) return;
+    ingNumberOfPages = out.data.numberOfPages || 0;
+    if (ingNumberOfPages > 0 && ingPage > ingNumberOfPages - 1) {
+      ingPage = ingNumberOfPages - 1;
+      refreshIngredients();
+      return;
+    }
     ingredientsCache = (out.data.ingredients || []);
     renderIngredientsTable();
-    $("ingCount").textContent = ingredientsCache.length + " ingredient(s)";
+    $("ingCount").textContent = ingredientsCache.length + " ingredient(s)" + (ingNumberOfPages > 1 ? " - page " + (ingPage + 1) + " of " + ingNumberOfPages : "");
+    renderIngPager();
+  }
+
+  function renderIngPager() {
+    const sel = $("ingPageSel");
+    sel.innerHTML = "";
+    const count = Math.max(ingNumberOfPages, 1);
+    for (let i = 0; i < count; i++) {
+      const opt = document.createElement("option");
+      opt.value = String(i + 1);
+      opt.textContent = String(i + 1);
+      if (i === ingPage) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    $("ingNumberOfPages").textContent = ingNumberOfPages ? String(ingNumberOfPages) : "-";
+    $("ingPrevBtn").disabled = ingPage <= 0;
+    $("ingNextBtn").disabled = ingPage >= ingNumberOfPages - 1;
   }
 
   function renderIngredientsTable() {
@@ -607,17 +683,47 @@
   let mealsCache = [];
   let mealIngredients = null;
   let mealServingCache = {};
+  let editingMealId = null;
+  let mealsPage = 0;
+  let mealsNumberOfPages = 0;
+  let mealsPageSize = 25;
   const mealIngRowsEl = $("mealIngredientRows");
   const mealIngHint = $("mealIngHint");
+  const mealFormEl = $("mealForm"), mealFormTitle = $("mealFormTitle");
+  const mealFormIngRowsEl = $("mealFormIngredientRows");
+  const mealFormIngHint = $("mealFormIngHint");
 
   async function refreshMeals() {
     if (!token) return;
     const out = await run("list meals", () =>
-      requestJson("api/v1/meals?page=0&pageSize=25&sortBy=Created&sortDirection=Desc", "GET"));
+      requestJson("api/v1/meals?page=" + mealsPage + "&pageSize=" + mealsPageSize + "&sortBy=Created&sortDirection=Desc", "GET"));
     if (!out || !out.ok || !out.data) return;
+    mealsNumberOfPages = out.data.numberOfPages || 0;
+    if (mealsNumberOfPages > 0 && mealsPage > mealsNumberOfPages - 1) {
+      mealsPage = mealsNumberOfPages - 1;
+      refreshMeals();
+      return;
+    }
     mealsCache = (out.data.meals || []);
     renderMealsTable();
-    $("mealCount").textContent = mealsCache.length + " meal(s)";
+    $("mealCount").textContent = mealsCache.length + " meal(s)" + (mealsNumberOfPages > 1 ? " - page " + (mealsPage + 1) + " of " + mealsNumberOfPages : "");
+    renderMealsPager();
+  }
+
+  function renderMealsPager() {
+    const sel = $("mealsPageSel");
+    sel.innerHTML = "";
+    const count = Math.max(mealsNumberOfPages, 1);
+    for (let i = 0; i < count; i++) {
+      const opt = document.createElement("option");
+      opt.value = String(i + 1);
+      opt.textContent = String(i + 1);
+      if (i === mealsPage) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    $("mealsNumberOfPages").textContent = mealsNumberOfPages ? String(mealsNumberOfPages) : "-";
+    $("mealsPrevBtn").disabled = mealsPage <= 0;
+    $("mealsNextBtn").disabled = mealsPage >= mealsNumberOfPages - 1;
   }
 
   function renderMealsTable() {
@@ -637,16 +743,19 @@
         "<td class='muted'>" + fmtDate(m.created) + "</td>" +
         "<td style='text-align:right;'>" +
           "<button class='small secondary' data-view-meal='" + m.id + "'>View</button>" +
+          "<button class='small secondary' data-edit-meal='" + m.id + "'>Edit</button>" +
         "</td>" +
       "</tr>").join("");
     box.innerHTML =
       "<table><thead><tr><th>Name</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th><th>Ingredients</th><th>Created</th><th style='text-align:right;'>Actions</th></tr></thead>" +
       "<tbody>" + rows + "</tbody></table>";
     box.querySelectorAll("[data-view-meal]").forEach((b) => b.addEventListener("click", () => viewMealFromList(b.dataset.viewMeal)));
+    box.querySelectorAll("[data-edit-meal]").forEach((b) => b.addEventListener("click", () => showEditMeal(b.dataset.editMeal)));
   }
 
   function clearMealExpansions() {
     document.querySelectorAll("#mealsTableBox tr.expansion").forEach((tr) => tr.remove());
+    mealFormEl.hidden = true;
   }
 
   function expandMealUnder(id) {
@@ -668,11 +777,13 @@
     const cell = expandMealUnder(id);
     if (!cell) return;
     cell.innerHTML = mealCardHtml(out.data, await getMealIngredients(id));
+    cell.querySelector("[data-edit-meal]").addEventListener("click", () => showEditMeal(id));
     cell.querySelector("[data-close-meal]").addEventListener("click", clearMealExpansions);
   }
 
   function mealCardHtml(d, ingredients) {
     let h = '<div class="card"><div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
+      '<button class="small secondary" data-edit-meal>Edit</button>' +
       '<button class="small secondary" data-close-meal>Close</button></div></div>' +
       '<div class="meta-line">Id: ' + esc(d.id || "-") + " &middot; Created " + fmtDate(d.created) +
       (d.updated ? " &middot; Updated " + fmtDate(d.updated) : "") +
@@ -709,6 +820,7 @@
   function showMealCard(d, ingredients) {
     const box = $("mealDetail");
     box.innerHTML = mealCardHtml(d, ingredients || []);
+    box.querySelector("[data-edit-meal]").addEventListener("click", () => showEditMeal(d.id));
     box.querySelector("[data-close-meal]").addEventListener("click", () => { box.innerHTML = ""; });
   }
 
@@ -720,19 +832,22 @@
     else $("mealDetail").innerHTML = "";
   }
 
-  async function loadMealIngredients(force) {
+  async function loadMealIngredients(force, hintEl) {
+    hintEl = hintEl || mealIngHint;
     if (mealIngredients && !force) return mealIngredients;
-    mealIngHint.textContent = "Loading ingredients…";
+    hintEl.textContent = "Loading ingredients…";
     mealIngredients = [];
     const out = await run("list ingredients for meal", () =>
       requestJson("api/v1/ingredients?page=0&pageSize=25&sortBy=Name&sortDirection=Asc", "GET"));
     if (out && out.ok && out.data) mealIngredients = out.data.ingredients || [];
-    mealIngHint.textContent = mealIngredients.length ? "" : "No ingredients yet - create one in the Ingredients tab first.";
+    hintEl.textContent = mealIngredients.length ? "" : "No ingredients yet - create one in the Ingredients tab first.";
     return mealIngredients;
   }
 
-  async function addMealIngredientRow(selectedIngredientId) {
-    const options = await loadMealIngredients();
+  async function addMealIngredientRow(selected, container, hintEl) {
+    container = container || mealIngRowsEl;
+    hintEl = hintEl || mealIngHint;
+    const options = await loadMealIngredients(false, hintEl);
     if (!options.length) {
       showResponse({ status: "form", text: "No ingredients found. Create an ingredient in the Ingredients tab first." });
       return;
@@ -746,15 +861,16 @@
       '<button class="mi-remove secondary small">x</button>';
     const ingSel = row.querySelector(".mi-ing");
     ingSel.innerHTML = options.map((o) => '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
-    if (selectedIngredientId && options.some((o) => o.id === selectedIngredientId)) ingSel.value = selectedIngredientId;
+    if (selected && selected.ingredientId && options.some((o) => o.id === selected.ingredientId)) ingSel.value = selected.ingredientId;
     if (!ingSel.value && options.length) ingSel.value = options[0].id;
     ingSel.addEventListener("change", () => populateMealServings(row));
     row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
-    mealIngRowsEl.appendChild(row);
-    populateMealServings(row);
+    container.appendChild(row);
+    row.querySelector(".mi-qty").value = selected && selected.quantity != null ? selected.quantity : 1;
+    await populateMealServings(row, selected && selected.ingredientId == ingSel.value ? selected.servingId : null);
   }
 
-  async function populateMealServings(row) {
+  async function populateMealServings(row, servingIdToSelect) {
     const ingSel = row.querySelector(".mi-ing");
     const servingSel = row.querySelector(".mi-serving");
     const id = ingSel.value;
@@ -774,6 +890,7 @@
         esc((s.description || "Serving") + (s.servingAmount != null ? " - " + s.servingAmount + (s.servingUnit ? " " + s.servingUnit : "") : "")) +
       '</option>').join("");
     servingSel.disabled = false;
+    if (servingIdToSelect && servings.some((s) => s.id === servingIdToSelect)) servingSel.value = servingIdToSelect;
   }
 
   function collectMealIngredients() {
@@ -810,6 +927,75 @@
     resetMealForm();
   }
 
+  async function showEditMeal(id) {
+    const out = await run("load meal", () => requestJson("api/v1/meals/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    await openMealForm("edit", out.data, await getMealIngredients(id), id);
+  }
+
+  async function openMealForm(mode, meal, ingredients, anchorId) {
+    editingMealId = mode === "edit" ? meal.id : null;
+    mealFormTitle.textContent = mode === "edit" ? "Edit meal" : "New meal";
+    $("mfName").value = mode === "edit" ? meal.name : "";
+    $("mfImageUrl").value = mode === "edit" ? (meal.imageUrl || "") : "";
+    $("mfThumbnailUrl").value = mode === "edit" ? (meal.thumbnailUrl || "") : "";
+    mealFormIngRowsEl.innerHTML = "";
+    if (mode === "edit" && ingredients && ingredients.length) {
+      for (const mi of ingredients) {
+        await addMealIngredientRow(
+          { ingredientId: mi.ingredientId, servingId: mi.serving ? mi.serving.id : null, quantity: mi.quantity },
+          mealFormIngRowsEl, mealFormIngHint);
+      }
+    } else {
+      await addMealIngredientRow(undefined, mealFormIngRowsEl, mealFormIngHint);
+    }
+    if (mode === "edit" && anchorId) {
+      const cell = expandMealUnder(anchorId);
+      if (cell) cell.appendChild(mealFormEl);
+    } else {
+      clearMealExpansions();
+      $("mealsTableBox").after(mealFormEl);
+    }
+    mealFormEl.hidden = false;
+    mealFormEl.scrollIntoView({ block: "nearest" });
+  }
+
+  function closeMealForm() {
+    mealFormEl.hidden = true;
+    clearMealExpansions();
+  }
+
+  function collectMealFormIngredients() {
+    return Array.from(document.querySelectorAll("#mealFormIngredientRows .meal-ing-row")).map((row) => ({
+      ingredientId: row.querySelector(".mi-ing").value,
+      servingId: row.querySelector(".mi-serving").value,
+      quantity: parseFloat(row.querySelector(".mi-qty").value),
+    })).filter((r) => r.ingredientId && r.servingId && Number.isFinite(r.quantity) && r.quantity > 0);
+  }
+
+  async function saveMeal() {
+    const name = $("mfName").value.trim();
+    const ingredients = collectMealFormIngredients();
+    if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
+    if (!name && !$("mfImageUrl").value.trim() && !$("mfThumbnailUrl").value.trim()) {
+      showResponse({ status: "form", text: "Enter a meal name, an image URL, or at least one ingredient." });
+      return;
+    }
+    const out = await run("update meal", () =>
+      requestJson("api/v1/meals/" + editingMealId, "PATCH", {
+        name: name || null,
+        imageUrl: $("mfImageUrl").value.trim() || null,
+        thumbnailUrl: $("mfThumbnailUrl").value.trim() || null,
+        ingredients: ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity })),
+      }));
+    if (!out || !out.ok) return;
+    const mealId = out.data.id || editingMealId;
+    $("mealId").value = mealId;
+    closeMealForm();
+    refreshMeals();
+    showMealCard(out.data, await getMealIngredients(mealId));
+  }
+
   /* ---------- raw ---------- */
 
   async function rawSend() {
@@ -839,12 +1025,23 @@
   $("addServingBtn").addEventListener("click", () => addServingRow(undefined));
   $("igCancelBtn").addEventListener("click", closeIngredientForm);
   $("igSaveBtn").addEventListener("click", saveIngredient);
+  $("ingPageSel").addEventListener("change", (e) => { ingPage = Number(e.target.value) - 1; refreshIngredients(); });
+  $("ingPageSizeSel").addEventListener("change", (e) => { ingPageSize = Number(e.target.value); ingPage = 0; refreshIngredients(); });
+  $("ingPrevBtn").addEventListener("click", () => { if (ingPage > 0) { ingPage--; refreshIngredients(); } });
+  $("ingNextBtn").addEventListener("click", () => { if (ingPage < ingNumberOfPages - 1) { ingPage++; refreshIngredients(); } });
   $("getMealBtn").addEventListener("click", getMeal);
   $("mealId").addEventListener("keydown", (e) => { if (e.key === "Enter") getMeal(); });
   $("refreshMealsBtn").addEventListener("click", refreshMeals);
+  $("mealsPageSel").addEventListener("change", (e) => { mealsPage = Number(e.target.value) - 1; refreshMeals(); });
+  $("mealsPageSizeSel").addEventListener("change", (e) => { mealsPageSize = Number(e.target.value); mealsPage = 0; refreshMeals(); });
+  $("mealsPrevBtn").addEventListener("click", () => { if (mealsPage > 0) { mealsPage--; refreshMeals(); } });
+  $("mealsNextBtn").addEventListener("click", () => { if (mealsPage < mealsNumberOfPages - 1) { mealsPage++; refreshMeals(); } });
   $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
   $("mealResetBtn").addEventListener("click", resetMealForm);
   $("mealCreateBtn").addEventListener("click", createMeal);
+  $("mfCancelBtn").addEventListener("click", closeMealForm);
+  $("addMealFormIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, mealFormIngRowsEl, mealFormIngHint));
+  $("mfSaveBtn").addEventListener("click", saveMeal);
   $("sendBtn").addEventListener("click", rawSend);
   $("path").addEventListener("keydown", (e) => { if (e.key === "Enter") rawSend(); });
 

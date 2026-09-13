@@ -42,11 +42,10 @@ internal static class Endpoint
         }
 
         var ingredientIds = request.Ingredients.Select(i => i.IngredientId).Distinct().ToList();
-        var servingIds = request.Ingredients.Select(i => i.ServingId).Distinct().ToList();
 
         var ingredients = await ingredientsRepository.GetAll()
             .Where(i => ingredientIds.Contains(i.Id) && i.Users.Any(u => u.UserId == userId) && i.Deleted == null)
-            .Include(i => i.Servings.Where(s => servingIds.Contains(s.Id)))
+            .Include(i => i.Servings)
             .ToDictionaryAsync(i => i.Id, cancellationToken)
             .ConfigureAwait(false);
 
