@@ -65,21 +65,50 @@ internal static class Endpoint
         }
         if (request.Servings is not null)
         {
-            ingredient.Servings.Clear();
-            foreach (var serving in request.Servings)
+            var existingServings = ingredient.Servings.ToList();
+            var requestedServingIds = request.Servings
+                .Where(s => s.Id is not null)
+                .Select(s => s.Id!.Value)
+                .ToHashSet();
+
+            foreach (var servingRequest in request.Servings)
             {
-                ingredient.Servings.Add(new IngredientServing
+                var existing = servingRequest.Id is { } servingId
+                    ? existingServings.FirstOrDefault(s => s.Id == servingId)
+                    : null;
+
+                if (existing is not null)
                 {
-                    IngredientId = ingredient.Id,
-                    Description = serving.Description,
-                    ServingAmount = serving.ServingAmount,
-                    ServingUnit = serving.ServingUnit,
-                    Calories = serving.Calories,
-                    Carbs = serving.Carbs,
-                    Protein = serving.Protein,
-                    Fat = serving.Fat,
-                    Created = DateTimeOffset.UtcNow,
-                });
+                    existing.Description = servingRequest.Description;
+                    existing.ServingAmount = servingRequest.ServingAmount;
+                    existing.ServingUnit = servingRequest.ServingUnit;
+                    existing.Calories = servingRequest.Calories;
+                    existing.Carbs = servingRequest.Carbs;
+                    existing.Protein = servingRequest.Protein;
+                    existing.Fat = servingRequest.Fat;
+                    existing.Deleted = null;
+                }
+                else
+                {
+                    ingredient.Servings.Add(new IngredientServing
+                    {
+                        IngredientId = ingredient.Id,
+                        Description = servingRequest.Description,
+                        ServingAmount = servingRequest.ServingAmount,
+                        ServingUnit = servingRequest.ServingUnit,
+                        Calories = servingRequest.Calories,
+                        Carbs = servingRequest.Carbs,
+                        Protein = servingRequest.Protein,
+                        Fat = servingRequest.Fat,
+                        Created = DateTimeOffset.UtcNow,
+                    });
+                }
+            }
+
+            var deletedAt = DateTimeOffset.UtcNow;
+            foreach (var removed in existingServings.Where(s => s.Deleted == null && !requestedServingIds.Contains(s.Id)))
+            {
+                removed.Deleted = deletedAt;
             }
         }
         ingredient.Updated = DateTimeOffset.UtcNow;

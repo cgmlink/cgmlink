@@ -41,7 +41,7 @@ public sealed record UpdateIngredientResponse
             ThumbnailUrl = ingredient.ThumbnailUrl,
             Created = ingredient.Created,
             Updated = ingredient.Updated,
-            Servings = ingredient.Servings?.Select(s => new UpdateIngredientServingResponse
+            Servings = ingredient.Servings?.Where(s => s.Deleted == null).Select(s => new UpdateIngredientServingResponse
             {
                 Id = s.Id,
                 Description = s.Description,

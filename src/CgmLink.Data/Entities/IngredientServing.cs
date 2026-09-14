@@ -10,7 +10,7 @@ namespace CgmLink.Data.Entities;
 /// </summary>
 [ExcludeFromCodeCoverage]
 [Table("ingredient_servings")]
-public class IngredientServing
+public class IngredientServing : ISoftDeletable
 {
     /// <summary>
     /// The unique identifier for the serving.
@@ -75,4 +75,10 @@ public class IngredientServing
     /// The date and time the serving was created.
     /// </summary>
     public required DateTimeOffset Created { get; set; } = DateTimeOffset.UtcNow;
+
+    /// <summary>
+    /// The date and time the serving was soft-deleted. When set, meals that referenced this
+    /// serving keep their snapshot, but the serving is no longer offered for the ingredient.
+    /// </summary>
+    public DateTimeOffset? Deleted { get; set; }
 }
