@@ -1,5 +1,6 @@
 using FluentValidation;
 using CgmLink.Resources;
+using System;
 using System.Collections.Generic;
 
 namespace CgmLink.Api.Endpoints.Ingredients.UpdateIngredient;
@@ -14,6 +15,7 @@ public sealed record UpdateIngredientRequest
 
     public sealed record UpdateIngredientServingRequest
     {
+        public Guid? Id { get; init; }
         public string? Description { get; init; }
         public decimal? ServingAmount { get; init; }
         public string? ServingUnit { get; init; }

@@ -167,11 +167,11 @@ public class UpdateIngredientTests
     }
 
     [Test]
-    public async Task HandleAsync_Should_Replace_Servings_When_Servings_Are_Provided()
+    public async Task HandleAsync_Should_Update_Servings_In_Place_When_Provided_With_Matching_Ids()
     {
         var id = Guid.NewGuid();
         var ingredient = CreateIngredient(id);
-        ingredient.Servings.Add(new IngredientServing
+        var existingServing = new IngredientServing
         {
             Id = Guid.NewGuid(),
             IngredientId = id,
@@ -181,7 +181,66 @@ public class UpdateIngredientTests
             Protein = 5,
             Fat = 2,
             Created = DateTimeOffset.UtcNow,
+        };
+        ingredient.Servings.Add(existingServing);
+        SetupIngredient(ingredient);
+
+        var request = new UpdateIngredientRequest
+        {
+            Servings =
+            [
+                new UpdateIngredientRequest.UpdateIngredientServingRequest
+                {
+                    Id = existingServing.Id,
+                    Description = "100g",
+                    Calories = 50,
+                    Carbs = 5,
+                    Protein = 3,
+                    Fat = 1,
+                }
+            ]
+        };
+
+        var result = await Endpoint.HandleAsync(id, request, _validatorMock.Object,
+            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(ingredient.Servings, Has.Count.EqualTo(1));
+            Assert.That(ingredient.Servings.First(), Is.SameAs(existingServing));
+            Assert.That(ingredient.Servings.First().Id, Is.EqualTo(existingServing.Id));
+            Assert.That(ingredient.Servings.First().Deleted, Is.Null);
+            Assert.That(ingredient.Servings.First().Description, Is.EqualTo("100g"));
+            Assert.That(ingredient.Servings.First().Calories, Is.EqualTo(50));
         });
+
+        var okResult = result.Result as Ok<UpdateIngredientResponse>;
+        Assert.Multiple(() =>
+        {
+            Assert.That(okResult!.Value.Servings, Has.Count.EqualTo(1));
+            Assert.That(okResult.Value.Servings!.First().Id, Is.EqualTo(existingServing.Id));
+            Assert.That(okResult.Value.Servings!.First().Description, Is.EqualTo("100g"));
+            Assert.That(okResult.Value.Servings!.First().Calories, Is.EqualTo(50));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Add_New_Serving_And_Soft_Delete_Removed_When_Provided_Without_Ids()
+    {
+        var id = Guid.NewGuid();
+        var ingredient = CreateIngredient(id);
+        var existingServing = new IngredientServing
+        {
+            Id = Guid.NewGuid(),
+            IngredientId = id,
+            Description = "1 cup",
+            Calories = 100,
+            Carbs = 10,
+            Protein = 5,
+            Fat = 2,
+            Created = DateTimeOffset.UtcNow,
+        };
+        ingredient.Servings.Add(existingServing);
         SetupIngredient(ingredient);
 
         var request = new UpdateIngredientRequest
@@ -204,9 +263,12 @@ public class UpdateIngredientTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(ingredient.Servings, Has.Count.EqualTo(1));
-            Assert.That(ingredient.Servings.First().Description, Is.EqualTo("100g"));
-            Assert.That(ingredient.Servings.First().Calories, Is.EqualTo(50));
+            Assert.That(ingredient.Servings, Has.Count.EqualTo(2));
+            Assert.That(existingServing.Deleted, Is.Not.Null);
+            var added = ingredient.Servings.Single(s => !ReferenceEquals(s, existingServing));
+            Assert.That(added.Deleted, Is.Null);
+            Assert.That(added.Description, Is.EqualTo("100g"));
+            Assert.That(added.Calories, Is.EqualTo(50));
         });
 
         var okResult = result.Result as Ok<UpdateIngredientResponse>;
@@ -215,6 +277,7 @@ public class UpdateIngredientTests
             Assert.That(okResult!.Value.Servings, Has.Count.EqualTo(1));
             Assert.That(okResult.Value.Servings!.First().Description, Is.EqualTo("100g"));
             Assert.That(okResult.Value.Servings!.First().Calories, Is.EqualTo(50));
+            Assert.That(okResult.Value.Servings!.First().Id, Is.Not.EqualTo(existingServing.Id));
         });
     }
 
