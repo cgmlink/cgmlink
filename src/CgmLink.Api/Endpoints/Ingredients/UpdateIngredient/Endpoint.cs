@@ -1,5 +1,6 @@
 using FluentValidation;
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Api.Services;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
@@ -22,6 +23,7 @@ internal static class Endpoint
         [FromServices] IValidator<UpdateIngredientRequest> validator,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IRepository<Ingredient> ingredientsRepository,
+        [FromServices] IMealService mealService,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
@@ -110,6 +112,8 @@ internal static class Endpoint
             {
                 removed.Deleted = deletedAt;
             }
+
+            await mealService.RecalculateNutritionForIngredient(ingredient.Id, cancellationToken).ConfigureAwait(false);
         }
         ingredient.Updated = DateTimeOffset.UtcNow;
 

@@ -509,6 +509,7 @@
   function addServingRow(data) {
     const row = document.createElement("div");
     row.className = "serving-row";
+    row.dataset.servingId = (data && data.id) || "";
     row.innerHTML =
       '<input class="s-desc" type="text" placeholder="Description" value="' + esc(data?.description || "1 serving") + '" />' +
       '<input class="s-amount" type="number" placeholder="Amount" value="' + (data?.servingAmount ?? "") + '" />' +
@@ -529,6 +530,7 @@
         return v === "" ? null : Number(v);
       };
       return {
+        id: row.dataset.servingId || null,
         description: row.querySelector(".s-desc").value,
         servingAmount: num(".s-amount"),
         servingUnit: row.querySelector(".s-unit").value,
@@ -574,6 +576,7 @@
     const name = igName.value.trim();
     const servings = collectServings().map((s) => {
       const o = { description: s.description };
+      if (s.id) o.id = s.id;
       if (s.servingAmount !== null) o.servingAmount = s.servingAmount;
       if (s.servingUnit) o.servingUnit = s.servingUnit;
       o.calories = s.calories; o.carbs = s.carbs; o.protein = s.protein; o.fat = s.fat;
