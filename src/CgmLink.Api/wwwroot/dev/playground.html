@@ -714,6 +714,7 @@
         "<td class='muted'>" + fmtDate(m.created) + "</td>" +
         "<td style='text-align:right;'>" +
           "<button class='small secondary' data-view-meal='" + m.id + "'>View</button> " +
+          "<button class='small secondary' data-edit-meal='" + m.id + "'>Edit</button> " +
           "<button class='small danger' data-delete-meal='" + m.id + "'>Delete</button>" +
         "</td>" +
       "</tr>").join("");
@@ -732,6 +733,7 @@
     wireSort(box, mealState, refreshMeals);
     wirePager(box, mealState, refreshMeals);
     box.querySelectorAll("[data-view-meal]").forEach((b) => b.addEventListener("click", () => viewMealFromList(b.dataset.viewMeal)));
+    box.querySelectorAll("[data-edit-meal]").forEach((b) => b.addEventListener("click", () => editMeal(b.dataset.editMeal)));
     box.querySelectorAll("[data-delete-meal]").forEach((b) => b.addEventListener("click", () => deleteMeal(b.dataset.deleteMeal)));
   }
 
@@ -827,12 +829,13 @@
     return mealIngredients;
   }
 
-  async function addMealIngredientRow(selectedIngredientId) {
+  async function addMealIngredientRow(selectedIngredientId, selectedServingId, defaultQty, container) {
     const options = await loadMealIngredients();
     if (!options.length) {
       showResponse({ status: "form", text: "No ingredients found. Create an ingredient in the Ingredients tab first." });
       return;
     }
+    const rowsEl = container || mealIngRowsEl;
     const row = document.createElement("div");
     row.className = "meal-ing-row";
     row.innerHTML =
@@ -846,8 +849,12 @@
     if (!ingSel.value && options.length) ingSel.value = options[0].id;
     ingSel.addEventListener("change", () => populateMealServings(row));
     row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
-    mealIngRowsEl.appendChild(row);
-    populateMealServings(row);
+    rowsEl.appendChild(row);
+    await populateMealServings(row);
+    const servingSel = row.querySelector(".mi-serving");
+    const qtyInput = row.querySelector(".mi-qty");
+    if (defaultQty != null && Number.isFinite(Number(defaultQty))) qtyInput.value = Number(defaultQty);
+    if (selectedServingId && Array.from(servingSel.options).some((o) => o.value === selectedServingId)) servingSel.value = selectedServingId;
   }
 
   async function populateMealServings(row) {
@@ -872,12 +879,20 @@
     servingSel.disabled = false;
   }
 
-  function collectMealIngredients() {
-    return Array.from(document.querySelectorAll("#mealIngredientRows .meal-ing-row")).map((row) => ({
+  function collectMealIngredients(container) {
+    const rowsEl = container || mealIngRowsEl;
+    const rows = Array.from(rowsEl.querySelectorAll(".meal-ing-row")).map((row) => ({
       ingredientId: row.querySelector(".mi-ing").value,
       servingId: row.querySelector(".mi-serving").value,
       quantity: parseFloat(row.querySelector(".mi-qty").value),
-    })).filter((r) => r.ingredientId && r.servingId && Number.isFinite(r.quantity) && r.quantity > 0);
+    }));
+    for (const r of rows) {
+      if (!r.ingredientId || !r.servingId || !Number.isFinite(r.quantity) || r.quantity <= 0) {
+        showResponse({ status: "form", text: "Every ingredient row needs an ingredient, a serving, and a quantity greater than zero." });
+        return null;
+      }
+    }
+    return rows;
   }
 
   function resetMealForm() {
@@ -892,6 +907,7 @@
     const name = $("mealName").value.trim();
     if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
     const ingredients = collectMealIngredients();
+    if (!ingredients) return;
     if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
     const out = await run("create meal", () =>
       requestJson("api/v1/meals", "POST", {
@@ -904,6 +920,76 @@
     $("mealId").value = out.data.id || "";
     showMealCard(out.data, await getMealIngredients(out.data.id));
     resetMealForm();
+    refreshMeals(true);
+  }
+
+  async function editMeal(id) {
+    const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const d = out.data;
+    const cell = expandMealUnder(id);
+    if (!cell) return;
+    cell.innerHTML =
+      '<div class="card">' +
+        '<div class="header-line"><h3>Edit meal</h3>' +
+          '<div class="actions">' +
+            '<button class="small secondary" data-edit-cancel>Cancel</button> ' +
+            '<button class="small" data-edit-save>Save</button>' +
+          '</div></div>' +
+        '<div class="form-grid">' +
+          '<div class="full"><label>Name *</label><input data-edit-name type="text" /></div>' +
+          '<div><label>Image URL (optional)</label><input data-edit-image type="text" /></div>' +
+          '<div><label>Thumbnail URL (optional)</label><input data-edit-thumb type="text" /></div>' +
+        '</div>' +
+        '<label>Ingredients *</label>' +
+        '<div data-edit-rows></div>' +
+        '<div class="row">' +
+          '<button class="secondary small" data-edit-add-ing>+ Add ingredient</button>' +
+          '<span data-edit-hint class="muted small" style="align-self:center;"></span>' +
+        '</div>' +
+      '</div>';
+    cell.querySelector("[data-edit-name]").value = d.name || "";
+    cell.querySelector("[data-edit-image]").value = d.imageUrl || "";
+    cell.querySelector("[data-edit-thumb]").value = d.thumbnailUrl || "";
+    const rowsEl = cell.querySelector("[data-edit-rows]");
+    const hint = cell.querySelector("[data-edit-hint]");
+    cell.querySelector("[data-edit-cancel]").addEventListener("click", clearMealExpansions);
+    cell.querySelector("[data-edit-save]").addEventListener("click", () => saveEditMeal(id, cell));
+    cell.querySelector("[data-edit-add-ing]").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, rowsEl));
+    const ingredients = await getMealIngredients(id);
+    const options = await loadMealIngredients(true);
+    for (const mi of ingredients) {
+      if (!options.some((o) => o.id === mi.ingredientId)) {
+        hint.textContent = (hint.textContent ? hint.textContent + " " : "") + "Some ingredients are outside the picker list and were skipped - add them manually.";
+        continue;
+      }
+      const servingId = (mi.serving && mi.serving.id) || mi.servingId || "";
+      await addMealIngredientRow(mi.ingredientId, servingId, mi.quantity, rowsEl);
+    }
+    if (!ingredients.length) {
+      hint.textContent = "No ingredients on this meal - add some below.";
+      addMealIngredientRow(undefined, undefined, undefined, rowsEl);
+    }
+  }
+
+  async function saveEditMeal(id, cell) {
+    const name = cell.querySelector("[data-edit-name]").value.trim();
+    if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
+    const rowsEl = cell.querySelector("[data-edit-rows]");
+    const ingredients = collectMealIngredients(rowsEl);
+    if (!ingredients) return;
+    if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
+    const out = await run("update meal", () =>
+      requestJson("api/v1/meals/" + id, "PATCH", {
+        name,
+        imageUrl: cell.querySelector("[data-edit-image]").value.trim() || null,
+        thumbnailUrl: cell.querySelector("[data-edit-thumb]").value.trim() || null,
+        ingredients: ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity })),
+      }));
+    if (!out || !out.ok) return;
+    clearMealExpansions();
+    $("mealId").value = id;
+    showMealCard(out.data, await getMealIngredients(id));
     refreshMeals(true);
   }
 

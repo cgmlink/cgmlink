@@ -13,7 +13,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CgmLink.Api.Endpoints.Meals.List;
+namespace CgmLink.Api.Endpoints.Meals.ListMeals;
 
 internal static class Endpoint
 {

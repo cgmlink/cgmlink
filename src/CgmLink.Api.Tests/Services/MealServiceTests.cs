@@ -29,7 +29,7 @@ public class MealServiceTests
     {
         var meal = CreateMeal();
 
-        var result = _service.RecalculateNutrition(meal);
+        var result = _service.RecalculateMealsNutrition(meal);
 
         Assert.Multiple(() =>
         {
@@ -47,7 +47,7 @@ public class MealServiceTests
         var meal = CreateMeal();
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
 
-        var result = _service.RecalculateNutrition(meal);
+        var result = _service.RecalculateMealsNutrition(meal);
 
         Assert.Multiple(() =>
         {
@@ -66,7 +66,7 @@ public class MealServiceTests
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(50m, 5m, 3m, 1m), 1m));
 
-        _service.RecalculateNutrition(meal);
+        _service.RecalculateMealsNutrition(meal);
 
         Assert.Multiple(() =>
         {
@@ -84,7 +84,7 @@ public class MealServiceTests
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
         meal.Ingredients.Add(CreateMealIngredient(null, 3m));
 
-        _service.RecalculateNutrition(meal);
+        _service.RecalculateMealsNutrition(meal);
 
         Assert.Multiple(() =>
         {
@@ -123,7 +123,7 @@ public class MealServiceTests
             .Setup(r => r.GetAll())
             .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal, otherMeal }));
 
-        await _service.RecalculateNutritionForIngredient(ingredientId, CancellationToken.None);
+        await _service.RecalculateMealsWithIngredientNutrition(ingredientId, CancellationToken.None);
 
         Assert.Multiple(() =>
         {

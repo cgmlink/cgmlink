@@ -1,5 +1,5 @@
 using FluentValidation.TestHelper;
-using CgmLink.Api.Endpoints.Meals.List;
+using CgmLink.Api.Endpoints.Meals.ListMeals;
 using CgmLink.Api.Models;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;

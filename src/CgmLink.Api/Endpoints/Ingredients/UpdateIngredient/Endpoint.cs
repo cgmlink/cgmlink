@@ -113,7 +113,7 @@ internal static class Endpoint
                 removed.Deleted = deletedAt;
             }
 
-            await mealService.RecalculateNutritionForIngredient(ingredient.Id, cancellationToken).ConfigureAwait(false);
+            await mealService.RecalculateMealsWithIngredientNutrition(ingredient.Id, cancellationToken).ConfigureAwait(false);
         }
         ingredient.Updated = DateTimeOffset.UtcNow;
 
