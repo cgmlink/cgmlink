@@ -1,4 +1,5 @@
 using FluentValidation;
+using CgmLink.Api.Services;
 using CgmLink.Resources;
 using System;
 using System.Collections.Generic;
@@ -12,7 +13,7 @@ public sealed record NewMealRequest
     public string? ThumbnailUrl { get; init; }
     public ICollection<NewMealIngredientRequest> Ingredients { get; init; } = [];
 
-    public sealed record NewMealIngredientRequest
+    public sealed record NewMealIngredientRequest : IMealIngredientRequest
     {
         public required Guid IngredientId { get; init; }
         public required Guid ServingId { get; init; }

@@ -46,7 +46,7 @@ public class UpdateIngredientTests
             .Returns(Task.CompletedTask);
 
         _mealServiceMock
-            .Setup(s => s.RecalculateNutritionForIngredient(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.RecalculateMealsWithIngredientNutrition(It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
     }
 
@@ -211,7 +211,7 @@ public class UpdateIngredientTests
         var result = await Endpoint.HandleAsync(id, request, _validatorMock.Object,
             _currentUserMock.Object, _ingredientsRepositoryMock.Object, _mealServiceMock.Object, CancellationToken.None);
 
-        _mealServiceMock.Verify(s => s.RecalculateNutritionForIngredient(id, It.IsAny<CancellationToken>()), Times.Once);
+        _mealServiceMock.Verify(s => s.RecalculateMealsWithIngredientNutrition(id, It.IsAny<CancellationToken>()), Times.Once);
 
         var okResult = result.Result as Ok<UpdateIngredientResponse>;
         Assert.That(okResult, Is.TypeOf<Ok<UpdateIngredientResponse>>());
