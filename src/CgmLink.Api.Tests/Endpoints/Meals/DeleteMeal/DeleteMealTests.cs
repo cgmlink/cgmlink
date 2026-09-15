@@ -122,7 +122,7 @@ public class DeleteMealTests
 
         Assert.That(async () => await Endpoint.HandleAsync(id, _currentUserMock.Object,
                 _mealsRepositoryMock.Object, CancellationToken.None),
-            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("MEAL_ALREADY_DELETED"));
+            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("MEAL_NOT_FOUND"));
 
         _mealsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Meal>(), It.IsAny<CancellationToken>()), Times.Never);
     }

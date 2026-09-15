@@ -27,14 +27,9 @@ internal static class Endpoint
             .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId, cancellationToken)
             .ConfigureAwait(false);
 
-        if (meal is null)
+        if (meal is null || meal.Deleted is not null)
         {
             throw new NotFoundException("MEAL_NOT_FOUND");
-        }
-
-        if (meal.Deleted is not null)
-        {
-            throw new NotFoundException("MEAL_ALREADY_DELETED");
         }
 
         meal.Deleted = DateTimeOffset.UtcNow;
