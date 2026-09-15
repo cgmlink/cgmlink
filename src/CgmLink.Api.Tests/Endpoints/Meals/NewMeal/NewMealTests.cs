@@ -17,7 +17,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 
-namespace CgmLink.Api.Tests.Endpoints.Meals.NewMeal;
+namespace CgmLink.Api.Tests.Endpoints.Meals;
 
 [TestFixture]
 public class NewMealTests

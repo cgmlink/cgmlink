@@ -33,6 +33,11 @@ public static class MealsEndpoints
             .WithName("CreateMeal")
             .RequireAuthorization();
 
+        group.MapDelete("/{id:guid}", DeleteMeal.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("DeleteMeal")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }

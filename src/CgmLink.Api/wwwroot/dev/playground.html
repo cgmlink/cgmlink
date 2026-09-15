@@ -64,6 +64,13 @@
   tr:hover td { background: rgba(56, 189, 248, 0.05); }
   .muted { color: var(--muted); }
   .empty { color: var(--muted); text-align: center; padding: 24px; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  th .arrow { font-size: 10px; color: var(--accent); margin-left: 2px; }
+  .pager { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+  .pager select { width: auto; padding: 4px 6px; font-size: 12px; }
+  .pager span { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .pager button { min-width: 0; padding: 4px 10px; font-size: 12px; }
 
   .card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 12px; background: var(--panel-2); }
   .card h3 { margin: 0 0 10px; font-size: 14px; }
@@ -242,6 +249,7 @@
   let token = null;
   let ingredientsCache = [];
   let editingIngredientId = null;
+  let ingState = { page: 0, pageSize: 25, sortBy: "Created", sortDir: "Desc", totalPages: 1 };
 
   /* ---------- helpers ---------- */
 
@@ -326,6 +334,56 @@
     return null;
   }
 
+  /* ---------- paging / sorting helpers ---------- */
+
+  function queryFor(state) {
+    return "page=" + state.page + "&pageSize=" + state.pageSize +
+      "&sortBy=" + encodeURIComponent(state.sortBy) + "&sortDirection=" + state.sortDir;
+  }
+
+  function sortLabel(state, field, label) {
+    const active = state.sortBy === field;
+    const arrow = active ? (state.sortDir === "Desc" ? " \u25bc" : " \u25b2") : "";
+    return '<th class="sortable" data-sort="' + field + '">' + label + arrow + "</th>";
+  }
+
+  function pagerHtml(state) {
+    const sizes = [5, 10, 15, 25];
+    const prevDisabled = state.page <= 0 ? " disabled" : "";
+    const nextDisabled = state.page >= state.totalPages - 1 ? " disabled" : "";
+    return '<div class="pager">' +
+      "<select data-page-size>" + sizes.map((n) =>
+        '<option value="' + n + '"' + (n === state.pageSize ? " selected" : "") + ">" + n + " per page</option>").join("") +
+      "</select>" +
+      '<button class="small secondary" data-page-prev' + prevDisabled + ">Prev</button>" +
+      "<span>Page " + (state.page + 1) + " of " + state.totalPages + "</span>" +
+      '<button class="small secondary" data-page-next' + nextDisabled + ">Next</button>" +
+      "</div>";
+  }
+
+  function wireSort(box, state, reload) {
+    box.querySelectorAll("th.sortable").forEach((th) => th.addEventListener("click", () => {
+      if (state.sortBy === th.dataset.sort) state.sortDir = state.sortDir === "Desc" ? "Asc" : "Desc";
+      else { state.sortBy = th.dataset.sort; state.sortDir = "Desc"; }
+      state.page = 0;
+      reload();
+    }));
+  }
+
+  function wirePager(box, state, reload) {
+    box.querySelectorAll("[data-page-prev]").forEach((b) => b.addEventListener("click", () => {
+      if (state.page > 0) { state.page--; reload(); }
+    }));
+    box.querySelectorAll("[data-page-next]").forEach((b) => b.addEventListener("click", () => {
+      if (state.page < state.totalPages - 1) { state.page++; reload(); }
+    }));
+    box.querySelectorAll("[data-page-size]").forEach((s) => s.addEventListener("change", () => {
+      state.pageSize = Number(s.value);
+      state.page = 0;
+      reload();
+    }));
+  }
+
   /* ---------- auth ---------- */
 
   function authMessage(text, kind) {
@@ -390,20 +448,24 @@
 
   /* ---------- ingredients ---------- */
 
-  async function refreshIngredients() {
+  async function refreshIngredients(resetPage) {
     if (!token) return;
+    if (resetPage) ingState.page = 0;
     const out = await run("list ingredients", () =>
-      requestJson("api/v1/ingredients?page=0&pageSize=25&sortBy=Created&sortDirection=Desc", "GET"));
+      requestJson("api/v1/ingredients?" + queryFor(ingState), "GET"));
     if (!out || !out.ok || !out.data) return;
     ingredientsCache = (out.data.ingredients || []);
+    ingState.totalPages = Math.max(1, Number(out.data.numberOfPages) || 1);
+    if (ingState.page > ingState.totalPages - 1) ingState.page = ingState.totalPages - 1;
     renderIngredientsTable();
-    $("ingCount").textContent = ingredientsCache.length + " ingredient(s)";
+    $("ingCount").textContent = ingredientsCache.length + " shown";
   }
 
   function renderIngredientsTable() {
     const box = $("ingredientsTableBox");
     if (!ingredientsCache.length) {
-      box.innerHTML = '<div class="empty">No ingredients found for this user yet. Click "New ingredient" to add one.</div>';
+      box.innerHTML = '<div class="empty">No ingredients found for this user yet. Click "New ingredient" to add one.</div>' + pagerHtml(ingState);
+      wirePager(box, ingState, refreshIngredients);
       return;
     }
     const rows = ingredientsCache.map((i) =>
@@ -418,8 +480,15 @@
         "</td>" +
       "</tr>").join("");
     box.innerHTML =
-      "<table><thead><tr><th>Name</th><th>Barcode</th><th>Created</th><th style='text-align:right;'>Actions</th></tr></thead>" +
-      "<tbody>" + rows + "</tbody></table>";
+      "<table><thead><tr>" +
+        sortLabel(ingState, "Name", "Name") +
+        sortLabel(ingState, "Barcode", "Barcode") +
+        sortLabel(ingState, "Created", "Created") +
+        "<th style='text-align:right;'>Actions</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" + pagerHtml(ingState);
+    wireSort(box, ingState, refreshIngredients);
+    wirePager(box, ingState, refreshIngredients);
     box.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => showView(b.closest("tr").dataset.id)));
     box.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => showEdit(b.closest("tr").dataset.id)));
     box.querySelectorAll("[data-delete]").forEach((b) => b.addEventListener("click", () => deleteIngredient(b.closest("tr").dataset.id)));
@@ -596,13 +665,13 @@
         editingIngredientId === null ? "api/v1/ingredients" : "api/v1/ingredients/" + editingIngredientId,
         editingIngredientId === null ? "POST" : "PATCH",
         payload));
-    if (out && out.ok) { closeIngredientForm(); refreshIngredients(); }
+    if (out && out.ok) { closeIngredientForm(); refreshIngredients(true); }
   }
 
   async function deleteIngredient(id) {
     if (!confirm("Delete this ingredient? This can't be undone.")) return;
     const out = await run("delete ingredient", () => requestJson("api/v1/ingredients/" + id, "DELETE"));
-    if (out && out.ok) refreshIngredients();
+    if (out && out.ok) refreshIngredients(true);
   }
 
   /* ---------- meals ---------- */
@@ -610,23 +679,28 @@
   let mealsCache = [];
   let mealIngredients = null;
   let mealServingCache = {};
+  let mealState = { page: 0, pageSize: 25, sortBy: "Created", sortDir: "Desc", totalPages: 1 };
   const mealIngRowsEl = $("mealIngredientRows");
   const mealIngHint = $("mealIngHint");
 
-  async function refreshMeals() {
+  async function refreshMeals(resetPage) {
     if (!token) return;
+    if (resetPage) mealState.page = 0;
     const out = await run("list meals", () =>
-      requestJson("api/v1/meals?page=0&pageSize=25&sortBy=Created&sortDirection=Desc", "GET"));
+      requestJson("api/v1/meals?" + queryFor(mealState), "GET"));
     if (!out || !out.ok || !out.data) return;
     mealsCache = (out.data.meals || []);
+    mealState.totalPages = Math.max(1, Number(out.data.numberOfPages) || 1);
+    if (mealState.page > mealState.totalPages - 1) mealState.page = mealState.totalPages - 1;
     renderMealsTable();
-    $("mealCount").textContent = mealsCache.length + " meal(s)";
+    $("mealCount").textContent = mealsCache.length + " shown";
   }
 
   function renderMealsTable() {
     const box = $("mealsTableBox");
     if (!mealsCache.length) {
-      box.innerHTML = '<div class="empty">No meals found for this user yet. Create a new meal below, or look up by ID.</div>';
+      box.innerHTML = '<div class="empty">No meals found for this user yet. Create a new meal below, or look up by ID.</div>' + pagerHtml(mealState);
+      wirePager(box, mealState, refreshMeals);
       return;
     }
     const rows = mealsCache.map((m) =>
@@ -639,13 +713,26 @@
         "<td>" + m.ingredientCount + "</td>" +
         "<td class='muted'>" + fmtDate(m.created) + "</td>" +
         "<td style='text-align:right;'>" +
-          "<button class='small secondary' data-view-meal='" + m.id + "'>View</button>" +
+          "<button class='small secondary' data-view-meal='" + m.id + "'>View</button> " +
+          "<button class='small danger' data-delete-meal='" + m.id + "'>Delete</button>" +
         "</td>" +
       "</tr>").join("");
     box.innerHTML =
-      "<table><thead><tr><th>Name</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th><th>Ingredients</th><th>Created</th><th style='text-align:right;'>Actions</th></tr></thead>" +
-      "<tbody>" + rows + "</tbody></table>";
+      "<table><thead><tr>" +
+        sortLabel(mealState, "Name", "Name") +
+        sortLabel(mealState, "Calories", "Calories") +
+        sortLabel(mealState, "Carbs", "Carbs") +
+        sortLabel(mealState, "Protein", "Protein") +
+        sortLabel(mealState, "Fat", "Fat") +
+        "<th>Ingredients</th>" +
+        sortLabel(mealState, "Created", "Created") +
+        "<th style='text-align:right;'>Actions</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" + pagerHtml(mealState);
+    wireSort(box, mealState, refreshMeals);
+    wirePager(box, mealState, refreshMeals);
     box.querySelectorAll("[data-view-meal]").forEach((b) => b.addEventListener("click", () => viewMealFromList(b.dataset.viewMeal)));
+    box.querySelectorAll("[data-delete-meal]").forEach((b) => b.addEventListener("click", () => deleteMeal(b.dataset.deleteMeal)));
   }
 
   function clearMealExpansions() {
@@ -672,6 +759,12 @@
     if (!cell) return;
     cell.innerHTML = mealCardHtml(out.data, await getMealIngredients(id));
     cell.querySelector("[data-close-meal]").addEventListener("click", clearMealExpansions);
+  }
+
+  async function deleteMeal(id) {
+    if (!confirm("Delete this meal? This can't be undone.")) return;
+    const out = await run("delete meal", () => requestJson("api/v1/meals/" + id, "DELETE"));
+    if (out && out.ok) refreshMeals(true);
   }
 
   function mealCardHtml(d, ingredients) {
@@ -811,6 +904,7 @@
     $("mealId").value = out.data.id || "";
     showMealCard(out.data, await getMealIngredients(out.data.id));
     resetMealForm();
+    refreshMeals(true);
   }
 
   /* ---------- raw ---------- */
@@ -837,14 +931,14 @@
   $("loginBtn").addEventListener("click", login);
   $("registerBtn").addEventListener("click", register);
   $("logoutBtn").addEventListener("click", () => { setToken(null); authMessage(""); });
-  $("refreshBtn").addEventListener("click", refreshIngredients);
+  $("refreshBtn").addEventListener("click", () => refreshIngredients(false));
   $("newIngredientBtn").addEventListener("click", () => openIngredientForm("new", {}));
   $("addServingBtn").addEventListener("click", () => addServingRow(undefined));
   $("igCancelBtn").addEventListener("click", closeIngredientForm);
   $("igSaveBtn").addEventListener("click", saveIngredient);
   $("getMealBtn").addEventListener("click", getMeal);
   $("mealId").addEventListener("keydown", (e) => { if (e.key === "Enter") getMeal(); });
-  $("refreshMealsBtn").addEventListener("click", refreshMeals);
+  $("refreshMealsBtn").addEventListener("click", () => refreshMeals(false));
   $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
   $("mealResetBtn").addEventListener("click", resetMealForm);
   $("mealCreateBtn").addEventListener("click", createMeal);
