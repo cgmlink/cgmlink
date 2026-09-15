@@ -15,7 +15,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 
-namespace CgmLink.Api.Tests.Endpoints.Ingredients.ListIngredients;
+namespace CgmLink.Api.Tests.Endpoints.Ingredients;
 
 [TestFixture]
 public class ListIngredientsTests

@@ -16,7 +16,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 
-namespace CgmLink.Api.Tests.Endpoints.Ingredients.NewIngredient;
+namespace CgmLink.Api.Tests.Endpoints.Ingredients;
 
 [TestFixture]
 public class NewIngredientTests

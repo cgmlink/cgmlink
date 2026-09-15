@@ -12,7 +12,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 
-namespace CgmLink.Api.Tests.Endpoints.Meals.GetMeal;
+namespace CgmLink.Api.Tests.Endpoints.Meals;
 
 [TestFixture]
 public class GetMealTests

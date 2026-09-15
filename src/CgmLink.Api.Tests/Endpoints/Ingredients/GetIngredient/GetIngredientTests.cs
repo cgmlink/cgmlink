@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 
-namespace CgmLink.Api.Tests.Endpoints.Ingredients.GetIngredient;
+namespace CgmLink.Api.Tests.Endpoints.Ingredients;
 
 [TestFixture]
 public class GetIngredientTests

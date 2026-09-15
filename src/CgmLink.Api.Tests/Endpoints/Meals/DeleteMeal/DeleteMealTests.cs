@@ -13,7 +13,7 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
 using NUnit.Framework;
 
-namespace CgmLink.Api.Tests.Endpoints.Meals.DeleteMeal;
+namespace CgmLink.Api.Tests.Endpoints.Meals;
 
 [TestFixture]
 public class DeleteMealTests
