@@ -881,11 +881,18 @@
 
   function collectMealIngredients(container) {
     const rowsEl = container || mealIngRowsEl;
-    return Array.from(rowsEl.querySelectorAll(".meal-ing-row")).map((row) => ({
+    const rows = Array.from(rowsEl.querySelectorAll(".meal-ing-row")).map((row) => ({
       ingredientId: row.querySelector(".mi-ing").value,
       servingId: row.querySelector(".mi-serving").value,
       quantity: parseFloat(row.querySelector(".mi-qty").value),
-    })).filter((r) => r.ingredientId && r.servingId && Number.isFinite(r.quantity) && r.quantity > 0);
+    }));
+    for (const r of rows) {
+      if (!r.ingredientId || !r.servingId || !Number.isFinite(r.quantity) || r.quantity <= 0) {
+        showResponse({ status: "form", text: "Every ingredient row needs an ingredient, a serving, and a quantity greater than zero." });
+        return null;
+      }
+    }
+    return rows;
   }
 
   function resetMealForm() {
@@ -900,6 +907,7 @@
     const name = $("mealName").value.trim();
     if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
     const ingredients = collectMealIngredients();
+    if (!ingredients) return;
     if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
     const out = await run("create meal", () =>
       requestJson("api/v1/meals", "POST", {
@@ -969,6 +977,7 @@
     if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
     const rowsEl = cell.querySelector("[data-edit-rows]");
     const ingredients = collectMealIngredients(rowsEl);
+    if (!ingredients) return;
     if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
     const out = await run("update meal", () =>
       requestJson("api/v1/meals/" + id, "PATCH", {
