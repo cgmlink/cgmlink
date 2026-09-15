@@ -14,14 +14,14 @@ namespace CgmLink.Api.Tests.Services;
 [TestFixture]
 public class MealServiceTests
 {
-    private Mock<IRepository<MealIngredient>> _mealIngredientsRepositoryMock;
+    private Mock<IRepository<Meal>> _mealsRepositoryMock;
     private MealService _service;
 
     [SetUp]
     public void SetUp()
     {
-        _mealIngredientsRepositoryMock = new Mock<IRepository<MealIngredient>>();
-        _service = new MealService(_mealIngredientsRepositoryMock.Object);
+        _mealsRepositoryMock = new Mock<IRepository<Meal>>();
+        _service = new MealService(_mealsRepositoryMock.Object);
     }
 
     [Test]
@@ -119,9 +119,9 @@ public class MealServiceTests
         otherMealIngredient.Meal = otherMeal;
         otherMeal.Ingredients.Add(otherMealIngredient);
 
-        _mealIngredientsRepositoryMock
+        _mealsRepositoryMock
             .Setup(r => r.GetAll())
-            .Returns(new TestAsyncEnumerable<MealIngredient>(new List<MealIngredient> { mealIngredient, otherMealIngredient }));
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal, otherMeal }));
 
         await _service.RecalculateNutritionForIngredient(ingredientId, CancellationToken.None);
 

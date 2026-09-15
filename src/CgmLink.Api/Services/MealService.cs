@@ -10,11 +10,11 @@ namespace CgmLink.Api.Services;
 
 public sealed class MealService : IMealService
 {
-    private readonly IRepository<MealIngredient> _mealIngredientsRepository;
+    private readonly IRepository<Meal> _mealsRepository;
 
-    public MealService(IRepository<MealIngredient> mealIngredientsRepository)
+    public MealService(IRepository<Meal> mealsRepository)
     {
-        _mealIngredientsRepository = mealIngredientsRepository;
+        _mealsRepository = mealsRepository;
     }
 
     public Meal RecalculateNutrition(Meal meal)
@@ -48,16 +48,12 @@ public sealed class MealService : IMealService
 
     public async Task RecalculateNutritionForIngredient(Guid ingredientId, CancellationToken cancellationToken = default)
     {
-        var meals = (await _mealIngredientsRepository.GetAll()
-            .Include(mi => mi.Meal)
-                .ThenInclude(m => m!.Ingredients)
-                    .ThenInclude(mi => mi.Serving)
-            .Where(mi => mi.IngredientId == ingredientId && mi.Meal != null && mi.Meal.Deleted == null)
+        var meals = await _mealsRepository.GetAll()
+            .Include(m => m.Ingredients)
+                .ThenInclude(mi => mi.Serving)
+            .Where(m => m.Deleted == null && m.Ingredients.Any(mi => mi.IngredientId == ingredientId))
             .ToListAsync(cancellationToken)
-            .ConfigureAwait(false))
-            .Select(mi => mi.Meal!)
-            .Distinct()
-            .ToList();
+            .ConfigureAwait(false);
 
         foreach (var meal in meals)
         {
