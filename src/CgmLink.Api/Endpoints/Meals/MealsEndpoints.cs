@@ -13,7 +13,7 @@ public static class MealsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/meals")
             .WithTags("Meals");
 
-        group.MapGet("/", List.Endpoint.HandleAsync)
+        group.MapGet("/", ListMeals.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("ListMeals")
             .RequireAuthorization();
@@ -31,6 +31,11 @@ public static class MealsEndpoints
         group.MapPost("/", NewMeal.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("CreateMeal")
+            .RequireAuthorization();
+
+        group.MapPatch("/{id:guid}", UpdateMeal.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("UpdateMeal")
             .RequireAuthorization();
 
         group.MapDelete("/{id:guid}", DeleteMeal.Endpoint.HandleAsync)

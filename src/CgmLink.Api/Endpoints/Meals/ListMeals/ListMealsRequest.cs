@@ -4,7 +4,7 @@ using FluentValidation;
 using Microsoft.Extensions.Options;
 using System.Linq;
 
-namespace CgmLink.Api.Endpoints.Meals.List;
+namespace CgmLink.Api.Endpoints.Meals.ListMeals;
 
 public sealed record ListMealsRequest : PagedRequest
 {

@@ -2,7 +2,7 @@ using CgmLink.Api.Endpoints.Meals.GetMeal;
 using CgmLink.Api.Models;
 using System.Collections.Generic;
 
-namespace CgmLink.Api.Endpoints.Meals.List;
+namespace CgmLink.Api.Endpoints.Meals.ListMeals;
 
 public sealed record ListMealsResponse : PagedResponse
 {

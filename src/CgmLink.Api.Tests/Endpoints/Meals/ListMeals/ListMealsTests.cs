@@ -4,7 +4,7 @@ using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using CgmLink.Api.Endpoints.Meals.List;
+using CgmLink.Api.Endpoints.Meals.ListMeals;
 using CgmLink.Api.Models;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
