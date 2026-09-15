@@ -1,9 +1,22 @@
 using CgmLink.Data.Entities;
+using CgmLink.Data.Repository;
+using Microsoft.EntityFrameworkCore;
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CgmLink.Api.Services;
 
 public sealed class MealService : IMealService
 {
+    private readonly IRepository<Meal> _mealsRepository;
+
+    public MealService(IRepository<Meal> mealsRepository)
+    {
+        _mealsRepository = mealsRepository;
+    }
+
     public Meal RecalculateNutrition(Meal meal)
     {
         var calories = 0m;
@@ -31,5 +44,20 @@ public sealed class MealService : IMealService
         meal.Fat = fat;
 
         return meal;
+    }
+
+    public async Task RecalculateNutritionForIngredient(Guid ingredientId, CancellationToken cancellationToken = default)
+    {
+        var meals = await _mealsRepository.GetAll()
+            .Include(m => m.Ingredients)
+                .ThenInclude(mi => mi.Serving)
+            .Where(m => m.Deleted == null && m.Ingredients.Any(mi => mi.IngredientId == ingredientId))
+            .ToListAsync(cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var meal in meals)
+        {
+            RecalculateNutrition(meal);
+        }
     }
 }

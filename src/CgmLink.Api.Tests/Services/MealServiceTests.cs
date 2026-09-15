@@ -1,14 +1,28 @@
 using CgmLink.Api.Services;
 using CgmLink.Data.Entities;
+using CgmLink.Data.Repository;
+using CgmLink.Data.Tests;
+using Moq;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CgmLink.Api.Tests.Services;
 
 [TestFixture]
 public class MealServiceTests
 {
-    private readonly MealService _service = new();
+    private Mock<IRepository<Meal>> _mealsRepositoryMock;
+    private MealService _service;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _mealsRepositoryMock = new Mock<IRepository<Meal>>();
+        _service = new MealService(_mealsRepositoryMock.Object);
+    }
 
     [Test]
     public void RecalculateNutrition_Should_Return_Zeros_When_Meal_Has_No_Ingredients()
@@ -78,6 +92,46 @@ public class MealServiceTests
             Assert.That(meal.Carbs, Is.EqualTo(20m));
             Assert.That(meal.Protein, Is.EqualTo(10m));
             Assert.That(meal.Fat, Is.EqualTo(4m));
+        });
+    }
+
+    [Test]
+    public async Task RecalculateNutritionForIngredient_Should_Recalculate_Meals_Containing_The_Ingredient()
+    {
+        var ingredientId = Guid.NewGuid();
+        var meal = CreateMeal();
+        var serving = CreateServing(100m, 10m, 5m, 2m);
+        var mealIngredient = new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = meal.Id,
+            Meal = meal,
+            IngredientId = ingredientId,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = 2m,
+            Created = DateTimeOffset.UtcNow,
+        };
+        meal.Ingredients.Add(mealIngredient);
+
+        var otherMeal = CreateMeal();
+        var otherMealIngredient = CreateMealIngredient(CreateServing(50m, 5m, 3m, 1m), 1m);
+        otherMealIngredient.Meal = otherMeal;
+        otherMeal.Ingredients.Add(otherMealIngredient);
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal, otherMeal }));
+
+        await _service.RecalculateNutritionForIngredient(ingredientId, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(200m));
+            Assert.That(meal.Carbs, Is.EqualTo(20m));
+            Assert.That(meal.Protein, Is.EqualTo(10m));
+            Assert.That(meal.Fat, Is.EqualTo(4m));
+            Assert.That(otherMeal.Calories, Is.EqualTo(0m));
         });
     }
 
