@@ -4,6 +4,7 @@ using CgmLink.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgmLink.Data.Migrators.MSSQL.Migrations
 {
     [DbContext(typeof(CgmLinkDbContext))]
-    partial class CgmLinkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916143549_AddTreatments")]
+    partial class AddTreatments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -264,7 +267,11 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<Guid>("ServingId")
+                    b.Property<string>("QuantityUnit")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<Guid?>("ServingId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
@@ -653,8 +660,7 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.HasOne("CgmLink.Data.Entities.IngredientServing", "Serving")
                         .WithMany()
                         .HasForeignKey("ServingId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.NoAction);
 
                     b.Navigation("Ingredient");
 

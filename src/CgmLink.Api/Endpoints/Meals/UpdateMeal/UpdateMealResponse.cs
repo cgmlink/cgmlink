@@ -59,7 +59,7 @@ public sealed record UpdateMealIngredientResponse
         {
             IngredientId = mealIngredient.IngredientId,
             IngredientName = mealIngredient.Ingredient?.Name ?? string.Empty,
-            ServingId = serving?.Id ?? mealIngredient.ServingId ?? Guid.Empty,
+            ServingId = mealIngredient.ServingId,
             ServingDescription = serving?.Description,
             Quantity = mealIngredient.Quantity,
             Calories = serving is null ? 0m : serving.Calories * mealIngredient.Quantity,

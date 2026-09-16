@@ -7,28 +7,28 @@ using Microsoft.EntityFrameworkCore;
 namespace CgmLink.Data.Entities;
 
 /// <summary>
-/// Links a meal to an ingredient with the quantity used.
+/// Links a treatment to an ingredient with the quantity used.
 /// </summary>
 [ExcludeFromCodeCoverage]
-[Table("meal_ingredients")]
-public class MealIngredient
+[Table("treatment_ingredients")]
+public class TreatmentIngredient
 {
     /// <summary>
-    /// The unique identifier for the meal ingredient.
+    /// The unique identifier for the treatment ingredient link.
     /// </summary>
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// The id of the meal the ingredient belongs to.
+    /// The id of the treatment the ingredient belongs to.
     /// </summary>
-    public Guid MealId { get; set; }
+    public Guid TreatmentId { get; set; }
 
     /// <summary>
-    /// The meal the ingredient belongs to.
+    /// The treatment the ingredient belongs to.
     /// </summary>
-    public virtual Meal? Meal { get; set; }
+    public virtual Treatment? Treatment { get; set; }
 
     /// <summary>
     /// The id of the ingredient.
@@ -38,6 +38,7 @@ public class MealIngredient
     /// <summary>
     /// The ingredient.
     /// </summary>
+    [DeleteBehavior(DeleteBehavior.NoAction)]
     public virtual Ingredient? Ingredient { get; set; }
 
     /// <summary>
@@ -57,7 +58,7 @@ public class MealIngredient
     public required decimal Quantity { get; set; }
 
     /// <summary>
-    /// The date and time the ingredient was added to the meal.
+    /// The date and time the ingredient was added to the treatment.
     /// </summary>
     public required DateTimeOffset Created { get; set; } = DateTimeOffset.UtcNow;
 }

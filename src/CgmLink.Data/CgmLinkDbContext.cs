@@ -19,6 +19,10 @@ public class CgmLinkDbContext : DbContext
     public DbSet<UserIngredient> UserIngredients { get; set; }
     public DbSet<Meal> Meals { get; set; }
     public DbSet<MealIngredient> MealIngredients { get; set; }
+    public DbSet<Injection> Injections { get; set; }
+    public DbSet<Treatment> Treatments { get; set; }
+    public DbSet<TreatmentMeal> TreatmentMeals { get; set; }
+    public DbSet<TreatmentIngredient> TreatmentIngredients { get; set; }
 
     public CgmLinkDbContext(DbContextOptions<CgmLinkDbContext> options) : base(options)
     {
