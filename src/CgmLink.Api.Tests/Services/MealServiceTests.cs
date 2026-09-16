@@ -78,11 +78,21 @@ public class MealServiceTests
     }
 
     [Test]
-    public void RecalculateNutrition_Should_Skip_Lines_Without_A_Serving()
+    public void RecalculateNutrition_Should_Skip_Lines_When_Serving_Not_Loaded()
     {
         var meal = CreateMeal();
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
-        meal.Ingredients.Add(CreateMealIngredient(null, 3m));
+        meal.Ingredients.Add(new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = meal.Id,
+            Meal = meal,
+            IngredientId = Guid.NewGuid(),
+            ServingId = Guid.NewGuid(),
+            Serving = null,
+            Quantity = 3m,
+            Created = DateTimeOffset.UtcNow,
+        });
 
         _service.RecalculateMealsNutrition(meal);
 
@@ -164,14 +174,14 @@ public class MealServiceTests
         };
     }
 
-    private static MealIngredient CreateMealIngredient(IngredientServing? serving, decimal quantity)
+    private static MealIngredient CreateMealIngredient(IngredientServing serving, decimal quantity)
     {
         return new MealIngredient
         {
             Id = Guid.NewGuid(),
             MealId = Guid.NewGuid(),
             IngredientId = Guid.NewGuid(),
-            ServingId = serving?.Id,
+            ServingId = serving.Id,
             Serving = serving,
             Quantity = quantity,
             Created = DateTimeOffset.UtcNow,

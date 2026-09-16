@@ -31,7 +31,7 @@ public class ListMealIngredientsTests
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
     }
 
-    private MealIngredient CreateMealIngredient(Guid mealId, Guid ingredientId, IngredientServing? serving, decimal quantity)
+    private MealIngredient CreateMealIngredient(Guid mealId, Guid ingredientId, IngredientServing serving, decimal quantity)
     {
         var ingredient = new Ingredient
         {
@@ -47,7 +47,7 @@ public class ListMealIngredientsTests
             MealId = mealId,
             IngredientId = ingredientId,
             Ingredient = ingredient,
-            ServingId = serving?.Id,
+            ServingId = serving.Id,
             Serving = serving,
             Quantity = quantity,
             Created = DateTimeOffset.UtcNow,
@@ -169,11 +169,27 @@ public class ListMealIngredientsTests
     }
 
     [Test]
-    public async Task HandleAsync_Should_Return_Zero_Nutrition_When_Meal_Ingredient_Has_No_Serving()
+    public async Task HandleAsync_Should_Return_Zero_Nutrition_When_Serving_Not_Loaded()
     {
         var mealId = Guid.NewGuid();
         var ingredientId = Guid.NewGuid();
-        var mealIngredient = CreateMealIngredient(mealId, ingredientId, null, 2m);
+        var mealIngredient = new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = mealId,
+            IngredientId = ingredientId,
+            Ingredient = new Ingredient
+            {
+                Id = ingredientId,
+                Name = "Milk",
+                Barcode = "123",
+                Created = DateTimeOffset.UtcNow,
+            },
+            ServingId = Guid.NewGuid(),
+            Serving = null,
+            Quantity = 2m,
+            Created = DateTimeOffset.UtcNow,
+        };
         SetupMeal(CreateMeal(mealId, new List<MealIngredient> { mealIngredient }));
 
         var result = await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
