@@ -1,4 +1,5 @@
 using CgmLink.Api.Services;
+using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Data.Tests;
@@ -159,6 +160,74 @@ public class MealServiceTests
             Created = DateTimeOffset.UtcNow,
         };
     }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Return_Lookup_When_Meals_Are_Valid()
+    {
+        var meal = CreateMeal();
+        meal.UserId = _userId;
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal }));
+
+        var result = await _service.GetValidatedMealsAsync(
+            [new RequestMeal(meal.Id, 2m)], _userId, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result.Keys, Does.Contain(meal.Id));
+            Assert.That(result[meal.Id], Is.SameAs(meal));
+        });
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Throw_BadRequest_When_Meal_Not_Found()
+    {
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal>()));
+
+        Assert.That(async () => await _service.GetValidatedMealsAsync(
+                [new RequestMeal(Guid.NewGuid(), 1m)], _userId, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Throw_BadRequest_When_Meal_Not_Linked_To_User()
+    {
+        var meal = CreateMeal();
+        meal.UserId = Guid.NewGuid();
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal }));
+
+        Assert.That(async () => await _service.GetValidatedMealsAsync(
+                [new RequestMeal(meal.Id, 1m)], _userId, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Throw_BadRequest_When_Meal_Is_Soft_Deleted()
+    {
+        var meal = CreateMeal();
+        meal.UserId = _userId;
+        meal.Deleted = DateTimeOffset.UtcNow;
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal }));
+
+        Assert.That(async () => await _service.GetValidatedMealsAsync(
+                [new RequestMeal(meal.Id, 1m)], _userId, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
+    }
+
+    private readonly Guid _userId = Guid.NewGuid();
+
+    private sealed record RequestMeal(Guid MealId, decimal Quantity) : ITreatmentMealRequest;
 
     private static IngredientServing CreateServing(decimal calories, decimal carbs, decimal protein, decimal fat)
     {
