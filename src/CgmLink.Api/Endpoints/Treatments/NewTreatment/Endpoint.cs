@@ -8,7 +8,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -27,6 +26,7 @@ internal static class Endpoint
         [FromServices] IRepository<Treatment> treatmentsRepository,
         [FromServices] IMealService mealService,
         [FromServices] IIngredientsService ingredientsService,
+        [FromServices] ITreatmentService treatmentService,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
@@ -89,66 +89,20 @@ internal static class Endpoint
             }
         }
 
-        var calories = 0m;
-        var carbs = 0m;
-        var protein = 0m;
-        var fat = 0m;
-
-        foreach (var mealRequest in request.Meals)
-        {
-            var meal = mealLookup[mealRequest.MealId];
-            calories += meal.Calories * mealRequest.Quantity;
-            carbs += meal.Carbs * mealRequest.Quantity;
-            protein += meal.Protein * mealRequest.Quantity;
-            fat += meal.Fat * mealRequest.Quantity;
-        }
-
-        foreach (var ingredientRequest in request.Ingredients)
-        {
-            var ingredient = ingredientLookup[ingredientRequest.IngredientId];
-            var serving = ingredient.Servings.Single(s => s.Id == ingredientRequest.ServingId);
-            calories += serving.Calories * ingredientRequest.Quantity;
-            carbs += serving.Carbs * ingredientRequest.Quantity;
-            protein += serving.Protein * ingredientRequest.Quantity;
-            fat += serving.Fat * ingredientRequest.Quantity;
-        }
-
-        var treatmentId = Guid.NewGuid();
-
         if (injection is not null)
         {
             await injectionsRepository.AddAsync(injection, cancellationToken).ConfigureAwait(false);
         }
 
-        var treatment = new Treatment
-        {
-            Id = treatmentId,
-            UserId = userId,
-            ReadingId = reading?.Id,
-            InjectionId = injection?.Id,
-            Calories = calories,
-            Carbs = carbs,
-            Protein = protein,
-            Fat = fat,
-            Created = created,
-            Meals = request.Meals.Select(m => new TreatmentMeal
-            {
-                Id = Guid.NewGuid(),
-                TreatmentId = treatmentId,
-                MealId = m.MealId,
-                Quantity = m.Quantity,
-                Created = created,
-            }).ToList(),
-            Ingredients = request.Ingredients.Select(i => new TreatmentIngredient
-            {
-                Id = Guid.NewGuid(),
-                TreatmentId = treatmentId,
-                IngredientId = i.IngredientId,
-                ServingId = i.ServingId,
-                Quantity = i.Quantity,
-                Created = created,
-            }).ToList(),
-        };
+        var treatment = treatmentService.CreateTreatment(
+            request.Meals,
+            request.Ingredients,
+            mealLookup,
+            ingredientLookup,
+            userId,
+            reading?.Id,
+            injection?.Id,
+            created);
 
         await treatmentsRepository.AddAsync(treatment, cancellationToken).ConfigureAwait(false);
 

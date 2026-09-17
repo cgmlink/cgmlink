@@ -74,6 +74,7 @@ builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("Api"))
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IIngredientsService, IngredientsService>();
 builder.Services.AddScoped<IMealService, MealService>();
+builder.Services.AddScoped<ITreatmentService, TreatmentService>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 

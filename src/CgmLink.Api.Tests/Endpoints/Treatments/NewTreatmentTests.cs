@@ -35,6 +35,7 @@ public class NewTreatmentTests
     private Mock<IRepository<Ingredient>> _ingredientsRepositoryMock;
     private IMealService _mealService;
     private IIngredientsService _ingredientsService;
+    private ITreatmentService _treatmentService;
 
     [SetUp]
     public void SetUp()
@@ -50,6 +51,7 @@ public class NewTreatmentTests
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _mealService = new MealService(_mealsRepositoryMock.Object);
         _ingredientsService = new IngredientsService(_ingredientsRepositoryMock.Object);
+        _treatmentService = new TreatmentService();
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 
@@ -178,7 +180,7 @@ public class NewTreatmentTests
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
             _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-            _mealService, _ingredientsService, CancellationToken.None);
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
     }
@@ -198,7 +200,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedException>().With.Message.EqualTo("USER_NOT_LOGGED_IN"));
     }
 
@@ -217,7 +219,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INSULIN_NOT_FOUND"));
     }
 
@@ -232,7 +234,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
     }
 
@@ -255,7 +257,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
     }
 
@@ -278,7 +280,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("READING_NOT_FOUND"));
     }
 
@@ -304,7 +306,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
 
         _injectionsRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Injection>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -337,7 +339,7 @@ public class NewTreatmentTests
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
                 _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
                 _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-                _mealService, _ingredientsService, CancellationToken.None),
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("READING_NOT_FOUND"));
 
         _injectionsRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Injection>(), It.IsAny<CancellationToken>()), Times.Never);
@@ -387,7 +389,7 @@ public class NewTreatmentTests
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
             _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-            _mealService, _ingredientsService, CancellationToken.None);
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
         _injectionsRepositoryMock.Verify(r => r.AddAsync(It.Is<Injection>(i =>
             i.UserId == _userId &&
@@ -442,7 +444,7 @@ public class NewTreatmentTests
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
             _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-            _mealService, _ingredientsService, CancellationToken.None);
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
         _injectionsRepositoryMock.Verify(r => r.AddAsync(It.IsAny<Injection>(), It.IsAny<CancellationToken>()), Times.Never);
 
@@ -480,7 +482,7 @@ public class NewTreatmentTests
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
             _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-            _mealService, _ingredientsService, CancellationToken.None);
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
         _treatmentsRepositoryMock.Verify(r => r.AddAsync(It.Is<Treatment>(t =>
             t.Calories == 0m &&
@@ -516,7 +518,7 @@ public class NewTreatmentTests
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
             _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-            _mealService, _ingredientsService, CancellationToken.None);
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
         _treatmentsRepositoryMock.Verify(r => r.AddAsync(It.Is<Treatment>(t =>
             t.Created == created &&
@@ -583,7 +585,7 @@ public class NewTreatmentTests
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _usersRepositoryMock.Object, _readingsRepositoryMock.Object,
             _insulinsRepositoryMock.Object, _injectionsRepositoryMock.Object, _treatmentsRepositoryMock.Object,
-            _mealService, _ingredientsService, CancellationToken.None);
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
         _treatmentsRepositoryMock.Verify(r => r.AddAsync(It.Is<Treatment>(t =>
             t.Calories == 400m &&
