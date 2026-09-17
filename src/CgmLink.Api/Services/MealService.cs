@@ -1,5 +1,7 @@
+using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
+using CgmLink.Resources;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -100,5 +102,29 @@ public sealed class MealService : IMealService
         {
             meal.Ingredients.Remove(removed);
         }
+    }
+
+    public async Task<Dictionary<Guid, Meal>> GetValidatedMealsAsync(
+        IEnumerable<ITreatmentMealRequest> meals,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var requestMeals = meals.ToList();
+        var mealIds = requestMeals.Select(m => m.MealId).Distinct().ToList();
+
+        var mealLookup = await _mealsRepository.GetAll()
+            .Where(m => mealIds.Contains(m.Id) && m.UserId == userId && m.Deleted == null)
+            .ToDictionaryAsync(m => m.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var meal in requestMeals)
+        {
+            if (!mealLookup.ContainsKey(meal.MealId))
+            {
+                throw new BadRequestException(ValidationMessages.MealIdInvalid);
+            }
+        }
+
+        return mealLookup;
     }
 }

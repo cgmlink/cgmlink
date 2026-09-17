@@ -14,4 +14,8 @@ public interface IMealService
         Meal meal,
         IEnumerable<IMealIngredientRequest> ingredients,
         Dictionary<Guid, Ingredient> ingredientLookup);
+    Task<Dictionary<Guid, Meal>> GetValidatedMealsAsync(
+        IEnumerable<ITreatmentMealRequest> meals,
+        Guid userId,
+        CancellationToken cancellationToken = default);
 }

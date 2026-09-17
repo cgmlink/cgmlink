@@ -9,6 +9,7 @@ using CgmLink.Api.Endpoints.Settings;
 using CgmLink.Api.Endpoints.Pens;
 using CgmLink.Api.Endpoints.Ingredients;
 using CgmLink.Api.Endpoints.Meals;
+using CgmLink.Api.Endpoints.Treatments;
 
 namespace CgmLink.Api.Endpoints;
 
@@ -26,6 +27,7 @@ public static class CgmLinkEndpoints
         endpoints.MapPensEndpoints();
         endpoints.MapIngredientsEndpoints();
         endpoints.MapMealsEndpoints();
+        endpoints.MapTreatmentsEndpoints();
 
         return endpoints;
     }
