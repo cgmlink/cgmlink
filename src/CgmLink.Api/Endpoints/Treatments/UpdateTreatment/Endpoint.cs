@@ -39,6 +39,13 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
 
+        if (!await treatmentsRepository
+                .AnyAsync(t => t.Id == id && t.UserId == userId && t.Deleted == null, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            throw new NotFoundException("TREATMENT_NOT_FOUND");
+        }
+
         var treatment = await treatmentsRepository.GetAll()
             .Include(t => t.Meals)
                 .ThenInclude(tm => tm.Meal)
@@ -49,7 +56,7 @@ internal static class Endpoint
             .Include(t => t.Injection)
                 .ThenInclude(i => i.Insulin)
             .AsSplitQuery()
-            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId && t.Deleted == null, cancellationToken)
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken)
             .ConfigureAwait(false);
 
         if (treatment is null)
