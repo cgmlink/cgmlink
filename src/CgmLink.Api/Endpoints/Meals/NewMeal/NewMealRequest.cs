@@ -47,7 +47,7 @@ public sealed record NewMealRequest
             });
 
             RuleFor(x => x.Ingredients)
-                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count())
+                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
                 .WithMessage(ValidationMessages.DuplicateIngredientId);
         }
     }

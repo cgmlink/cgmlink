@@ -63,7 +63,7 @@ public sealed record NewTreatmentRequest
             });
 
             RuleFor(x => x.Meals)
-                .Must(meals => meals.Select(m => m.MealId).Distinct().Count() == meals.Count())
+                .Must(meals => meals.Select(m => m.MealId).Distinct().Count() == meals.Count)
                 .WithMessage(ValidationMessages.DuplicateMealId);
 
             RuleForEach(x => x.Ingredients).ChildRules(ingredient =>
@@ -80,7 +80,7 @@ public sealed record NewTreatmentRequest
             });
 
             RuleFor(x => x.Ingredients)
-                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count())
+                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
                 .WithMessage(ValidationMessages.DuplicateIngredientId);
 
             RuleFor(x => x.ReadingId)

@@ -66,7 +66,7 @@ public sealed record UpdateTreatmentRequest
 
             RuleFor(x => x.Meals)
                 .Must(meals => meals is null ||
-                    meals.Select(m => m.MealId).Distinct().Count() == meals.Count())
+                    meals.Select(m => m.MealId).Distinct().Count() == meals.Count)
                 .WithMessage(ValidationMessages.DuplicateMealId)
                 .When(x => x.Meals is not null);
 
@@ -85,7 +85,7 @@ public sealed record UpdateTreatmentRequest
 
             RuleFor(x => x.Ingredients)
                 .Must(ingredients => ingredients is null ||
-                    ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count())
+                    ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
                 .WithMessage(ValidationMessages.DuplicateIngredientId)
                 .When(x => x.Ingredients is not null);
         }

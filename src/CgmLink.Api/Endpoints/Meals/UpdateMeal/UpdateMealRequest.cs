@@ -57,7 +57,7 @@ public sealed record UpdateMealRequest
 
             RuleFor(x => x.Ingredients)
                 .Must(ingredients => ingredients is null ||
-                    ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count())
+                    ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
                 .WithMessage(ValidationMessages.DuplicateIngredientId)
                 .When(x => x.Ingredients is not null);
         }
