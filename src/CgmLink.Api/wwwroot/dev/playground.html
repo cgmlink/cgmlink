@@ -133,6 +133,7 @@
       <div class="tabs">
         <button data-tab="ingredients" class="active">Ingredients</button>
         <button data-tab="meals">Meals</button>
+        <button data-tab="treatments">Treatments</button>
         <button data-tab="raw">Raw request</button>
       </div>
 
@@ -205,6 +206,81 @@
         </div>
       </div>
 
+      <div id="tab-treatments" hidden>
+        <div class="card">
+          <h3>New treatment</h3>
+          <p class="muted" style="margin:0 0 12px;">A treatment links a reading to an insulin injection and/or food (meals and ingredients).</p>
+          <div class="form-grid">
+            <div><label>Created (optional)</label><input id="trCreated" type="datetime-local" title="Defaults to now if left blank" /></div>
+            <div><label>Reading ID (optional)</label><input id="trReadingId" type="text" placeholder="leave blank" /></div>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <div class="header-line"><h3 style="font-size:13px;">Injection</h3><span class="muted small">Leave both empty to skip.</span></div>
+            <div class="form-grid">
+              <div><label>Insulin</label><select id="trInsulin"><option value="">Select insulin…</option></select></div>
+              <div><label>Units *</label><input id="trUnits" type="number" step="any" min="0" placeholder="e.g. 4" /></div>
+            </div>
+          </div>
+
+          <label style="margin-top:12px;">Meals (optional)</label>
+          <div id="trMealRows"></div>
+          <div class="row">
+            <button id="addTrMealBtn" class="secondary small">+ Add meal</button>
+            <span id="trMealHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <label>Ingredients (optional)</label>
+          <div id="trIngredientRows"></div>
+          <div class="row">
+            <button id="addTrIngredientBtn" class="secondary small">+ Add ingredient</button>
+            <span id="trIngHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <div class="actions" style="margin-top:12px;">
+            <button id="trResetBtn" class="secondary">Reset</button>
+            <button id="trCreateBtn">Create treatment</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Update treatment</h3>
+          <label>Treatment ID *</label>
+          <input id="trUpdateId" type="text" placeholder="Guid of the treatment to update" />
+          <div class="muted small" style="margin-top:4px;">Only the items you fill in are sent. Meals/ingredients replace the whole set when rows are present; injection and readingId are set when included.</div>
+
+          <div class="card" style="margin-top:12px;">
+            <div class="header-line"><h3 style="font-size:13px;">Injection</h3><label class="muted small" style="margin:0;white-space:nowrap;"><input id="trUpdIncludeInjection" type="checkbox" /> Include injection</label></div>
+            <div class="form-grid">
+              <div><label>Insulin</label><select id="trUpdInsulin"><option value="">Select insulin…</option></select></div>
+              <div><label>Units</label><input id="trUpdUnits" type="number" step="any" min="0" /></div>
+            </div>
+          </div>
+
+          <label style="margin-top:12px;">Reading ID (optional - sent when filled in)</label>
+          <input id="trUpdReadingId" type="text" placeholder="leave blank to skip" />
+
+          <label>Meals (optional - replaces the meal set when rows are present)</label>
+          <div id="trUpdMealRows"></div>
+          <div class="row">
+            <button id="addTrUpdMealBtn" class="secondary small">+ Add meal</button>
+            <span id="trUpdMealHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <label>Ingredients (optional - replaces the ingredient set when rows are present)</label>
+          <div id="trUpdIngredientRows"></div>
+          <div class="row">
+            <button id="addTrUpdIngredientBtn" class="secondary small">+ Add ingredient</button>
+            <span id="trUpdIngHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <div class="actions" style="margin-top:12px;">
+            <button id="trUpdResetBtn" class="secondary">Reset</button>
+            <button id="trUpdBtn">Update treatment</button>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-raw" hidden>
         <p class="muted">Generic HTTP caller for anything else. The bearer token is attached automatically.</p>
         <div class="row">
@@ -273,6 +349,12 @@
     $("getMealBtn").disabled = !on;
     $("addMealIngredientBtn").disabled = !on;
     $("mealCreateBtn").disabled = !on;
+    $("addTrMealBtn").disabled = !on;
+    $("addTrIngredientBtn").disabled = !on;
+    $("trCreateBtn").disabled = !on;
+    $("addTrUpdMealBtn").disabled = !on;
+    $("addTrUpdIngredientBtn").disabled = !on;
+    $("trUpdBtn").disabled = !on;
   }
 
   function showResponse(res, ms) {
@@ -818,19 +900,19 @@
     else $("mealDetail").innerHTML = "";
   }
 
-  async function loadMealIngredients(force) {
+  async function loadMealIngredients(force, hintEl) {
     if (mealIngredients && !force) return mealIngredients;
-    mealIngHint.textContent = "Loading ingredients…";
+    if (hintEl) hintEl.textContent = "Loading ingredients…";
     mealIngredients = [];
     const out = await run("list ingredients for meal", () =>
       requestJson("api/v1/ingredients?page=0&pageSize=25&sortBy=Name&sortDirection=Asc", "GET"));
     if (out && out.ok && out.data) mealIngredients = out.data.ingredients || [];
-    mealIngHint.textContent = mealIngredients.length ? "" : "No ingredients yet - create one in the Ingredients tab first.";
+    if (hintEl) hintEl.textContent = mealIngredients.length ? "" : "No ingredients yet - create one in the Ingredients tab first.";
     return mealIngredients;
   }
 
-  async function addMealIngredientRow(selectedIngredientId, selectedServingId, defaultQty, container) {
-    const options = await loadMealIngredients();
+  async function addMealIngredientRow(selectedIngredientId, selectedServingId, defaultQty, container, hintEl) {
+    const options = await loadMealIngredients(false, hintEl || (container === mealIngRowsEl ? mealIngHint : null));
     if (!options.length) {
       showResponse({ status: "form", text: "No ingredients found. Create an ingredient in the Ingredients tab first." });
       return;
@@ -891,6 +973,14 @@
         showResponse({ status: "form", text: "Every ingredient row needs an ingredient, a serving, and a quantity greater than zero." });
         return null;
       }
+    }
+    const seen = new Set();
+    for (const r of rows) {
+      if (seen.has(r.ingredientId)) {
+        showResponse({ status: "form", text: "The same ingredient can only be added once - remove the duplicate row." });
+        return null;
+      }
+      seen.add(r.ingredientId);
     }
     return rows;
   }
@@ -993,6 +1083,189 @@
     refreshMeals(true);
   }
 
+  /* ---------- treatments ---------- */
+
+  let mealOptions = null;
+  let insulinOptions = null;
+  let treatmentsLoaded = false;
+
+  async function loadMealOptions(force) {
+    if (mealOptions && !force) return mealOptions;
+    mealOptions = [];
+    const out = await run("list meals for treatment", () =>
+      requestJson("api/v1/meals?page=0&pageSize=25&sortBy=Name&sortDirection=Asc", "GET"));
+    if (out && out.ok && out.data) mealOptions = out.data.meals || [];
+    return mealOptions;
+  }
+
+  async function loadInsulins(force) {
+    if (insulinOptions && !force) return insulinOptions;
+    insulinOptions = [];
+    const out = await run("list insulins", () =>
+      requestJson("api/v1/insulins?page=0&pageSize=25", "GET"));
+    if (out && out.ok && out.data) insulinOptions = out.data.insulins || [];
+    return insulinOptions;
+  }
+
+  async function loadTreatmentPickers() {
+    if (treatmentsLoaded) return;
+    treatmentsLoaded = true;
+    await loadInsulins();
+    const opts = '<option value="">Select insulin…</option>' + insulinOptions.map((o) =>
+      '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
+    $("trInsulin").innerHTML = opts;
+    $("trUpdInsulin").innerHTML = opts;
+    await loadMealOptions();
+  }
+
+  async function addTreatmentMealRow(selectedMealId, defaultQty, container, hintEl) {
+    const options = await loadMealOptions();
+    if (!options.length) {
+      if (hintEl) hintEl.textContent = "No meals yet - create one in the Meals tab first.";
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "meal-ing-row";
+    row.innerHTML =
+      '<select class="tm-meal"></select>' +
+      '<input class="tm-qty" type="number" min="0" step="any" placeholder="Qty" value="1" />' +
+      '<button class="mi-remove secondary small">x</button>';
+    const sel = row.querySelector(".tm-meal");
+    sel.innerHTML = options.map((o) => '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
+    if (selectedMealId && options.some((o) => o.id === selectedMealId)) sel.value = selectedMealId;
+    if (!sel.value && options.length) sel.value = options[0].id;
+    row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
+    const qty = row.querySelector(".tm-qty");
+    if (defaultQty != null && Number.isFinite(Number(defaultQty))) qty.value = Number(defaultQty);
+    container.appendChild(row);
+  }
+
+  function collectMealRows(rowsEl) {
+    const rows = Array.from(rowsEl.querySelectorAll(".tm-meal")).map((sel) => ({
+      mealId: sel.value,
+      quantity: parseFloat(sel.closest(".meal-ing-row").querySelector(".tm-qty").value),
+    }));
+    for (const r of rows) {
+      if (!r.mealId || !Number.isFinite(r.quantity) || r.quantity <= 0) {
+        showResponse({ status: "form", text: "Every meal row needs a meal and a quantity greater than zero." });
+        return null;
+      }
+    }
+    const seen = new Set();
+    for (const r of rows) {
+      if (seen.has(r.mealId)) {
+        showResponse({ status: "form", text: "The same meal can only be added once - remove the duplicate row." });
+        return null;
+      }
+      seen.add(r.mealId);
+    }
+    return rows;
+  }
+
+  function collectInjection(prefix, enableId) {
+    if (enableId && !$(enableId).checked) return null;
+    const insulinId = $(prefix + "Insulin").value;
+    const unitsVal = $(prefix + "Units").value;
+    if (!insulinId && unitsVal === "") {
+      if (enableId) {
+        showResponse({ status: "form", text: "Injection is included but no insulin and units were chosen." });
+        return false;
+      }
+      return null;
+    }
+    if (!insulinId || unitsVal === "") {
+      showResponse({ status: "form", text: "Injection needs both an insulin and units." });
+      return false;
+    }
+    const units = Number(unitsVal);
+    if (!Number.isFinite(units) || units <= 0) {
+      showResponse({ status: "form", text: "Injection units must be greater than zero." });
+      return false;
+    }
+    return { insulinId, units };
+  }
+
+  function resetTreatmentForm() {
+    $("trCreated").value = "";
+    $("trReadingId").value = "";
+    $("trInsulin").selectedIndex = 0;
+    $("trUnits").value = "";
+    $("trMealRows").innerHTML = "";
+    $("trIngredientRows").innerHTML = "";
+    $("trMealHint").textContent = "";
+    $("trIngHint").textContent = "";
+  }
+
+  async function createTreatment() {
+    const payload = {};
+    const createdVal = $("trCreated").value;
+    if (createdVal) { const d = new Date(createdVal); if (!isNaN(d.getTime())) payload.created = d.toISOString(); }
+    const readingId = $("trReadingId").value.trim();
+    if (readingId) payload.readingId = readingId;
+
+    const injection = collectInjection("tr", null);
+    if (injection === false) return;
+    if (injection) payload.injection = injection;
+
+    const meals = collectMealRows($("trMealRows"));
+    if (meals === null) return;
+    const ingredients = collectMealIngredients($("trIngredientRows"));
+    if (ingredients === null) return;
+
+    if (!payload.injection && !meals.length && !ingredients.length) {
+      showResponse({ status: "form", text: "A treatment needs an injection, at least one meal, or at least one ingredient." });
+      return;
+    }
+
+    payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
+    payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
+
+    const out = await run("create treatment", () => requestJson("api/v1/treatments", "POST", payload));
+    if (!out || !out.ok) return;
+    $("trUpdateId").value = out.data.id || "";
+    resetTreatmentForm();
+  }
+
+  function resetUpdateTreatmentForm() {
+    $("trUpdIncludeInjection").checked = false;
+    $("trUpdInsulin").selectedIndex = 0;
+    $("trUpdUnits").value = "";
+    $("trUpdReadingId").value = "";
+    $("trUpdMealRows").innerHTML = "";
+    $("trUpdIngredientRows").innerHTML = "";
+    $("trUpdMealHint").textContent = "";
+    $("trUpdIngHint").textContent = "";
+  }
+
+  async function updateTreatment() {
+    const id = $("trUpdateId").value.trim();
+    if (!id) { showResponse({ status: "form", text: "Enter a treatment id." }); return; }
+    const payload = {};
+
+    const injection = collectInjection("trUpd", "trUpdIncludeInjection");
+    if (injection === false) return;
+    if (injection) payload.injection = injection;
+
+    const readingId = $("trUpdReadingId").value.trim();
+    if (readingId) payload.readingId = readingId;
+
+    const meals = collectMealRows($("trUpdMealRows"));
+    if (meals === null) return;
+    if (meals.length) payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
+
+    const ingredients = collectMealIngredients($("trUpdIngredientRows"));
+    if (ingredients === null) return;
+    if (ingredients.length) payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
+
+    if (!payload.injection && !payload.readingId && !payload.meals && !payload.ingredients) {
+      showResponse({ status: "form", text: "Update needs at least one of: injection, readingId, meals, or ingredients." });
+      return;
+    }
+
+    const out = await run("update treatment", () => requestJson("api/v1/treatments/" + id, "PATCH", payload));
+    if (out && out.ok) resetUpdateTreatmentForm();
+  }
+
   /* ---------- raw ---------- */
 
   async function rawSend() {
@@ -1009,7 +1282,8 @@
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      ["ingredients", "meals", "raw"].forEach((t) => ($("tab-" + t).hidden = t !== btn.dataset.tab));
+      ["ingredients", "meals", "treatments", "raw"].forEach((t) => ($("tab-" + t).hidden = t !== btn.dataset.tab));
+      if (btn.dataset.tab === "treatments") loadTreatmentPickers();
     }));
 
   /* ---------- wiring ---------- */
@@ -1028,6 +1302,14 @@
   $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
   $("mealResetBtn").addEventListener("click", resetMealForm);
   $("mealCreateBtn").addEventListener("click", createMeal);
+  $("addTrMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trMealRows"), $("trMealHint")));
+  $("addTrIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trIngredientRows"), $("trIngHint")));
+  $("trResetBtn").addEventListener("click", resetTreatmentForm);
+  $("trCreateBtn").addEventListener("click", createTreatment);
+  $("addTrUpdMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trUpdMealRows"), $("trUpdMealHint")));
+  $("addTrUpdIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trUpdIngredientRows"), $("trUpdIngHint")));
+  $("trUpdResetBtn").addEventListener("click", resetUpdateTreatmentForm);
+  $("trUpdBtn").addEventListener("click", updateTreatment);
   $("sendBtn").addEventListener("click", rawSend);
   $("path").addEventListener("keydown", (e) => { if (e.key === "Enter") rawSend(); });
 

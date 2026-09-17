@@ -5,42 +5,44 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CgmLink.Api.Endpoints.Treatments.NewTreatment;
+namespace CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
 
-public sealed record NewTreatmentRequest
+public sealed record UpdateTreatmentRequest
 {
-    public DateTimeOffset? Created { get; init; }
-    public NewInjectionRequest? Injection { get; init; }
+    public UpdateInjectionRequest? Injection { get; init; }
     public Guid? ReadingId { get; init; }
-    public ICollection<NewTreatmentMealRequest> Meals { get; init; } = [];
-    public ICollection<NewTreatmentIngredientRequest> Ingredients { get; init; } = [];
+    public ICollection<UpdateTreatmentMealRequest>? Meals { get; init; }
+    public ICollection<UpdateTreatmentIngredientRequest>? Ingredients { get; init; }
 
-    public sealed record NewInjectionRequest
+    public sealed record UpdateInjectionRequest
     {
         public required Guid InsulinId { get; init; }
         public required decimal Units { get; init; }
     }
 
-    public sealed record NewTreatmentMealRequest : ITreatmentMealRequest
+    public sealed record UpdateTreatmentMealRequest : ITreatmentMealRequest
     {
         public required Guid MealId { get; init; }
         public required decimal Quantity { get; init; }
     }
 
-    public sealed record NewTreatmentIngredientRequest : IMealIngredientRequest
+    public sealed record UpdateTreatmentIngredientRequest : IMealIngredientRequest
     {
         public required Guid IngredientId { get; init; }
         public required Guid ServingId { get; init; }
         public required decimal Quantity { get; init; }
     }
 
-    public sealed class NewTreatmentRequestValidator : AbstractValidator<NewTreatmentRequest>
+    public sealed class UpdateTreatmentRequestValidator : AbstractValidator<UpdateTreatmentRequest>
     {
-        public NewTreatmentRequestValidator()
+        public UpdateTreatmentRequestValidator()
         {
             RuleFor(x => x)
-                .Must(x => x.Meals.Count > 0 || x.Ingredients.Count > 0 || x.Injection is not null)
-                .WithMessage(ValidationMessages.MealInjectionIdInjectionIdMustBeProvided);
+                .Must(x => x.Injection is not null ||
+                    x.ReadingId is not null ||
+                    x.Meals is not null ||
+                    x.Ingredients is not null)
+                .WithMessage(ValidationMessages.TreatmentRequiredWhenAllNull);
 
             RuleFor(x => x.Injection!.InsulinId)
                 .NotEmpty()
@@ -60,11 +62,13 @@ public sealed record NewTreatmentRequest
                 meal.RuleFor(m => m.Quantity)
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);
-            });
+            }).When(x => x.Meals is not null);
 
             RuleFor(x => x.Meals)
-                .Must(meals => meals.Select(m => m.MealId).Distinct().Count() == meals.Count)
-                .WithMessage(ValidationMessages.DuplicateMealId);
+                .Must(meals => meals is null ||
+                    meals.Select(m => m.MealId).Distinct().Count() == meals.Count)
+                .WithMessage(ValidationMessages.DuplicateMealId)
+                .When(x => x.Meals is not null);
 
             RuleForEach(x => x.Ingredients).ChildRules(ingredient =>
             {
@@ -77,16 +81,13 @@ public sealed record NewTreatmentRequest
                 ingredient.RuleFor(i => i.Quantity)
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);
-            });
+            }).When(x => x.Ingredients is not null);
 
             RuleFor(x => x.Ingredients)
-                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
-                .WithMessage(ValidationMessages.DuplicateIngredientId);
-
-            RuleFor(x => x.ReadingId)
-                .NotEmpty()
-                .WithMessage(ValidationMessages.ReadingIdRequiredWhenAllNull)
-                .When(x => x.ReadingId is not null);
+                .Must(ingredients => ingredients is null ||
+                    ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
+                .WithMessage(ValidationMessages.DuplicateIngredientId)
+                .When(x => x.Ingredients is not null);
         }
     }
 }

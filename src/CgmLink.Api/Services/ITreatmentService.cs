@@ -16,5 +16,13 @@ public interface ITreatmentService
         Guid? injectionId,
         DateTimeOffset created);
 
+    Treatment UpdateTreatmentFoods(
+        Treatment treatment,
+        IEnumerable<ITreatmentMealRequest>? meals,
+        IEnumerable<IMealIngredientRequest>? ingredients,
+        Dictionary<Guid, Meal> mealLookup,
+        Dictionary<Guid, Ingredient> ingredientLookup,
+        DateTimeOffset updated);
+
     Treatment RecalculateTreatmentNutrition(Treatment treatment);
 }
