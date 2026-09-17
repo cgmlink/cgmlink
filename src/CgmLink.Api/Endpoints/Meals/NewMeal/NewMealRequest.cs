@@ -3,6 +3,7 @@ using CgmLink.Api.Services;
 using CgmLink.Resources;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CgmLink.Api.Endpoints.Meals.NewMeal;
 
@@ -44,6 +45,10 @@ public sealed record NewMealRequest
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);
             });
+
+            RuleFor(x => x.Ingredients)
+                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count())
+                .WithMessage(ValidationMessages.DuplicateIngredientId);
         }
     }
 }

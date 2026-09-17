@@ -57,6 +57,113 @@ public sealed class TreatmentService : ITreatmentService
         return treatment;
     }
 
+    public Treatment UpdateTreatmentFoods(
+        Treatment treatment,
+        IEnumerable<ITreatmentMealRequest>? meals,
+        IEnumerable<IMealIngredientRequest>? ingredients,
+        Dictionary<Guid, Meal> mealLookup,
+        Dictionary<Guid, Ingredient> ingredientLookup,
+        DateTimeOffset updated)
+    {
+        if (meals is not null)
+        {
+            UpdateTreatmentMeals(treatment, meals, mealLookup, updated);
+        }
+
+        if (ingredients is not null)
+        {
+            UpdateTreatmentIngredients(treatment, ingredients, ingredientLookup, updated);
+        }
+
+        RecalculateTreatmentNutrition(treatment);
+
+        return treatment;
+    }
+
+    private static void UpdateTreatmentMeals(
+        Treatment treatment,
+        IEnumerable<ITreatmentMealRequest> meals,
+        Dictionary<Guid, Meal> mealLookup,
+        DateTimeOffset updated)
+    {
+        var requestedMeals = meals.ToList();
+        var requestedMealIds = requestedMeals.Select(m => m.MealId).ToHashSet();
+        var existingByMealId = treatment.Meals.ToDictionary(m => m.MealId);
+
+        foreach (var requested in requestedMeals)
+        {
+            if (existingByMealId.TryGetValue(requested.MealId, out var existing))
+            {
+                existing.Quantity = requested.Quantity;
+            }
+            else
+            {
+                treatment.Meals.Add(new TreatmentMeal
+                {
+                    Id = Guid.NewGuid(),
+                    TreatmentId = treatment.Id,
+                    MealId = requested.MealId,
+                    Meal = mealLookup[requested.MealId],
+                    Quantity = requested.Quantity,
+                    Created = updated,
+                });
+            }
+        }
+
+        foreach (var removed in treatment.Meals.Where(m => !requestedMealIds.Contains(m.MealId)).ToList())
+        {
+            treatment.Meals.Remove(removed);
+        }
+    }
+
+    private static void UpdateTreatmentIngredients(
+        Treatment treatment,
+        IEnumerable<IMealIngredientRequest> ingredients,
+        Dictionary<Guid, Ingredient> ingredientLookup,
+        DateTimeOffset updated)
+    {
+        var requestedIngredients = ingredients.ToList();
+        var requestedIngredientIds = requestedIngredients.Select(i => i.IngredientId).ToHashSet();
+        var existingByIngredientId = treatment.Ingredients.ToDictionary(i => i.IngredientId);
+
+        foreach (var requested in requestedIngredients)
+        {
+            if (existingByIngredientId.TryGetValue(requested.IngredientId, out var existing))
+            {
+                existing.Quantity = requested.Quantity;
+
+                if (existing.ServingId != requested.ServingId &&
+                    ingredientLookup.TryGetValue(requested.IngredientId, out var ingredient))
+                {
+                    var serving = ingredient.Servings.Single(s => s.Id == requested.ServingId);
+                    existing.ServingId = serving.Id;
+                    existing.Serving = serving;
+                    existing.Ingredient = ingredient;
+                }
+            }
+            else
+            {
+                var ingredient = ingredientLookup[requested.IngredientId];
+                treatment.Ingredients.Add(new TreatmentIngredient
+                {
+                    Id = Guid.NewGuid(),
+                    TreatmentId = treatment.Id,
+                    IngredientId = requested.IngredientId,
+                    Ingredient = ingredient,
+                    ServingId = requested.ServingId,
+                    Serving = ingredient.Servings.Single(s => s.Id == requested.ServingId),
+                    Quantity = requested.Quantity,
+                    Created = updated,
+                });
+            }
+        }
+
+        foreach (var removed in treatment.Ingredients.Where(i => !requestedIngredientIds.Contains(i.IngredientId)).ToList())
+        {
+            treatment.Ingredients.Remove(removed);
+        }
+    }
+
     public Treatment RecalculateTreatmentNutrition(Treatment treatment)
     {
         var calories = 0m;

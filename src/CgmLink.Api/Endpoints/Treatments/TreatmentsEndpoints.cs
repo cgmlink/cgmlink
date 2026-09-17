@@ -18,6 +18,11 @@ public static class TreatmentsEndpoints
             .WithName("CreateTreatment")
             .RequireAuthorization();
 
+        group.MapPatch("/{id:guid}", UpdateTreatment.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("UpdateTreatment")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }

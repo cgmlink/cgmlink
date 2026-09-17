@@ -3,6 +3,7 @@ using CgmLink.Api.Services;
 using CgmLink.Resources;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CgmLink.Api.Endpoints.Meals.UpdateMeal;
 
@@ -53,6 +54,12 @@ public sealed record UpdateMealRequest
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);
             }).When(x => x.Ingredients is not null);
+
+            RuleFor(x => x.Ingredients)
+                .Must(ingredients => ingredients is null ||
+                    ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count())
+                .WithMessage(ValidationMessages.DuplicateIngredientId)
+                .When(x => x.Ingredients is not null);
         }
     }
 }

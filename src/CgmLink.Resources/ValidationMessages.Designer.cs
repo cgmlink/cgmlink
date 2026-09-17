@@ -115,6 +115,24 @@ namespace CgmLink.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DUPLICATE_INGREDIENT_ID.
+        /// </summary>
+        public static string DuplicateIngredientId {
+            get {
+                return ResourceManager.GetString("DuplicateIngredientId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DUPLICATE_MEAL_ID.
+        /// </summary>
+        public static string DuplicateMealId {
+            get {
+                return ResourceManager.GetString("DuplicateMealId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to DURATION_GREATER_THAN_ZERO.
         /// </summary>
         public static string DurationGreaterThanZero {
@@ -462,6 +480,15 @@ namespace CgmLink.Resources {
         public static string TokenRequired {
             get {
                 return ResourceManager.GetString("TokenRequired", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to TREATMENT_REQUIRED_WHEN_ALL_NULL.
+        /// </summary>
+        public static string TreatmentRequiredWhenAllNull {
+            get {
+                return ResourceManager.GetString("TreatmentRequiredWhenAllNull", resourceCulture);
             }
         }
         
