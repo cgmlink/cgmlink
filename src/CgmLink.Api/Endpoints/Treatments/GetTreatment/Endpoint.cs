@@ -39,6 +39,7 @@ internal static class Endpoint
             .Include(t => t.Injection)
                 .ThenInclude(i => i.Insulin)
             .Include(t => t.Reading)
+            .AsSplitQuery()
             .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId && t.Deleted == null, cancellationToken)
             .ConfigureAwait(false);
 
