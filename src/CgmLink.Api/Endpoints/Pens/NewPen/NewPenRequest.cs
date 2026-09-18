@@ -9,7 +9,7 @@ namespace CgmLink.Api.Endpoints.Pens.NewPen
 {
     public record NewPenRequest
     {
-        public Guid InsulinId { get; set; }
+        public Guid? InsulinId { get; set; }
         public PenModel Model { get; set; }
         public PenColour Colour { get; set; }
         public string Serial { get; set; } = string.Empty;
@@ -35,7 +35,8 @@ namespace CgmLink.Api.Endpoints.Pens.NewPen
                     {
                         return await insulinRepository.FindOneAsync(i => i.Id == id && i.UserId == currentUser.GetUserId(), new FindOptions { IsAsNoTracking = true }, cancellation).ConfigureAwait(false) is not null;
                     })
-                    .WithMessage(Resources.ValidationMessages.InsulinNotFound);
+                    .WithMessage(Resources.ValidationMessages.InsulinNotFound)
+                    .When(x => x.InsulinId.HasValue);
             }
         }
     }

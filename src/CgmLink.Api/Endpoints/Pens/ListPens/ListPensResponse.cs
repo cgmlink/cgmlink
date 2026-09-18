@@ -18,8 +18,8 @@ namespace CgmLink.Api.Endpoints.Pens.ListPens
         public PenModel Model { get; set; }
         public PenColour Colour { get; set; }
         public required string Serial { get; set; }
-        public Guid InsulinId { get; set; }
-        public required string InsulinName { get; set; }
+        public Guid? InsulinId { get; set; }
+        public string? InsulinName { get; set; }
         public DateTimeOffset StartTime { get; set; }
     }
 }
