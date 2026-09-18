@@ -197,7 +197,7 @@ public class ListMealsTests
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(meals.Count);
 
-        var request = new ListMealsRequest { Page = 1, PageSize = 1 };
+        var request = new ListMealsRequest { Page = 1, PageSize = 1, SortDirection = SortDirection.Desc };
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _mealsRepositoryMock.Object, CancellationToken.None);

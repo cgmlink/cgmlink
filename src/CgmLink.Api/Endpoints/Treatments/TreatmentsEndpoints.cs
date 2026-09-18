@@ -13,6 +13,11 @@ public static class TreatmentsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/treatments")
             .WithTags("Treatments");
 
+        group.MapGet("/", ListTreatments.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("ListTreatments")
+            .RequireAuthorization();
+
         group.MapGet("/{id:guid}", GetTreatment.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("GetTreatment")

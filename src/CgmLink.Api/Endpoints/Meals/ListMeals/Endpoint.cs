@@ -32,7 +32,7 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
         var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? nameof(Meal.Created) : request.SortBy;
-        var descending = request.SortDirection == SortDirection.Desc;
+        var descending = (request.SortDirection ?? SortDirection.Desc) == SortDirection.Desc;
 
         var meals = mealsRepository.Find(m => m.UserId == userId && m.Deleted == null, new FindOptions { IsAsNoTracking = true })
             .OrderByProperty(sortBy, descending)
