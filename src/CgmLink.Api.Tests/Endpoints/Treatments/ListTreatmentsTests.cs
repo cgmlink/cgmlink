@@ -8,6 +8,7 @@ using CgmLink.Api.Endpoints.Treatments.ListTreatments;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Enums;
 using CgmLink.Data.Repository;
+using CgmLink.Data.Tests;
 using CgmLink.Identity.Authentication;
 using FluentValidation;
 using FluentValidation.Results;
@@ -135,7 +136,7 @@ public class ListTreatmentsTests
 
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(new[] { treatment }));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -178,7 +179,7 @@ public class ListTreatmentsTests
 
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(new[] { treatment }));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -204,7 +205,7 @@ public class ListTreatmentsTests
     {
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(Enumerable.Empty<Treatment>().AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(Enumerable.Empty<Treatment>()));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -235,7 +236,7 @@ public class ListTreatmentsTests
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
             .Callback<Expression<Func<Treatment, bool>>, FindOptions>((expression, _) => predicate = expression)
-            .Returns(new[] { deleted }.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(new[] { deleted }));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -261,7 +262,7 @@ public class ListTreatmentsTests
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
             .Callback<Expression<Func<Treatment, bool>>, FindOptions>((expression, _) => predicate = expression)
-            .Returns(new[] { otherUsersTreatment }.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(new[] { otherUsersTreatment }));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -288,7 +289,7 @@ public class ListTreatmentsTests
 
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(treatments.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(treatments));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -315,7 +316,7 @@ public class ListTreatmentsTests
 
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(Enumerable.Empty<Treatment>().AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(Enumerable.Empty<Treatment>()));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -339,7 +340,7 @@ public class ListTreatmentsTests
 
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(treatments.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(treatments));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
@@ -372,7 +373,7 @@ public class ListTreatmentsTests
 
         _treatmentsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(treatments.AsQueryable());
+            .Returns(new TestAsyncEnumerable<Treatment>(treatments));
 
         _treatmentsRepositoryMock
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))

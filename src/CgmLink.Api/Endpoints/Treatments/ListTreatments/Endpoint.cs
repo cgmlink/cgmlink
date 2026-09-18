@@ -34,7 +34,7 @@ internal static class Endpoint
         var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? nameof(Treatment.Created) : request.SortBy;
         var descending = (request.SortDirection ?? SortDirection.Desc) == SortDirection.Desc;
 
-        var treatments = treatmentsRepository.Find(t => t.UserId == userId && t.Deleted == null, new FindOptions { IsAsNoTracking = true })
+        var treatments = await treatmentsRepository.Find(t => t.UserId == userId && t.Deleted == null, new FindOptions { IsAsNoTracking = true })
             .Include(t => t.Reading)
             .Include(t => t.Injection)
                 .ThenInclude(i => i.Insulin)
@@ -42,7 +42,7 @@ internal static class Endpoint
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
             .Select(t => ListTreatmentResponse.ToResponse(t))
-            .ToList();
+            .ToListAsync(cancellationToken);
 
         var totalTreatments = await treatmentsRepository.CountAsync(t => t.UserId == userId && t.Deleted == null, cancellationToken).ConfigureAwait(false);
         var numberOfPages = (int)Math.Ceiling(totalTreatments / (double)request.PageSize);
