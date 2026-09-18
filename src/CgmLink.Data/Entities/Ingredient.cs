@@ -1,17 +1,19 @@
-﻿using CgmLink.Data.Enums;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
 
 namespace CgmLink.Data.Entities;
 
 /// <summary>
-/// Ingredient represents a single food item that can be used in a meal.
+/// An ingredient is a food item that can form part of a meal. Ingredients are shared between users
+/// and linked by barcode, so each scanned product resolves to a single row.
 /// </summary>
 [ExcludeFromCodeCoverage]
 [Table("ingredients")]
+[Index(nameof(Barcode), IsUnique = true)]
 public class Ingredient : ISoftDeletable
 {
     /// <summary>
@@ -22,14 +24,32 @@ public class Ingredient : ISoftDeletable
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// The unique identifier for the user who created the ingredient.
+    /// The name of the ingredient.
     /// </summary>
-    public Guid UserId { get; set; }
+    [MaxLength(255)]
+    public required string Name { get; set; }
 
     /// <summary>
-    /// The user who created the ingredient.
+    /// The barcode of the ingredient, unique across all users, when scanned.
     /// </summary>
-    public virtual User? User { get; set; }
+    public string? Barcode { get; set; }
+
+    /// <summary>
+    /// The id of the linked external product, when created from a barcode scan.
+    /// </summary>
+    public string? ProductId { get; set; }
+
+    /// <summary>
+    /// The URL of the ingredient image.
+    /// </summary>
+    [MaxLength(2048)]
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// The URL of the ingredient thumbnail image.
+    /// </summary>
+    [MaxLength(2048)]
+    public string? ThumbnailUrl { get; set; }
 
     /// <summary>
     /// The date and time the ingredient was created.
@@ -42,55 +62,17 @@ public class Ingredient : ISoftDeletable
     public DateTimeOffset? Updated { get; set; }
 
     /// <summary>
-    /// The name of the ingredient.
+    /// The date and time the ingredient was soft-deleted.
     /// </summary>
-    public required string Name { get; set; }
-
-    /// <summary>
-    /// The number of carbs in an ingredient.
-    /// </summary>
-    public decimal Carbs { get; set; } = 0;
-
-    /// <summary>
-    /// The amount of protein in an ingredient.
-    /// </summary>
-    public decimal Protein { get; set; } = 0;
-
-    /// <summary>
-    /// The amount of fat in an ingredient.
-    /// </summary>
-    public decimal Fat { get; set; } = 0;
-
-    /// <summary>
-    /// The amount of calories in an ingredient.
-    /// </summary>
-    public decimal Calories { get; set; } = 0;
-
-    /// <summary>
-    /// The barcode of the ingredient that is generated from the nutrition data provider. This can be used to link the ingredient to a product in the nutrition data provider's database.
-    /// </summary>
-    public string? Barcode { get; set; } = null;
-
-    /// <summary>
-    /// The URL of the full-size image for the ingredient, sourced from the nutrition data provider.
-    /// </summary>
-    public string? ImageUrl { get; set; } = null;
-
-    /// <summary>
-    /// The URL of the thumbnail image for the ingredient, sourced from the nutrition data provider.
-    /// </summary>
-    public string? ThumbnailUrl { get; set; } = null;
-
-    /// <summary>
-    /// The unit of measurement of the ingredient that the nutritional values are based on.
-    /// </summary>
-    public required UnitOfMeasurement Uom { get; set; }
-
-    /// <inheritdoc/>
     public DateTimeOffset? Deleted { get; set; }
 
     /// <summary>
-    /// The list of ingredients associated with this ingredient.
+    /// The serving sizes available for the ingredient.
     /// </summary>
-    public virtual ICollection<MealIngredient> Meals { get; set; } = [];
+    public virtual ICollection<IngredientServing> Servings { get; set; } = [];
+
+    /// <summary>
+    /// The users linked to this ingredient.
+    /// </summary>
+    public virtual ICollection<UserIngredient> Users { get; set; } = [];
 }

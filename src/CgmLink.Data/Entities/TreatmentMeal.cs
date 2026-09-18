@@ -1,43 +1,53 @@
-﻿using Microsoft.EntityFrameworkCore;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
+using Microsoft.EntityFrameworkCore;
 
 namespace CgmLink.Data.Entities;
 
+/// <summary>
+/// Links a treatment to a meal included in that treatment.
+/// </summary>
 [ExcludeFromCodeCoverage]
-[Table("treatment_meal")]
+[Table("treatment_meals")]
 public class TreatmentMeal
 {
+    /// <summary>
+    /// The unique identifier for the treatment meal link.
+    /// </summary>
     [Key]
     [DatabaseGenerated(DatabaseGeneratedOption.None)]
     public Guid Id { get; set; } = Guid.NewGuid();
 
     /// <summary>
-    /// the unique identifier for the treatment.
+    /// The id of the treatment the meal belongs to.
     /// </summary>
-    public required Guid TreatmentId { get; set; }
+    public Guid TreatmentId { get; set; }
 
     /// <summary>
-    /// The treatment the treatment meal is associated with.
+    /// The treatment the meal belongs to.
     /// </summary>
     public virtual Treatment? Treatment { get; set; }
 
     /// <summary>
-    /// The unique identifier for the meal.
+    /// The id of the meal included in the treatment.
     /// </summary>
-    public required Guid MealId { get; set; }
+    public Guid MealId { get; set; }
 
     /// <summary>
-    /// The meal the meal treatment is associated with.
+    /// The meal included in the treatment.
     /// </summary>
     [DeleteBehavior(DeleteBehavior.NoAction)]
     public virtual Meal? Meal { get; set; }
 
     /// <summary>
-    /// The quantity of the meal in the treatment.
+    /// The quantity of the meal included in the treatment.
     /// </summary>
-    [Range(0, int.MaxValue)]
     public required decimal Quantity { get; set; }
+
+    /// <summary>
+    /// The date and time the meal was added to the treatment.
+    /// </summary>
+    public required DateTimeOffset Created { get; set; } = DateTimeOffset.UtcNow;
 }

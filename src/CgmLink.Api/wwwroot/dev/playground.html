@@ -1,0 +1,1328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>CGM Link Playground</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #38bdf8;
+    --ok: #4ade80;
+    --err: #f87171;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.5 "Segoe UI", system-ui, sans-serif; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  header h1 { font-size: 16px; margin: 0; font-weight: 600; }
+  header a { color: var(--accent); text-decoration: none; font-size: 13px; }
+  main { display: grid; grid-template-columns: 320px 1fr; gap: 16px; padding: 16px 24px; max-width: 1300px; margin: 0 auto; }
+  @media (max-width: 880px) { main { grid-template-columns: 1fr; } }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  section + section { margin-top: 16px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 12px; }
+  label { display: block; font-size: 12px; color: var(--muted); margin: 8px 0 4px; }
+  input, select, textarea {
+    width: 100%; background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 10px; font: 13px/1.4 "Segoe UI", system-ui, sans-serif;
+  }
+  input[type="text"], input[type="email"], input[type="password"] { font-family: "Consolas", monospace; }
+  textarea { min-height: 120px; resize: vertical; font-family: "Consolas", monospace; }
+  button {
+    background: var(--accent); color: #082032; font-weight: 600; border: 0; border-radius: 6px;
+    padding: 8px 14px; cursor: pointer; font-size: 13px;
+  }
+  button.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--border); font-weight: 400; }
+  button.danger { background: var(--err); color: #2a0a0a; }
+  button.small { padding: 4px 8px; font-size: 12px; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .row { display: flex; gap: 8px; margin-top: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+  .status { display: flex; align-items: center; gap: 10px; padding: 8px 0 4px; font-size: 13px; }
+  .status .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .status.on .dot { background: var(--ok); }
+  .status .sub { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .token-field { color: var(--muted); font-size: 11px; word-break: break-all; margin-top: 8px; display: none; }
+  .token-field b { display: block; margin-bottom: 2px; }
+  .authMsg { margin-top: 8px; font-size: 12px; white-space: pre-wrap; word-break: break-word; }
+  .authMsg.ok { color: var(--ok); }
+  .authMsg.err { color: var(--err); }
+  .authMsg.info { color: var(--muted); }
+
+  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .tabs button { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 12px; font-weight: 500; }
+  .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
+  .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; }
+  tr:hover td { background: rgba(56, 189, 248, 0.05); }
+  .muted { color: var(--muted); }
+  .empty { color: var(--muted); text-align: center; padding: 24px; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  th .arrow { font-size: 10px; color: var(--accent); margin-left: 2px; }
+  .pager { display: flex; align-items: center; gap: 10px; justify-content: flex-end; margin-top: 10px; }
+  .pager select { width: auto; padding: 4px 6px; font-size: 12px; }
+  .pager span { color: var(--muted); font-size: 12px; white-space: nowrap; }
+  .pager button { min-width: 0; padding: 4px 10px; font-size: 12px; }
+
+  .card { border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-top: 12px; background: var(--panel-2); }
+  .card h3 { margin: 0 0 10px; font-size: 14px; }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+  .form-grid .full { grid-column: 1 / -1; }
+  .serving-row {
+    display: grid; grid-template-columns: 1.4fr 0.7fr 0.7fr 0.8fr 0.8fr 0.8fr 0.8fr auto;
+    gap: 6px; margin-top: 6px; align-items: center;
+  }
+  @media (max-width: 900px) { .serving-row { grid-template-columns: 1fr 1fr; } .serving-row .s-remove { grid-column: 1 / -1; } }
+  .serving-row input { padding: 5px 8px; font-size: 12px; }
+  .meal-ing-row {
+    display: grid; grid-template-columns: 1.4fr 1fr 0.7fr auto;
+    gap: 6px; margin-top: 6px; align-items: center;
+  }
+  @media (max-width: 900px) { .meal-ing-row { grid-template-columns: 1fr 1fr; } .meal-ing-row .mi-remove { grid-column: 1 / -1; } }
+  .meal-ing-row input, .meal-ing-row select { padding: 5px 8px; font-size: 12px; }
+  .actions { display: flex; gap: 6px; justify-content: flex-end; }
+  .card .header-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .card .header-line h3 { margin: 0; }
+  .meta-line { color: var(--muted); font-size: 12px; margin: 2px 0 10px; word-break: break-word; }
+  .meta-line a { color: var(--accent); }
+  tr.expansion > td { padding: 0; background: var(--panel); border-left: 2px solid var(--accent); }
+  #ingredientsTableBox tbody tr.expansion:hover > td, #mealsTableBox tbody tr.expansion:hover > td { background: var(--panel); }
+  tr.expansion .card { margin-top: 0; border: 0; }
+
+  pre { background: #0b1220; border: 1px solid var(--border); border-radius: 6px; padding: 12px; overflow: auto; max-height: 55vh; white-space: pre-wrap; word-break: break-word; font: 12px/1.5 "Consolas", monospace; }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; margin-bottom: 8px; gap: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>CGM Link - API Playground</h1>
+  <a href="/swagger" target="_blank" rel="noopener">Open Swagger UI</a>
+</header>
+
+<main>
+  <div>
+    <section>
+      <h2>Authentication</h2>
+      <label for="baseUrl">Base URL</label>
+      <input id="baseUrl" type="text" spellcheck="false" />
+      <label for="email">Email</label>
+      <input id="email" type="email" spellcheck="false" />
+      <label for="password">Password</label>
+      <input id="password" type="password" />
+      <div class="row">
+        <button id="loginBtn">Log in</button>
+        <button id="registerBtn" class="secondary">Register</button>
+      </div>
+      <button id="logoutBtn" class="danger small" style="display:none; margin-top:8px;">Log out</button>
+      <div id="authMsg" class="authMsg"></div>
+      <div class="status" id="authStatus"><span class="dot"></span><span class="sub">Not signed in</span></div>
+      <div class="token-field" id="tokenBox"><b>Bearer token (kept in this browser only)</b><span id="tokenText"></span></div>
+    </section>
+  </div>
+
+  <div>
+    <section>
+      <div class="tabs">
+        <button data-tab="ingredients" class="active">Ingredients</button>
+        <button data-tab="meals">Meals</button>
+        <button data-tab="treatments">Treatments</button>
+        <button data-tab="raw">Raw request</button>
+      </div>
+
+      <div id="tab-ingredients">
+        <div class="toolbar">
+          <button id="refreshBtn" class="secondary">Refresh list</button>
+          <button id="newIngredientBtn" class="secondary">New ingredient</button>
+          <span id="ingCount" class="muted" style="align-self:center;"></span>
+        </div>
+        <div id="ingredientsTableBox">
+          <div class="empty">Click "Refresh list" to load the ingredients for the signed-in user.</div>
+        </div>
+
+        <div id="ingredientForm" class="card" hidden>
+          <h3 id="ingredientFormTitle">New ingredient</h3>
+          <div class="form-grid">
+            <div><label>Name *</label><input id="igName" type="text" placeholder="e.g. Milk" /></div>
+            <div><label>Barcode (optional)</label><input id="igBarcode" type="text" placeholder="leave blank" /></div>
+          </div>
+          <label>Servings *</label>
+          <div id="servingRows"></div>
+          <div class="row">
+            <button id="addServingBtn" class="secondary small">+ Add serving</button>
+            <span class="muted small">Calories/carbs/protein/fat are per serving.</span>
+          </div>
+          <label>Image URL (optional)</label>
+          <input id="igImageUrl" type="text" />
+          <label>Thumbnail URL (optional)</label>
+          <input id="igThumbnailUrl" type="text" />
+          <div class="actions" style="margin-top:12px;">
+            <button id="igCancelBtn" class="secondary">Cancel</button>
+            <button id="igSaveBtn">Save</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-meals" hidden>
+        <div class="toolbar">
+          <button id="refreshMealsBtn" class="secondary">Refresh list</button>
+          <span id="mealCount" class="muted" style="align-self:center;"></span>
+        </div>
+        <div id="mealsTableBox">
+          <div class="empty">Click "Refresh list" to load the meals for the signed-in user.</div>
+        </div>
+
+        <div id="mealDetail"></div>
+
+        <div class="row">
+          <input id="mealId" type="text" placeholder="Or look up a meal by its id..." style="font-family:'Consolas',monospace;" />
+          <button id="getMealBtn" style="flex:0 0 auto;">Get meal</button>
+        </div>
+
+        <div class="card">
+          <h3>New meal</h3>
+          <div class="form-grid">
+            <div class="full"><label>Name *</label><input id="mealName" type="text" placeholder="e.g. Breakfast" /></div>
+            <div><label>Image URL (optional)</label><input id="mealImageUrl" type="text" placeholder="leave blank" /></div>
+            <div><label>Thumbnail URL (optional)</label><input id="mealThumbnailUrl" type="text" placeholder="leave blank" /></div>
+          </div>
+          <label>Ingredients *</label>
+          <div id="mealIngredientRows"></div>
+          <div class="row">
+            <button id="addMealIngredientBtn" class="secondary small">+ Add ingredient</button>
+            <span id="mealIngHint" class="muted small" style="align-self:center;"></span>
+          </div>
+          <div class="actions" style="margin-top:12px;">
+            <button id="mealResetBtn" class="secondary">Reset</button>
+            <button id="mealCreateBtn">Create meal</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-treatments" hidden>
+        <div class="card">
+          <h3>New treatment</h3>
+          <p class="muted" style="margin:0 0 12px;">A treatment links a reading to an insulin injection and/or food (meals and ingredients).</p>
+          <div class="form-grid">
+            <div><label>Created (optional)</label><input id="trCreated" type="datetime-local" title="Defaults to now if left blank" /></div>
+            <div><label>Reading ID (optional)</label><input id="trReadingId" type="text" placeholder="leave blank" /></div>
+          </div>
+
+          <div class="card" style="margin-top:12px;">
+            <div class="header-line"><h3 style="font-size:13px;">Injection</h3><span class="muted small">Leave both empty to skip.</span></div>
+            <div class="form-grid">
+              <div><label>Insulin</label><select id="trInsulin"><option value="">Select insulin…</option></select></div>
+              <div><label>Units *</label><input id="trUnits" type="number" step="any" min="0" placeholder="e.g. 4" /></div>
+            </div>
+          </div>
+
+          <label style="margin-top:12px;">Meals (optional)</label>
+          <div id="trMealRows"></div>
+          <div class="row">
+            <button id="addTrMealBtn" class="secondary small">+ Add meal</button>
+            <span id="trMealHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <label>Ingredients (optional)</label>
+          <div id="trIngredientRows"></div>
+          <div class="row">
+            <button id="addTrIngredientBtn" class="secondary small">+ Add ingredient</button>
+            <span id="trIngHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <div class="actions" style="margin-top:12px;">
+            <button id="trResetBtn" class="secondary">Reset</button>
+            <button id="trCreateBtn">Create treatment</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Update treatment</h3>
+          <label>Treatment ID *</label>
+          <input id="trUpdateId" type="text" placeholder="Guid of the treatment to update" />
+          <div class="muted small" style="margin-top:4px;">Only the items you fill in are sent. Meals/ingredients replace the whole set when rows are present; injection and readingId are set when included.</div>
+
+          <div class="card" style="margin-top:12px;">
+            <div class="header-line"><h3 style="font-size:13px;">Injection</h3><label class="muted small" style="margin:0;white-space:nowrap;"><input id="trUpdIncludeInjection" type="checkbox" /> Include injection</label></div>
+            <div class="form-grid">
+              <div><label>Insulin</label><select id="trUpdInsulin"><option value="">Select insulin…</option></select></div>
+              <div><label>Units</label><input id="trUpdUnits" type="number" step="any" min="0" /></div>
+            </div>
+          </div>
+
+          <label style="margin-top:12px;">Reading ID (optional - sent when filled in)</label>
+          <input id="trUpdReadingId" type="text" placeholder="leave blank to skip" />
+
+          <label>Meals (optional - replaces the meal set when rows are present)</label>
+          <div id="trUpdMealRows"></div>
+          <div class="row">
+            <button id="addTrUpdMealBtn" class="secondary small">+ Add meal</button>
+            <span id="trUpdMealHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <label>Ingredients (optional - replaces the ingredient set when rows are present)</label>
+          <div id="trUpdIngredientRows"></div>
+          <div class="row">
+            <button id="addTrUpdIngredientBtn" class="secondary small">+ Add ingredient</button>
+            <span id="trUpdIngHint" class="muted small" style="align-self:center;"></span>
+          </div>
+
+          <div class="actions" style="margin-top:12px;">
+            <button id="trUpdResetBtn" class="secondary">Reset</button>
+            <button id="trUpdBtn">Update treatment</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-raw" hidden>
+        <p class="muted">Generic HTTP caller for anything else. The bearer token is attached automatically.</p>
+        <div class="row">
+          <select id="method" style="flex:0 0 110px;">
+            <option>GET</option>
+            <option>POST</option>
+            <option>PATCH</option>
+            <option>DELETE</option>
+          </select>
+          <input id="path" type="text" placeholder="/api/v1/ingredients" spellcheck="false" />
+        </div>
+        <label>Request body (JSON)</label>
+        <textarea id="body" placeholder='{ "name": "..." }'></textarea>
+        <div class="row" style="justify-content:flex-end;">
+          <button id="sendBtn">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Response</h2>
+      <div class="meta"><span id="resRequest"></span><span id="resStatus">-</span><span id="resTime"></span></div>
+      <pre id="response">Nothing yet.</pre>
+    </section>
+  </div>
+</main>
+
+<script>
+(function () {
+  "use strict";
+
+  const TOKEN_KEY = "cgmlink.playground.token";
+  const BASE_KEY = "cgmlink.playground.baseUrl";
+  const $ = (id) => document.getElementById(id);
+
+  const baseUrl = $("baseUrl"), email = $("email"), password = $("password");
+  const authStatus = $("authStatus"), tokenBox = $("tokenBox"), tokenText = $("tokenText");
+  const responsePre = $("response");
+  const formEl = $("ingredientForm"), formTitle = $("ingredientFormTitle");
+  const igName = $("igName"), igBarcode = $("igBarcode"), igImageUrl = $("igImageUrl"), igThumbnailUrl = $("igThumbnailUrl"), servingRowsEl = $("servingRows");
+
+  let token = null;
+  let ingredientsCache = [];
+  let editingIngredientId = null;
+  let ingState = { page: 0, pageSize: 25, sortBy: "Created", sortDir: "Desc", totalPages: 1 };
+
+  /* ---------- helpers ---------- */
+
+  function base() { return baseUrl.value.trim().replace(/\/+$/, "") || window.location.origin; }
+
+  function setToken(value) {
+    token = value || null;
+    try { value ? localStorage.setItem(TOKEN_KEY, token) : localStorage.removeItem(TOKEN_KEY); } catch (_) {}
+    renderAuth();
+  }
+
+  function renderAuth() {
+    const on = Boolean(token);
+    authStatus.classList.toggle("on", on);
+    authStatus.querySelector(".sub").textContent = on ? "Signed in" : "Not signed in";
+    tokenBox.style.display = on ? "block" : "none";
+    tokenText.textContent = on ? token : "";
+    $("logoutBtn").style.display = on ? "inline-block" : "none";
+    $("refreshBtn").disabled = !on;
+    $("newIngredientBtn").disabled = !on;
+    $("getMealBtn").disabled = !on;
+    $("addMealIngredientBtn").disabled = !on;
+    $("mealCreateBtn").disabled = !on;
+    $("addTrMealBtn").disabled = !on;
+    $("addTrIngredientBtn").disabled = !on;
+    $("trCreateBtn").disabled = !on;
+    $("addTrUpdMealBtn").disabled = !on;
+    $("addTrUpdIngredientBtn").disabled = !on;
+    $("trUpdBtn").disabled = !on;
+  }
+
+  function showResponse(res, ms) {
+    $("resStatus").textContent = res.kind ? res.kind + (res.status ? " - HTTP " + res.status : "") : "HTTP " + res.status;
+    $("resTime").textContent = ms ? ms + " ms" : "";
+    if (lastRequest) {
+      $("resRequest").textContent = lastRequest.method + " " + lastRequest.url + "\n  " + lastRequest.colorized.join("\n  ");
+    } else {
+      $("resRequest").textContent = "";
+    }
+    responsePre.textContent = res.text || "";
+  }
+
+  let lastRequest = null;
+
+  async function requestJson(pathValue, methodValue, payload) {
+    const headers = {};
+    if (token) headers["Authorization"] = "Bearer " + token;
+    if (payload !== undefined) headers["Content-Type"] = "application/json";
+    lastRequest = {
+      method: methodValue,
+      url: base() + "/" + pathValue.replace(/^\/+/, ""),
+      colorized: Object.entries(headers).map(([k, v]) => k + ": " + (k === "Authorization" ? "Bearer " + (token ? token.slice(0, 24) + "…" : "") : v)),
+    };
+    const res = await fetch(base() + "/" + pathValue.replace(/^\/+/, ""), {
+      method: methodValue,
+      headers,
+      body: payload !== undefined ? JSON.stringify(payload) : undefined,
+    });
+    const text = await res.text();
+    let data = null;
+    try { data = text ? JSON.parse(text) : null; } catch (_) { data = text; }
+    return { ok: res.ok, status: res.status, data, text };
+  }
+
+  async function run(label, fn) {
+    const started = performance.now();
+    try {
+      const out = await fn();
+      showResponse({ status: out.status, text: out.text || "(empty body)" }, Math.round(performance.now() - started));
+      return out;
+    } catch (err) {
+      showResponse({ kind: "error", text: String(err) }, Math.round(performance.now() - started));
+      return null;
+    }
+  }
+
+  function friendlyError(out) {
+    if (!out) return null;
+    if (out.status === 401) return "Unauthorized - log in first.";
+    if (out.data && typeof out.data === "object") {
+      if (out.data.errors) {
+        const lines = [];
+        for (const key in out.data.errors) lines.push(key + ": " + out.data.errors[key].join(", "));
+        return lines.join("\n");
+      }
+      if (out.data.message) return out.data.message;
+    }
+    return null;
+  }
+
+  /* ---------- paging / sorting helpers ---------- */
+
+  function queryFor(state) {
+    return "page=" + state.page + "&pageSize=" + state.pageSize +
+      "&sortBy=" + encodeURIComponent(state.sortBy) + "&sortDirection=" + state.sortDir;
+  }
+
+  function sortLabel(state, field, label) {
+    const active = state.sortBy === field;
+    const arrow = active ? (state.sortDir === "Desc" ? " \u25bc" : " \u25b2") : "";
+    return '<th class="sortable" data-sort="' + field + '">' + label + arrow + "</th>";
+  }
+
+  function pagerHtml(state) {
+    const sizes = [5, 10, 15, 25];
+    const prevDisabled = state.page <= 0 ? " disabled" : "";
+    const nextDisabled = state.page >= state.totalPages - 1 ? " disabled" : "";
+    return '<div class="pager">' +
+      "<select data-page-size>" + sizes.map((n) =>
+        '<option value="' + n + '"' + (n === state.pageSize ? " selected" : "") + ">" + n + " per page</option>").join("") +
+      "</select>" +
+      '<button class="small secondary" data-page-prev' + prevDisabled + ">Prev</button>" +
+      "<span>Page " + (state.page + 1) + " of " + state.totalPages + "</span>" +
+      '<button class="small secondary" data-page-next' + nextDisabled + ">Next</button>" +
+      "</div>";
+  }
+
+  function wireSort(box, state, reload) {
+    box.querySelectorAll("th.sortable").forEach((th) => th.addEventListener("click", () => {
+      if (state.sortBy === th.dataset.sort) state.sortDir = state.sortDir === "Desc" ? "Asc" : "Desc";
+      else { state.sortBy = th.dataset.sort; state.sortDir = "Desc"; }
+      state.page = 0;
+      reload();
+    }));
+  }
+
+  function wirePager(box, state, reload) {
+    box.querySelectorAll("[data-page-prev]").forEach((b) => b.addEventListener("click", () => {
+      if (state.page > 0) { state.page--; reload(); }
+    }));
+    box.querySelectorAll("[data-page-next]").forEach((b) => b.addEventListener("click", () => {
+      if (state.page < state.totalPages - 1) { state.page++; reload(); }
+    }));
+    box.querySelectorAll("[data-page-size]").forEach((s) => s.addEventListener("change", () => {
+      state.pageSize = Number(s.value);
+      state.page = 0;
+      reload();
+    }));
+  }
+
+  /* ---------- auth ---------- */
+
+  function authMessage(text, kind) {
+    const el = $("authMsg");
+    el.className = "authMsg " + (kind || "info");
+    el.textContent = text || "";
+  }
+
+  function loginFailure(out) {
+    let msg = "Login failed: HTTP " + out.status;
+    if (out.data && typeof out.data === "object") {
+      if (out.data.message) msg += "\n" + out.data.message;
+      if (out.data.errors) {
+        for (const key in out.data.errors) msg += "\n" + key + ": " + out.data.errors[key].join(", ");
+      }
+    } else if (out.data) {
+      msg += "\n" + String(out.data);
+    }
+    return msg;
+  }
+
+  async function login() {
+    if (!email.value || !password.value) { showResponse({ status: "form", text: "Enter an email and password." }); return; }
+    const out = await run("login", () =>
+      requestJson("api/v1/identity/login", "POST", { email: email.value, password: password.value }));
+    if (!out) return;
+    if (out.ok && out.data && out.data.token) {
+      setToken(out.data.token);
+      authMessage("Signed in as " + (out.data.email || email.value), "ok");
+      refreshIngredients();
+      refreshMeals();
+    } else if (out.ok && out.data && !out.data.token) {
+      setToken(null);
+      authMessage("Login returned HTTP 200 but no token. Response:\n" + out.text, "err");
+    } else {
+      setToken(null);
+      authMessage(loginFailure(out), "err");
+    }
+  }
+
+  async function register() {
+    if (!email.value || !password.value) { showResponse({ status: "form", text: "Enter an email and password." }); return; }
+    if (password.value.length < 6) { showResponse({ status: "form", text: "Password must be at least 6 characters." }); return; }
+    const out = await run("register", () =>
+      requestJson("api/v1/identity/register", "POST", {
+        email: email.value, password: password.value, confirmPassword: password.value, acceptedTerms: true,
+      }));
+    if (!out) return;
+    if (out.ok) {
+      if (out.data && out.data.token) {
+        setToken(out.data.token);
+        authMessage("Registered and signed in as " + email.value, "ok");
+        refreshIngredients();
+        refreshMeals();
+      } else {
+        authMessage("Registered. Now log in with the same email and password.", "ok");
+      }
+    } else {
+      authMessage(loginFailure(out), "err");
+    }
+  }
+
+  /* ---------- ingredients ---------- */
+
+  async function refreshIngredients(resetPage) {
+    if (!token) return;
+    if (resetPage) ingState.page = 0;
+    const out = await run("list ingredients", () =>
+      requestJson("api/v1/ingredients?" + queryFor(ingState), "GET"));
+    if (!out || !out.ok || !out.data) return;
+    ingredientsCache = (out.data.ingredients || []);
+    ingState.totalPages = Math.max(1, Number(out.data.numberOfPages) || 1);
+    if (ingState.page > ingState.totalPages - 1) ingState.page = ingState.totalPages - 1;
+    renderIngredientsTable();
+    $("ingCount").textContent = ingredientsCache.length + " shown";
+  }
+
+  function renderIngredientsTable() {
+    const box = $("ingredientsTableBox");
+    if (!ingredientsCache.length) {
+      box.innerHTML = '<div class="empty">No ingredients found for this user yet. Click "New ingredient" to add one.</div>' + pagerHtml(ingState);
+      wirePager(box, ingState, refreshIngredients);
+      return;
+    }
+    const rows = ingredientsCache.map((i) =>
+      "<tr id='ing-" + i.id + "' data-id='" + i.id + "'>" +
+        "<td>" + esc(i.name) + "</td>" +
+        "<td class='muted'>" + esc(i.barcode || "-") + "</td>" +
+        "<td class='muted'>" + fmtDate(i.created) + "</td>" +
+        "<td style='text-align:right;'>" +
+          "<button class='small secondary' data-view>View</button> " +
+          "<button class='small secondary' data-edit>Edit</button> " +
+          "<button class='small danger' data-delete>Delete</button>" +
+        "</td>" +
+      "</tr>").join("");
+    box.innerHTML =
+      "<table><thead><tr>" +
+        sortLabel(ingState, "Name", "Name") +
+        sortLabel(ingState, "Barcode", "Barcode") +
+        sortLabel(ingState, "Created", "Created") +
+        "<th style='text-align:right;'>Actions</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" + pagerHtml(ingState);
+    wireSort(box, ingState, refreshIngredients);
+    wirePager(box, ingState, refreshIngredients);
+    box.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => showView(b.closest("tr").dataset.id)));
+    box.querySelectorAll("[data-edit]").forEach((b) => b.addEventListener("click", () => showEdit(b.closest("tr").dataset.id)));
+    box.querySelectorAll("[data-delete]").forEach((b) => b.addEventListener("click", () => deleteIngredient(b.closest("tr").dataset.id)));
+  }
+
+  function esc(s) {
+    return String(s ?? "").replace(/[&<>"']/g, (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  }
+
+  function fmtDate(value) {
+    if (!value) return "-";
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? String(value) : d.toLocaleString();
+  }
+
+  function clearExpansions() {
+    document.querySelectorAll("#ingredientsTableBox tr.expansion").forEach((tr) => tr.remove());
+    formEl.hidden = true;
+  }
+
+  function expandUnder(id) {
+    clearExpansions();
+    const row = document.getElementById("ing-" + id);
+    if (!row) return null;
+    const tr = document.createElement("tr");
+    tr.className = "expansion";
+    const td = document.createElement("td");
+    td.colSpan = 4;
+    tr.appendChild(td);
+    row.after(tr);
+    return td;
+  }
+
+  function ingredientDetailHtml(d) {
+    const metaBits = [];
+    if (d.barcode) metaBits.push("Barcode: " + esc(d.barcode));
+    if (d.imageUrl) metaBits.push('<a href="' + esc(d.imageUrl) + '" target="_blank" rel="noopener">Image</a>');
+    if (d.thumbnailUrl) metaBits.push('<a href="' + esc(d.thumbnailUrl) + '" target="_blank" rel="noopener">Thumbnail</a>');
+    metaBits.push("Created " + fmtDate(d.created));
+    let h = '<div class="card">';
+    h += '<div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
+      "<button class='small secondary' data-edit2>Edit</button>" +
+      "<button class='small secondary' data-close>Close</button></div></div>";
+    h += '<div class="meta-line">' + metaBits.join(" &middot; ") + '</div>';
+    if (d.servings && d.servings.length) {
+      h += '<div class="muted" style="margin:2px 0 6px;">Servings</div>';
+      h += "<table><thead><tr><th>Description</th><th>Amount</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      d.servings.forEach((s) => {
+        h += "<tr><td>" + esc(s.description || "-") + "</td>" +
+          "<td>" + (s.servingAmount != null ? s.servingAmount + (s.servingUnit ? " " + esc(s.servingUnit) : "") : "-") + "</td>" +
+          "<td>" + (s.calories ?? "-") + "</td><td>" + (s.carbs ?? "-") + "</td><td>" + (s.protein ?? "-") + "</td><td>" + (s.fat ?? "-") + "</td></tr>";
+      });
+      h += "</tbody></table>";
+    } else {
+      h += '<div class="muted">No servings.</div>';
+    }
+    h += "</div>";
+    return h;
+  }
+
+  async function showView(id) {
+    const existing = ingredientsCache.find((i) => i.id === id);
+    let data = existing;
+    if (!data || !data.servings) {
+      const out = await run("get ingredient", () => requestJson("api/v1/ingredients/" + id, "GET"));
+      if (!out || !out.ok || !out.data) return;
+      data = out.data;
+    }
+    const cell = expandUnder(id);
+    if (!cell) return;
+    cell.innerHTML = ingredientDetailHtml(data);
+    cell.querySelector("[data-edit2]").addEventListener("click", () => showEdit(id));
+    cell.querySelector("[data-close]").addEventListener("click", clearExpansions);
+  }
+
+  async function showEdit(id) {
+    const existing = ingredientsCache.find((i) => i.id === id);
+    let data = existing;
+    if (!data || !data.servings) {
+      const out = await run("load ingredient", () => requestJson("api/v1/ingredients/" + id, "GET"));
+      if (out && out.ok && out.data) data = out.data;
+    }
+    if (data) openIngredientForm("edit", data, id);
+  }
+
+  function addServingRow(data) {
+    const row = document.createElement("div");
+    row.className = "serving-row";
+    row.dataset.servingId = (data && data.id) || "";
+    row.innerHTML =
+      '<input class="s-desc" type="text" placeholder="Description" value="' + esc(data?.description || "1 serving") + '" />' +
+      '<input class="s-amount" type="number" placeholder="Amount" value="' + (data?.servingAmount ?? "") + '" />' +
+      '<input class="s-unit" type="text" placeholder="Unit" value="' + esc(data?.servingUnit || "") + '" />' +
+      '<input class="s-cal" type="number" placeholder="kCal" value="' + (data?.calories ?? "") + '" />' +
+      '<input class="s-carb" type="number" placeholder="Carbs" value="' + (data?.carbs ?? "") + '" />' +
+      '<input class="s-prot" type="number" placeholder="Protein" value="' + (data?.protein ?? "") + '" />' +
+      '<input class="s-fat" type="number" placeholder="Fat" value="' + (data?.fat ?? "") + '" />' +
+      '<button class="s-remove secondary small">x</button>';
+    row.querySelector(".s-remove").addEventListener("click", () => row.remove());
+    servingRowsEl.appendChild(row);
+  }
+
+  function collectServings() {
+    return Array.from(document.querySelectorAll("#servingRows .serving-row")).map((row) => {
+      const num = (sel) => {
+        const v = row.querySelector(sel).value;
+        return v === "" ? null : Number(v);
+      };
+      return {
+        id: row.dataset.servingId || null,
+        description: row.querySelector(".s-desc").value,
+        servingAmount: num(".s-amount"),
+        servingUnit: row.querySelector(".s-unit").value,
+        calories: num(".s-cal") ?? 0,
+        carbs: num(".s-carb") ?? 0,
+        protein: num(".s-prot") ?? 0,
+        fat: num(".s-fat") ?? 0,
+      };
+    });
+  }
+
+  function openIngredientForm(mode, ingredient, anchorId) {
+    editingIngredientId = mode === "edit" ? ingredient.id : null;
+    formTitle.textContent = mode === "edit" ? "Edit ingredient" : "New ingredient";
+    igName.value = mode === "edit" ? ingredient.name : "";
+    igBarcode.value = mode === "edit" ? (ingredient.barcode || "") : "";
+    igImageUrl.value = mode === "edit" ? (ingredient.imageUrl || "") : "";
+    igThumbnailUrl.value = mode === "edit" ? (ingredient.thumbnailUrl || "") : "";
+    servingRowsEl.innerHTML = "";
+    if (mode === "edit" && ingredient.servings && ingredient.servings.length) {
+      ingredient.servings.forEach((s) => addServingRow(s));
+    } else {
+      addServingRow(undefined);
+    }
+    if (mode === "edit" && anchorId) {
+      const cell = expandUnder(anchorId);
+      if (cell) cell.appendChild(formEl);
+    } else {
+      clearExpansions();
+      $("ingredientsTableBox").after(formEl);
+    }
+    formEl.hidden = false;
+    formEl.scrollIntoView({ block: "nearest" });
+    igName.focus();
+  }
+
+  function closeIngredientForm() {
+    formEl.hidden = true;
+    clearExpansions();
+  }
+
+  async function saveIngredient() {
+    const name = igName.value.trim();
+    const servings = collectServings().map((s) => {
+      const o = { description: s.description };
+      if (s.id) o.id = s.id;
+      if (s.servingAmount !== null) o.servingAmount = s.servingAmount;
+      if (s.servingUnit) o.servingUnit = s.servingUnit;
+      o.calories = s.calories; o.carbs = s.carbs; o.protein = s.protein; o.fat = s.fat;
+      return o;
+    });
+
+    if (editingIngredientId === null && !name) { showResponse({ status: "form", text: "Name is required." }); return; }
+    if (!servings.length) { showResponse({ status: "form", text: "Add at least one serving." }); return; }
+
+    const barcode = igBarcode.value.trim() || null;
+    const payload = editingIngredientId === null
+      ? { name, barcode, imageUrl: igImageUrl.value || null, thumbnailUrl: igThumbnailUrl.value || null, servings }
+      : { name: name || null, barcode, imageUrl: igImageUrl.value || null, thumbnailUrl: igThumbnailUrl.value || null, servings };
+
+    const out = await run(editingIngredientId === null ? "create ingredient" : "update ingredient", () =>
+      requestJson(
+        editingIngredientId === null ? "api/v1/ingredients" : "api/v1/ingredients/" + editingIngredientId,
+        editingIngredientId === null ? "POST" : "PATCH",
+        payload));
+    if (out && out.ok) { closeIngredientForm(); refreshIngredients(true); }
+  }
+
+  async function deleteIngredient(id) {
+    if (!confirm("Delete this ingredient? This can't be undone.")) return;
+    const out = await run("delete ingredient", () => requestJson("api/v1/ingredients/" + id, "DELETE"));
+    if (out && out.ok) refreshIngredients(true);
+  }
+
+  /* ---------- meals ---------- */
+
+  let mealsCache = [];
+  let mealIngredients = null;
+  let mealServingCache = {};
+  let mealState = { page: 0, pageSize: 25, sortBy: "Created", sortDir: "Desc", totalPages: 1 };
+  const mealIngRowsEl = $("mealIngredientRows");
+  const mealIngHint = $("mealIngHint");
+
+  async function refreshMeals(resetPage) {
+    if (!token) return;
+    if (resetPage) mealState.page = 0;
+    const out = await run("list meals", () =>
+      requestJson("api/v1/meals?" + queryFor(mealState), "GET"));
+    if (!out || !out.ok || !out.data) return;
+    mealsCache = (out.data.meals || []);
+    mealState.totalPages = Math.max(1, Number(out.data.numberOfPages) || 1);
+    if (mealState.page > mealState.totalPages - 1) mealState.page = mealState.totalPages - 1;
+    renderMealsTable();
+    $("mealCount").textContent = mealsCache.length + " shown";
+  }
+
+  function renderMealsTable() {
+    const box = $("mealsTableBox");
+    if (!mealsCache.length) {
+      box.innerHTML = '<div class="empty">No meals found for this user yet. Create a new meal below, or look up by ID.</div>' + pagerHtml(mealState);
+      wirePager(box, mealState, refreshMeals);
+      return;
+    }
+    const rows = mealsCache.map((m) =>
+      "<tr id='meal-" + m.id + "'>" +
+        "<td>" + esc(m.name) + "</td>" +
+        "<td>" + m.calories + " kcal</td>" +
+        "<td>" + m.carbs + " g</td>" +
+        "<td>" + m.protein + " g</td>" +
+        "<td>" + m.fat + " g</td>" +
+        "<td>" + m.ingredientCount + "</td>" +
+        "<td class='muted'>" + fmtDate(m.created) + "</td>" +
+        "<td style='text-align:right;'>" +
+          "<button class='small secondary' data-view-meal='" + m.id + "'>View</button> " +
+          "<button class='small secondary' data-edit-meal='" + m.id + "'>Edit</button> " +
+          "<button class='small danger' data-delete-meal='" + m.id + "'>Delete</button>" +
+        "</td>" +
+      "</tr>").join("");
+    box.innerHTML =
+      "<table><thead><tr>" +
+        sortLabel(mealState, "Name", "Name") +
+        sortLabel(mealState, "Calories", "Calories") +
+        sortLabel(mealState, "Carbs", "Carbs") +
+        sortLabel(mealState, "Protein", "Protein") +
+        sortLabel(mealState, "Fat", "Fat") +
+        "<th>Ingredients</th>" +
+        sortLabel(mealState, "Created", "Created") +
+        "<th style='text-align:right;'>Actions</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" + pagerHtml(mealState);
+    wireSort(box, mealState, refreshMeals);
+    wirePager(box, mealState, refreshMeals);
+    box.querySelectorAll("[data-view-meal]").forEach((b) => b.addEventListener("click", () => viewMealFromList(b.dataset.viewMeal)));
+    box.querySelectorAll("[data-edit-meal]").forEach((b) => b.addEventListener("click", () => editMeal(b.dataset.editMeal)));
+    box.querySelectorAll("[data-delete-meal]").forEach((b) => b.addEventListener("click", () => deleteMeal(b.dataset.deleteMeal)));
+  }
+
+  function clearMealExpansions() {
+    document.querySelectorAll("#mealsTableBox tr.expansion").forEach((tr) => tr.remove());
+  }
+
+  function expandMealUnder(id) {
+    clearMealExpansions();
+    const row = document.getElementById("meal-" + id);
+    if (!row) return null;
+    const tr = document.createElement("tr");
+    tr.className = "expansion";
+    const td = document.createElement("td");
+    td.colSpan = 8;
+    tr.appendChild(td);
+    row.after(tr);
+    return td;
+  }
+
+  async function viewMealFromList(id) {
+    const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const cell = expandMealUnder(id);
+    if (!cell) return;
+    cell.innerHTML = mealCardHtml(out.data, await getMealIngredients(id));
+    cell.querySelector("[data-close-meal]").addEventListener("click", clearMealExpansions);
+  }
+
+  async function deleteMeal(id) {
+    if (!confirm("Delete this meal? This can't be undone.")) return;
+    const out = await run("delete meal", () => requestJson("api/v1/meals/" + id, "DELETE"));
+    if (out && out.ok) refreshMeals(true);
+  }
+
+  function mealCardHtml(d, ingredients) {
+    let h = '<div class="card"><div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
+      '<button class="small secondary" data-close-meal>Close</button></div></div>' +
+      '<div class="meta-line">Id: ' + esc(d.id || "-") + " &middot; Created " + fmtDate(d.created) +
+      (d.updated ? " &middot; Updated " + fmtDate(d.updated) : "") +
+      " &middot; " + d.ingredientCount + " ingredient(s)" + '</div>' +
+      '<table><thead><tr><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>' +
+      "<tr><td>" + d.calories + " kcal</td><td>" + d.carbs + " g</td><td>" + d.protein + " g</td><td>" + d.fat + " g</td></tr>" +
+      "</tbody></table>";
+    h += '<div class="muted" style="margin:12px 0 6px;">Ingredients</div>';
+    if (ingredients && ingredients.length) {
+      h += "<table><thead><tr><th>Name</th><th>Serving</th><th>Quantity</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      ingredients.forEach((mi) => {
+        const serving = mi.serving ? esc(mi.serving.description || "-") : "-";
+        h += "<tr><td>" + esc(mi.ingredientName) + "</td>" +
+          "<td>" + serving + "</td>" +
+          "<td>" + mi.quantity + "</td>" +
+          "<td>" + mi.calories + " kcal</td>" +
+          "<td>" + mi.carbs + " g</td>" +
+          "<td>" + mi.protein + " g</td>" +
+          "<td>" + mi.fat + " g</td></tr>";
+      });
+      h += "</tbody></table>";
+    } else {
+      h += '<div class="muted">No ingredients.</div>';
+    }
+    h += "</div>";
+    return h;
+  }
+
+  async function getMealIngredients(id) {
+    const out = await run("list meal ingredients", () => requestJson("api/v1/meals/" + id + "/ingredients", "GET"));
+    return (out && out.ok && out.data && out.data.ingredients) ? out.data.ingredients : [];
+  }
+
+  function showMealCard(d, ingredients) {
+    const box = $("mealDetail");
+    box.innerHTML = mealCardHtml(d, ingredients || []);
+    box.querySelector("[data-close-meal]").addEventListener("click", () => { box.innerHTML = ""; });
+  }
+
+  async function getMeal() {
+    const id = $("mealId").value.trim();
+    if (!id) { showResponse({ status: "form", text: "Enter a meal id." }); return; }
+    const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
+    if (out && out.ok && out.data) showMealCard(out.data, await getMealIngredients(id));
+    else $("mealDetail").innerHTML = "";
+  }
+
+  async function loadMealIngredients(force, hintEl) {
+    if (mealIngredients && !force) return mealIngredients;
+    if (hintEl) hintEl.textContent = "Loading ingredients…";
+    mealIngredients = [];
+    const out = await run("list ingredients for meal", () =>
+      requestJson("api/v1/ingredients?page=0&pageSize=25&sortBy=Name&sortDirection=Asc", "GET"));
+    if (out && out.ok && out.data) mealIngredients = out.data.ingredients || [];
+    if (hintEl) hintEl.textContent = mealIngredients.length ? "" : "No ingredients yet - create one in the Ingredients tab first.";
+    return mealIngredients;
+  }
+
+  async function addMealIngredientRow(selectedIngredientId, selectedServingId, defaultQty, container, hintEl) {
+    const options = await loadMealIngredients(false, hintEl || (container === mealIngRowsEl ? mealIngHint : null));
+    if (!options.length) {
+      showResponse({ status: "form", text: "No ingredients found. Create an ingredient in the Ingredients tab first." });
+      return;
+    }
+    const rowsEl = container || mealIngRowsEl;
+    const row = document.createElement("div");
+    row.className = "meal-ing-row";
+    row.innerHTML =
+      '<select class="mi-ing"></select>' +
+      '<select class="mi-serving"><option value="">Select ingredient first</option></select>' +
+      '<input class="mi-qty" type="number" min="0" step="any" placeholder="Qty" value="1" />' +
+      '<button class="mi-remove secondary small">x</button>';
+    const ingSel = row.querySelector(".mi-ing");
+    ingSel.innerHTML = options.map((o) => '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
+    if (selectedIngredientId && options.some((o) => o.id === selectedIngredientId)) ingSel.value = selectedIngredientId;
+    if (!ingSel.value && options.length) ingSel.value = options[0].id;
+    ingSel.addEventListener("change", () => populateMealServings(row));
+    row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
+    rowsEl.appendChild(row);
+    await populateMealServings(row);
+    const servingSel = row.querySelector(".mi-serving");
+    const qtyInput = row.querySelector(".mi-qty");
+    if (defaultQty != null && Number.isFinite(Number(defaultQty))) qtyInput.value = Number(defaultQty);
+    if (selectedServingId && Array.from(servingSel.options).some((o) => o.value === selectedServingId)) servingSel.value = selectedServingId;
+  }
+
+  async function populateMealServings(row) {
+    const ingSel = row.querySelector(".mi-ing");
+    const servingSel = row.querySelector(".mi-serving");
+    const id = ingSel.value;
+    servingSel.disabled = true;
+    servingSel.innerHTML = '<option value="">Loading…</option>';
+    let detail = mealServingCache[id];
+    if (!detail) {
+      const out = await run("get ingredient servings", () => requestJson("api/v1/ingredients/" + id, "GET"));
+      if (out && out.ok && out.data) {
+        detail = out.data;
+        mealServingCache[id] = detail;
+      }
+    }
+    const servings = (detail && detail.servings) || [];
+    servingSel.innerHTML = '<option value="">Select a serving</option>' + servings.map((s) =>
+      '<option value="' + s.id + '">' +
+        esc((s.description || "Serving") + (s.servingAmount != null ? " - " + s.servingAmount + (s.servingUnit ? " " + s.servingUnit : "") : "")) +
+      '</option>').join("");
+    servingSel.disabled = false;
+  }
+
+  function collectMealIngredients(container) {
+    const rowsEl = container || mealIngRowsEl;
+    const rows = Array.from(rowsEl.querySelectorAll(".meal-ing-row")).map((row) => ({
+      ingredientId: row.querySelector(".mi-ing").value,
+      servingId: row.querySelector(".mi-serving").value,
+      quantity: parseFloat(row.querySelector(".mi-qty").value),
+    }));
+    for (const r of rows) {
+      if (!r.ingredientId || !r.servingId || !Number.isFinite(r.quantity) || r.quantity <= 0) {
+        showResponse({ status: "form", text: "Every ingredient row needs an ingredient, a serving, and a quantity greater than zero." });
+        return null;
+      }
+    }
+    const seen = new Set();
+    for (const r of rows) {
+      if (seen.has(r.ingredientId)) {
+        showResponse({ status: "form", text: "The same ingredient can only be added once - remove the duplicate row." });
+        return null;
+      }
+      seen.add(r.ingredientId);
+    }
+    return rows;
+  }
+
+  function resetMealForm() {
+    $("mealName").value = "";
+    $("mealImageUrl").value = "";
+    $("mealThumbnailUrl").value = "";
+    mealIngRowsEl.innerHTML = "";
+    mealIngHint.textContent = "";
+  }
+
+  async function createMeal() {
+    const name = $("mealName").value.trim();
+    if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
+    const ingredients = collectMealIngredients();
+    if (!ingredients) return;
+    if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
+    const out = await run("create meal", () =>
+      requestJson("api/v1/meals", "POST", {
+        name,
+        imageUrl: $("mealImageUrl").value.trim() || null,
+        thumbnailUrl: $("mealThumbnailUrl").value.trim() || null,
+        ingredients: ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity })),
+      }));
+    if (!out || !out.ok) return;
+    $("mealId").value = out.data.id || "";
+    showMealCard(out.data, await getMealIngredients(out.data.id));
+    resetMealForm();
+    refreshMeals(true);
+  }
+
+  async function editMeal(id) {
+    const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const d = out.data;
+    const cell = expandMealUnder(id);
+    if (!cell) return;
+    cell.innerHTML =
+      '<div class="card">' +
+        '<div class="header-line"><h3>Edit meal</h3>' +
+          '<div class="actions">' +
+            '<button class="small secondary" data-edit-cancel>Cancel</button> ' +
+            '<button class="small" data-edit-save>Save</button>' +
+          '</div></div>' +
+        '<div class="form-grid">' +
+          '<div class="full"><label>Name *</label><input data-edit-name type="text" /></div>' +
+          '<div><label>Image URL (optional)</label><input data-edit-image type="text" /></div>' +
+          '<div><label>Thumbnail URL (optional)</label><input data-edit-thumb type="text" /></div>' +
+        '</div>' +
+        '<label>Ingredients *</label>' +
+        '<div data-edit-rows></div>' +
+        '<div class="row">' +
+          '<button class="secondary small" data-edit-add-ing>+ Add ingredient</button>' +
+          '<span data-edit-hint class="muted small" style="align-self:center;"></span>' +
+        '</div>' +
+      '</div>';
+    cell.querySelector("[data-edit-name]").value = d.name || "";
+    cell.querySelector("[data-edit-image]").value = d.imageUrl || "";
+    cell.querySelector("[data-edit-thumb]").value = d.thumbnailUrl || "";
+    const rowsEl = cell.querySelector("[data-edit-rows]");
+    const hint = cell.querySelector("[data-edit-hint]");
+    cell.querySelector("[data-edit-cancel]").addEventListener("click", clearMealExpansions);
+    cell.querySelector("[data-edit-save]").addEventListener("click", () => saveEditMeal(id, cell));
+    cell.querySelector("[data-edit-add-ing]").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, rowsEl));
+    const ingredients = await getMealIngredients(id);
+    const options = await loadMealIngredients(true);
+    for (const mi of ingredients) {
+      if (!options.some((o) => o.id === mi.ingredientId)) {
+        hint.textContent = (hint.textContent ? hint.textContent + " " : "") + "Some ingredients are outside the picker list and were skipped - add them manually.";
+        continue;
+      }
+      const servingId = (mi.serving && mi.serving.id) || mi.servingId || "";
+      await addMealIngredientRow(mi.ingredientId, servingId, mi.quantity, rowsEl);
+    }
+    if (!ingredients.length) {
+      hint.textContent = "No ingredients on this meal - add some below.";
+      addMealIngredientRow(undefined, undefined, undefined, rowsEl);
+    }
+  }
+
+  async function saveEditMeal(id, cell) {
+    const name = cell.querySelector("[data-edit-name]").value.trim();
+    if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
+    const rowsEl = cell.querySelector("[data-edit-rows]");
+    const ingredients = collectMealIngredients(rowsEl);
+    if (!ingredients) return;
+    if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
+    const out = await run("update meal", () =>
+      requestJson("api/v1/meals/" + id, "PATCH", {
+        name,
+        imageUrl: cell.querySelector("[data-edit-image]").value.trim() || null,
+        thumbnailUrl: cell.querySelector("[data-edit-thumb]").value.trim() || null,
+        ingredients: ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity })),
+      }));
+    if (!out || !out.ok) return;
+    clearMealExpansions();
+    $("mealId").value = id;
+    showMealCard(out.data, await getMealIngredients(id));
+    refreshMeals(true);
+  }
+
+  /* ---------- treatments ---------- */
+
+  let mealOptions = null;
+  let insulinOptions = null;
+  let treatmentsLoaded = false;
+
+  async function loadMealOptions(force) {
+    if (mealOptions && !force) return mealOptions;
+    mealOptions = [];
+    const out = await run("list meals for treatment", () =>
+      requestJson("api/v1/meals?page=0&pageSize=25&sortBy=Name&sortDirection=Asc", "GET"));
+    if (out && out.ok && out.data) mealOptions = out.data.meals || [];
+    return mealOptions;
+  }
+
+  async function loadInsulins(force) {
+    if (insulinOptions && !force) return insulinOptions;
+    insulinOptions = [];
+    const out = await run("list insulins", () =>
+      requestJson("api/v1/insulins?page=0&pageSize=25", "GET"));
+    if (out && out.ok && out.data) insulinOptions = out.data.insulins || [];
+    return insulinOptions;
+  }
+
+  async function loadTreatmentPickers() {
+    if (treatmentsLoaded) return;
+    treatmentsLoaded = true;
+    await loadInsulins();
+    const opts = '<option value="">Select insulin…</option>' + insulinOptions.map((o) =>
+      '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
+    $("trInsulin").innerHTML = opts;
+    $("trUpdInsulin").innerHTML = opts;
+    await loadMealOptions();
+  }
+
+  async function addTreatmentMealRow(selectedMealId, defaultQty, container, hintEl) {
+    const options = await loadMealOptions();
+    if (!options.length) {
+      if (hintEl) hintEl.textContent = "No meals yet - create one in the Meals tab first.";
+      return;
+    }
+    const row = document.createElement("div");
+    row.className = "meal-ing-row";
+    row.innerHTML =
+      '<select class="tm-meal"></select>' +
+      '<input class="tm-qty" type="number" min="0" step="any" placeholder="Qty" value="1" />' +
+      '<button class="mi-remove secondary small">x</button>';
+    const sel = row.querySelector(".tm-meal");
+    sel.innerHTML = options.map((o) => '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
+    if (selectedMealId && options.some((o) => o.id === selectedMealId)) sel.value = selectedMealId;
+    if (!sel.value && options.length) sel.value = options[0].id;
+    row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
+    const qty = row.querySelector(".tm-qty");
+    if (defaultQty != null && Number.isFinite(Number(defaultQty))) qty.value = Number(defaultQty);
+    container.appendChild(row);
+  }
+
+  function collectMealRows(rowsEl) {
+    const rows = Array.from(rowsEl.querySelectorAll(".tm-meal")).map((sel) => ({
+      mealId: sel.value,
+      quantity: parseFloat(sel.closest(".meal-ing-row").querySelector(".tm-qty").value),
+    }));
+    for (const r of rows) {
+      if (!r.mealId || !Number.isFinite(r.quantity) || r.quantity <= 0) {
+        showResponse({ status: "form", text: "Every meal row needs a meal and a quantity greater than zero." });
+        return null;
+      }
+    }
+    const seen = new Set();
+    for (const r of rows) {
+      if (seen.has(r.mealId)) {
+        showResponse({ status: "form", text: "The same meal can only be added once - remove the duplicate row." });
+        return null;
+      }
+      seen.add(r.mealId);
+    }
+    return rows;
+  }
+
+  function collectInjection(prefix, enableId) {
+    if (enableId && !$(enableId).checked) return null;
+    const insulinId = $(prefix + "Insulin").value;
+    const unitsVal = $(prefix + "Units").value;
+    if (!insulinId && unitsVal === "") {
+      if (enableId) {
+        showResponse({ status: "form", text: "Injection is included but no insulin and units were chosen." });
+        return false;
+      }
+      return null;
+    }
+    if (!insulinId || unitsVal === "") {
+      showResponse({ status: "form", text: "Injection needs both an insulin and units." });
+      return false;
+    }
+    const units = Number(unitsVal);
+    if (!Number.isFinite(units) || units <= 0) {
+      showResponse({ status: "form", text: "Injection units must be greater than zero." });
+      return false;
+    }
+    return { insulinId, units };
+  }
+
+  function resetTreatmentForm() {
+    $("trCreated").value = "";
+    $("trReadingId").value = "";
+    $("trInsulin").selectedIndex = 0;
+    $("trUnits").value = "";
+    $("trMealRows").innerHTML = "";
+    $("trIngredientRows").innerHTML = "";
+    $("trMealHint").textContent = "";
+    $("trIngHint").textContent = "";
+  }
+
+  async function createTreatment() {
+    const payload = {};
+    const createdVal = $("trCreated").value;
+    if (createdVal) { const d = new Date(createdVal); if (!isNaN(d.getTime())) payload.created = d.toISOString(); }
+    const readingId = $("trReadingId").value.trim();
+    if (readingId) payload.readingId = readingId;
+
+    const injection = collectInjection("tr", null);
+    if (injection === false) return;
+    if (injection) payload.injection = injection;
+
+    const meals = collectMealRows($("trMealRows"));
+    if (meals === null) return;
+    const ingredients = collectMealIngredients($("trIngredientRows"));
+    if (ingredients === null) return;
+
+    if (!payload.injection && !meals.length && !ingredients.length) {
+      showResponse({ status: "form", text: "A treatment needs an injection, at least one meal, or at least one ingredient." });
+      return;
+    }
+
+    payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
+    payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
+
+    const out = await run("create treatment", () => requestJson("api/v1/treatments", "POST", payload));
+    if (!out || !out.ok) return;
+    $("trUpdateId").value = out.data.id || "";
+    resetTreatmentForm();
+  }
+
+  function resetUpdateTreatmentForm() {
+    $("trUpdIncludeInjection").checked = false;
+    $("trUpdInsulin").selectedIndex = 0;
+    $("trUpdUnits").value = "";
+    $("trUpdReadingId").value = "";
+    $("trUpdMealRows").innerHTML = "";
+    $("trUpdIngredientRows").innerHTML = "";
+    $("trUpdMealHint").textContent = "";
+    $("trUpdIngHint").textContent = "";
+  }
+
+  async function updateTreatment() {
+    const id = $("trUpdateId").value.trim();
+    if (!id) { showResponse({ status: "form", text: "Enter a treatment id." }); return; }
+    const payload = {};
+
+    const injection = collectInjection("trUpd", "trUpdIncludeInjection");
+    if (injection === false) return;
+    if (injection) payload.injection = injection;
+
+    const readingId = $("trUpdReadingId").value.trim();
+    if (readingId) payload.readingId = readingId;
+
+    const meals = collectMealRows($("trUpdMealRows"));
+    if (meals === null) return;
+    if (meals.length) payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
+
+    const ingredients = collectMealIngredients($("trUpdIngredientRows"));
+    if (ingredients === null) return;
+    if (ingredients.length) payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
+
+    if (!payload.injection && !payload.readingId && !payload.meals && !payload.ingredients) {
+      showResponse({ status: "form", text: "Update needs at least one of: injection, readingId, meals, or ingredients." });
+      return;
+    }
+
+    const out = await run("update treatment", () => requestJson("api/v1/treatments/" + id, "PATCH", payload));
+    if (out && out.ok) resetUpdateTreatmentForm();
+  }
+
+  /* ---------- raw ---------- */
+
+  async function rawSend() {
+    const m = $("method").value, p = $("path").value.trim(), b = $("body").value.trim();
+    if (!p) { showResponse({ status: "form", text: "Enter a path." }); return; }
+    let payload;
+    if (m !== "GET") { try { payload = b ? JSON.parse(b) : {}; } catch (_) { showResponse({ status: "form", text: "Body is not valid JSON." }); return; } }
+    await run("request", () => requestJson(p, m, payload));
+  }
+
+  /* ---------- tabs ---------- */
+
+  document.querySelectorAll(".tabs button").forEach((btn) =>
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      ["ingredients", "meals", "treatments", "raw"].forEach((t) => ($("tab-" + t).hidden = t !== btn.dataset.tab));
+      if (btn.dataset.tab === "treatments") loadTreatmentPickers();
+    }));
+
+  /* ---------- wiring ---------- */
+
+  $("loginBtn").addEventListener("click", login);
+  $("registerBtn").addEventListener("click", register);
+  $("logoutBtn").addEventListener("click", () => { setToken(null); authMessage(""); });
+  $("refreshBtn").addEventListener("click", () => refreshIngredients(false));
+  $("newIngredientBtn").addEventListener("click", () => openIngredientForm("new", {}));
+  $("addServingBtn").addEventListener("click", () => addServingRow(undefined));
+  $("igCancelBtn").addEventListener("click", closeIngredientForm);
+  $("igSaveBtn").addEventListener("click", saveIngredient);
+  $("getMealBtn").addEventListener("click", getMeal);
+  $("mealId").addEventListener("keydown", (e) => { if (e.key === "Enter") getMeal(); });
+  $("refreshMealsBtn").addEventListener("click", () => refreshMeals(false));
+  $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
+  $("mealResetBtn").addEventListener("click", resetMealForm);
+  $("mealCreateBtn").addEventListener("click", createMeal);
+  $("addTrMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trMealRows"), $("trMealHint")));
+  $("addTrIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trIngredientRows"), $("trIngHint")));
+  $("trResetBtn").addEventListener("click", resetTreatmentForm);
+  $("trCreateBtn").addEventListener("click", createTreatment);
+  $("addTrUpdMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trUpdMealRows"), $("trUpdMealHint")));
+  $("addTrUpdIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trUpdIngredientRows"), $("trUpdIngHint")));
+  $("trUpdResetBtn").addEventListener("click", resetUpdateTreatmentForm);
+  $("trUpdBtn").addEventListener("click", updateTreatment);
+  $("sendBtn").addEventListener("click", rawSend);
+  $("path").addEventListener("keydown", (e) => { if (e.key === "Enter") rawSend(); });
+
+  (function init() {
+    baseUrl.value = localStorage.getItem(BASE_KEY) || window.location.origin;
+    baseUrl.addEventListener("change", () => { try { localStorage.setItem(BASE_KEY, baseUrl.value.trim()); } catch (_) {} });
+    try {
+      const saved = localStorage.getItem(TOKEN_KEY);
+      if (saved) { setToken(saved); refreshIngredients(); refreshMeals(); }
+    } catch (_) { }
+    renderAuth();
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,5 +1,5 @@
-﻿using FluentValidation.TestHelper;
-using CgmLink.Api.Endpoints.Meals.List;
+using FluentValidation.TestHelper;
+using CgmLink.Api.Endpoints.Meals.ListMeals;
 using CgmLink.Api.Models;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -7,86 +7,80 @@ using NUnit.Framework;
 namespace CgmLink.Api.Tests.Validators;
 
 [TestFixture]
-public class ListMealsValidatorTests
+class ListMealsRequestValidatorTests
 {
     private readonly ListMealsRequest.ListMealsValidator _validator;
 
-    public ListMealsValidatorTests()
+    public ListMealsRequestValidatorTests()
     {
-        var apiSettings = Options.Create(new ApiSettings { MaxPageSize = 100 });
+        var apiSettings = Options.Create(new ApiSettings
+        {
+            MaxPageSize = 25
+        });
         _validator = new ListMealsRequest.ListMealsValidator(apiSettings);
     }
 
     [Test]
     public void Should_Have_Error_When_Page_Is_Less_Than_Zero()
     {
-        var model = new ListMealsRequest { Page = -1, PageSize = 10 };
-        var result = _validator.TestValidate(model);
-        result.ShouldHaveValidationErrorFor(x => x.Page);
-    }
-
-    [Test]
-    public void Should_Not_Have_Error_When_Page_Is_Zero_Or_Greater()
-    {
-        var model = new ListMealsRequest { Page = 0, PageSize = 10 };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Page);
+        var request = new ListMealsRequest { Page = -1, PageSize = 10 };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.Page);
     }
 
     [Test]
     public void Should_Have_Error_When_PageSize_Is_Less_Than_One()
     {
-        var model = new ListMealsRequest { Page = 0, PageSize = 0 };
-        var result = _validator.TestValidate(model);
-        result.ShouldHaveValidationErrorFor(x => x.PageSize);
+        var request = new ListMealsRequest { Page = 0, PageSize = 0 };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.PageSize);
     }
 
     [Test]
-    public void Should_Have_Error_When_PageSize_Is_Greater_Than_MaxPageSize()
+    public void Should_Have_Error_When_PageSize_Exceeds_MaxPageSize()
     {
-        var model = new ListMealsRequest { Page = 0, PageSize = 101 };
-        var result = _validator.TestValidate(model);
-        result.ShouldHaveValidationErrorFor(x => x.PageSize);
+        var request = new ListMealsRequest { Page = 0, PageSize = 26 };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.PageSize);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_PageSize_Is_Within_Valid_Range()
+    public void Should_Not_Have_Error_For_Valid_Request()
     {
-        var model = new ListMealsRequest { Page = 0, PageSize = 50 };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.PageSize);
+        var request = new ListMealsRequest { Page = 0, PageSize = 10 };
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveAnyValidationErrors();
     }
 
     [Test]
-    public void Should_Have_Error_When_Search_Is_Less_Than_3_Characters()
+    public void Should_Not_Have_Error_When_SortBy_Is_Supported()
     {
-        var model = new ListMealsRequest { Search = "ab" };
-        var result = _validator.TestValidate(model);
-        result.ShouldHaveValidationErrorFor(x => x.Search)
-            .WithErrorMessage("SEARCH_LENGTH_INVALID");
+        var request = new ListMealsRequest { Page = 0, PageSize = 10, SortBy = "Name" };
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveValidationErrorFor(r => r.SortBy);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Search_Is_3_Characters_Or_More()
+    public void Should_Not_Have_Error_When_SortBy_Is_Not_Provided()
     {
-        var model = new ListMealsRequest { Search = "abc" };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Search);
+        var request = new ListMealsRequest { Page = 0, PageSize = 10 };
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveValidationErrorFor(r => r.SortBy);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Search_Is_Null()
+    public void Should_Have_Error_When_SortBy_Is_Not_Supported()
     {
-        var model = new ListMealsRequest { Search = null };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Search);
+        var request = new ListMealsRequest { Page = 0, PageSize = 10, SortBy = "Bogus" };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.SortBy);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Search_Is_Empty()
+    public void Should_Have_Error_When_SortDirection_Is_Invalid()
     {
-        var model = new ListMealsRequest { Search = string.Empty };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Search);
+        var request = new ListMealsRequest { Page = 0, PageSize = 10, SortDirection = (SortDirection)(-1) };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.SortDirection);
     }
 }

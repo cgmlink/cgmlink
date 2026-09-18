@@ -1,451 +1,615 @@
-﻿using FluentValidation;
-using FluentValidation.Results;
-using CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
-using UpdateInjectionRequest = CgmLink.Api.Endpoints.Injections.UpdateInjection.UpdateInjectionRequest;
-using CgmLink.AspNetCore.Exceptions;
-using CgmLink.Data.Entities;
-using CgmLink.Data.Enums;
-using CgmLink.Data.Repository;
-using CgmLink.Identity.Authentication;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Moq;
-using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
-using static CgmLink.Api.Endpoints.Treatments.UpdateTreatment.UpdateTreatmentRequest;
+using CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
+using CgmLink.Api.Services;
+using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data.Entities;
+using CgmLink.Data.Enums;
+using CgmLink.Data.Repository;
+using CgmLink.Data.Tests;
+using CgmLink.Identity.Authentication;
+using FluentValidation;
+using FluentValidation.Results;
+using Microsoft.AspNetCore.Http.HttpResults;
+using Moq;
+using NUnit.Framework;
 
 namespace CgmLink.Api.Tests.Endpoints.Treatments;
 
 [TestFixture]
 public class UpdateTreatmentTests
 {
+    private readonly Guid _userId = Guid.NewGuid();
     private Mock<IValidator<UpdateTreatmentRequest>> _validatorMock;
+    private Mock<IRepository<Treatment>> _treatmentsRepositoryMock;
+    private Mock<IRepository<Reading>> _readingsRepositoryMock;
+    private Mock<IRepository<Insulin>> _insulinsRepositoryMock;
+    private Mock<IRepository<Meal>> _mealsRepositoryMock;
+    private Mock<IRepository<Ingredient>> _ingredientsRepositoryMock;
     private Mock<ICurrentUser> _currentUserMock;
-    private Mock<IRepository<Treatment>> _treatmentRepositoryMock;
-    private Mock<IRepository<Reading>> _readingRepositoryMock;
-    private Mock<IRepository<Meal>> _mealRepositoryMock;
-    private Mock<IRepository<Ingredient>> _ingredientRepositoryMock;
-    private Mock<IRepository<Injection>> _injectionRepositoryMock;
-    private Mock<IRepository<Insulin>> _insulinRepositoryMock;
+    private IMealService _mealService;
+    private IIngredientsService _ingredientsService;
+    private ITreatmentService _treatmentService;
 
     [SetUp]
     public void SetUp()
     {
         _validatorMock = new Mock<IValidator<UpdateTreatmentRequest>>();
+        _treatmentsRepositoryMock = new Mock<IRepository<Treatment>>();
+        _readingsRepositoryMock = new Mock<IRepository<Reading>>();
+        _insulinsRepositoryMock = new Mock<IRepository<Insulin>>();
+        _mealsRepositoryMock = new Mock<IRepository<Meal>>();
+        _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _currentUserMock = new Mock<ICurrentUser>();
-        _treatmentRepositoryMock = new Mock<IRepository<Treatment>>();
-        _readingRepositoryMock = new Mock<IRepository<Reading>>();
-        _mealRepositoryMock = new Mock<IRepository<Meal>>();
-        _ingredientRepositoryMock = new Mock<IRepository<Ingredient>>();
-        _injectionRepositoryMock = new Mock<IRepository<Injection>>();
-        _insulinRepositoryMock = new Mock<IRepository<Insulin>>();
-    }
+        _mealService = new MealService(_mealsRepositoryMock.Object);
+        _ingredientsService = new IngredientsService(_ingredientsRepositoryMock.Object);
+        _treatmentService = new TreatmentService();
 
-    [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Treatment_Not_Found()
-    {
-        var id = Guid.NewGuid();
-        var request = new UpdateTreatmentRequest();
-        var userId = Guid.NewGuid();
+        _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 
         _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
+            .Setup(v => v.ValidateAsync(It.IsAny<UpdateTreatmentRequest>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult());
 
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
+        _treatmentsRepositoryMock
+            .Setup(r => r.AnyAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(Enumerable.Empty<Treatment>().AsQueryable());
+        _treatmentsRepositoryMock
+            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
 
-        Assert.ThrowsAsync<NotFoundException>(async () =>
-            await Endpoint.HandleAsync(
-                id,
-                request,
-                _validatorMock.Object,
-                _currentUserMock.Object,
-                _treatmentRepositoryMock.Object,
-                _readingRepositoryMock.Object,
-                _mealRepositoryMock.Object,
-                _ingredientRepositoryMock.Object,
-                _injectionRepositoryMock.Object,
-                CancellationToken.None));
-    }
+        _insulinsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Insulin, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Insulin?)null);
 
-    [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Reading_Not_Found()
-    {
-        var id = Guid.NewGuid();
-        var request = new UpdateTreatmentRequest { ReadingId = Guid.NewGuid() };
-        var userId = Guid.NewGuid();
-        var treatment = new Treatment { Id = id, UserId = userId };
-
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
-
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
-
-        _readingRepositoryMock
+        _readingsRepositoryMock
             .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync((Reading)null);
+            .ReturnsAsync((Reading?)null);
 
-        Assert.ThrowsAsync<NotFoundException>(async () =>
-            await Endpoint.HandleAsync(
-                id,
-                request,
-                _validatorMock.Object,
-                _currentUserMock.Object,
-                _treatmentRepositoryMock.Object,
-                _readingRepositoryMock.Object,
-                _mealRepositoryMock.Object,
-                _ingredientRepositoryMock.Object,
-                _injectionRepositoryMock.Object,
-                CancellationToken.None));
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal>()));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient>()));
     }
 
-    [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Meal_Not_Found()
+    private Insulin CreateInsulin(Guid id)
     {
-        var id = Guid.NewGuid();
-        var request = new UpdateTreatmentRequest { Meals = [new UpdateTreatmentMealRequest { Id = Guid.NewGuid(), Quantity = 1 }] };
-        var userId = Guid.NewGuid();
-        var treatment = new Treatment { Id = id, UserId = userId };
-
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
-
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
-
-        _mealRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(Enumerable.Empty<Meal>().AsQueryable());
-
-        Assert.ThrowsAsync<NotFoundException>(async () =>
-            await Endpoint.HandleAsync(
-                id,
-                request,
-                _validatorMock.Object,
-                _currentUserMock.Object,
-                _treatmentRepositoryMock.Object,
-                _readingRepositoryMock.Object,
-                _mealRepositoryMock.Object,
-                _ingredientRepositoryMock.Object,
-                _injectionRepositoryMock.Object,
-                CancellationToken.None));
-    }
-
-    [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Injection_Not_Found()
-    {
-        var id = Guid.NewGuid();
-        var request = new UpdateTreatmentRequest { Injection = new UpdateTreatmentInjectionRequest { Id = Guid.NewGuid(), InsulinId = Guid.NewGuid(), Units = 1 } };
-        var userId = Guid.NewGuid();
-        var treatment = new Treatment { Id = id, UserId = userId };
-
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
-
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
-
-        _injectionRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Injection, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { (Injection)null }.AsQueryable());
-
-        Assert.ThrowsAsync<NotFoundException>(async () =>
-            await Endpoint.HandleAsync(
-                id,
-                request,
-                _validatorMock.Object,
-                _currentUserMock.Object,
-                _treatmentRepositoryMock.Object,
-                _readingRepositoryMock.Object,
-                _mealRepositoryMock.Object,
-                _ingredientRepositoryMock.Object,
-                _injectionRepositoryMock.Object,
-                CancellationToken.None));
-    }
-
-    [Test]
-    public async Task HandleAsync_Should_Update_Created_When_Provided()
-    {
-        var id = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var originalCreated = new DateTimeOffset(2025, 1, 1, 0, 0, 0, TimeSpan.Zero);
-        var newCreated = new DateTimeOffset(2025, 6, 15, 10, 30, 0, TimeSpan.Zero);
-        var treatment = new Treatment
+        return new Insulin
         {
             Id = id,
-            UserId = userId,
-            Created = originalCreated
+            UserId = _userId,
+            Name = "Fiasp",
+            Type = InsulinType.Bolus,
+            Created = DateTimeOffset.UtcNow,
         };
-        var request = new UpdateTreatmentRequest
-        {
-            Created = newCreated
-        };
-
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
-
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
-
-        _treatmentRepositoryMock
-            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        var result = await Endpoint.HandleAsync(
-            id,
-            request,
-            _validatorMock.Object,
-            _currentUserMock.Object,
-            _treatmentRepositoryMock.Object,
-            _readingRepositoryMock.Object,
-            _mealRepositoryMock.Object,
-            _ingredientRepositoryMock.Object,
-            _injectionRepositoryMock.Object,
-            CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
-            Assert.That(okResult.Value.Created, Is.EqualTo(newCreated));
-            Assert.That(okResult.Value.InsulinId, Is.Null);
-        });
     }
 
-    [Test]
-    public async Task HandleAsync_Should_Return_Ok_When_Treatment_Updated_With_Injection()
+    private Reading CreateReading(Guid id)
     {
-        var id = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var insulinId = Guid.NewGuid();
-        var injectionId = Guid.NewGuid();
-        var insulin = new Insulin { Id = insulinId, Name = "Test Insulin", Type = InsulinType.Bolus };
-        var injection = new Injection { Id = injectionId, UserId = userId, InsulinId = insulinId, Units = 5, Insulin = insulin };
-        var treatment = new Treatment
+        return new Reading
         {
             Id = id,
-            UserId = userId,
-            InjectionId = injectionId,
-            Injection = injection,
+            UserId = _userId,
+            Created = DateTimeOffset.UtcNow,
+            GlucoseLevel = 5.0,
+            Direction = ReadingDirection.Steady,
         };
-        var request = new UpdateTreatmentRequest
-        {
-            Injection = new UpdateTreatmentInjectionRequest { Id = injectionId, InsulinId = insulinId, Units = 6 },
-        };
-
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
-
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
-
-        _injectionRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Injection, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { injection }.AsQueryable());
-
-        _treatmentRepositoryMock
-            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        var result = await Endpoint.HandleAsync(
-            id,
-            request,
-            _validatorMock.Object,
-            _currentUserMock.Object,
-            _treatmentRepositoryMock.Object,
-            _readingRepositoryMock.Object,
-            _mealRepositoryMock.Object,
-            _ingredientRepositoryMock.Object,
-            _injectionRepositoryMock.Object,
-            CancellationToken.None);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.Result, Is.InstanceOf<Ok<UpdateTreatmentResponse>>());
-            var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
-            Assert.That(okResult.Value.InjectionId, Is.EqualTo(injectionId));
-            Assert.That(okResult.Value.InsulinId, Is.EqualTo(insulinId));
-            Assert.That(okResult.Value.InsulinUnits, Is.EqualTo(6));
-        });
     }
 
-    [Test]
-    public async Task HandleAsync_Should_Return_Ok_When_Treatment_Updated_Successfully()
+    private IngredientServing CreateServing(Guid id, Guid ingredientId)
     {
-        var id = Guid.NewGuid();
-        var userId = Guid.NewGuid();
-        var mealId = Guid.NewGuid();
-        var meal = new Meal { Id = mealId, Name = "Sugar on Toast", Created = DateTimeOffset.UtcNow };
-        var ingredientId = Guid.NewGuid();
-        var ingredient = new Ingredient { Id = ingredientId, Name = "Butter", Created = DateTimeOffset.UtcNow, Carbs = 0, Protein = 0, Fat = 10, Calories = 90, Uom = default! };
-        var treatment = new Treatment
+        return new IngredientServing
         {
             Id = id,
-            UserId = userId,
-            Meals = [new TreatmentMeal { MealId = mealId, Quantity = 2, TreatmentId = id, Meal = meal }],
+            IngredientId = ingredientId,
+            Description = "1 cup",
+            Calories = 100m,
+            Carbs = 10m,
+            Protein = 5m,
+            Fat = 2m,
+            Created = DateTimeOffset.UtcNow,
         };
-        var request = new UpdateTreatmentRequest
+    }
+
+    private Ingredient CreateIngredient(Guid id)
+    {
+        return new Ingredient
         {
-            Meals = [new UpdateTreatmentMealRequest { Id = mealId, Quantity = 2 }],
-            Ingredients = [new UpdateTreatmentIngredientRequest { Id = ingredientId, Quantity = 3 }]
+            Id = id,
+            Name = "Milk",
+            Barcode = "123",
+            Created = DateTimeOffset.UtcNow,
+            Users = { new UserIngredient { UserId = _userId, IngredientId = id, Created = DateTimeOffset.UtcNow } },
         };
+    }
 
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
-
-        _treatmentRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new[] { treatment }.AsQueryable());
-
-        _mealRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new List<Meal>() { meal }.AsQueryable());
-
-        _ingredientRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(new List<Ingredient>() { ingredient }.AsQueryable());
-
-        _treatmentRepositoryMock
-            .Setup(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()))
-            .Returns(Task.CompletedTask);
-
-        var result = await Endpoint.HandleAsync(
-            id,
-            request,
-            _validatorMock.Object,
-            _currentUserMock.Object,
-            _treatmentRepositoryMock.Object,
-            _readingRepositoryMock.Object,
-            _mealRepositoryMock.Object,
-            _ingredientRepositoryMock.Object,
-            _injectionRepositoryMock.Object,
-            CancellationToken.None);
-
-        Assert.Multiple(() =>
+    private Meal CreateMeal(Guid id)
+    {
+        return new Meal
         {
-            Assert.That(result.Result, Is.InstanceOf<Ok<UpdateTreatmentResponse>>());
-            var okResult = (Ok<UpdateTreatmentResponse>)result.Result;
-            Assert.That(okResult.Value, Is.Not.Null);
-            Assert.That(okResult.Value.Id, Is.EqualTo(id));
-            Assert.That(okResult.Value.Updated, Is.EqualTo(DateTimeOffset.UtcNow).Within(TimeSpan.FromMinutes(1)));
-            Assert.That(okResult.Value.Type, Is.EqualTo((Models.TreatmentType)treatment.Type));
+            Id = id,
+            UserId = _userId,
+            Name = "Breakfast",
+            Calories = 100m,
+            Carbs = 10m,
+            Protein = 5m,
+            Fat = 2m,
+            Created = DateTimeOffset.UtcNow,
+        };
+    }
 
-            Assert.That(okResult.Value.Meals, Is.Not.Null.And.Not.Empty);
-            var mealResponse = okResult.Value.Meals.First();
-            Assert.That(mealResponse.Id, Is.EqualTo(mealId));
-            Assert.That(mealResponse.Quantity, Is.EqualTo(2));
+    private void SetupTreatment(Treatment treatment)
+    {
+        _treatmentsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Treatment>(new List<Treatment> { treatment }));
+    }
 
-            Assert.That(okResult.Value.Ingredients, Is.Not.Null.And.Not.Empty);
-            var ingredientResponse = okResult.Value.Ingredients.First();
-            Assert.That(ingredientResponse.Id, Is.EqualTo(ingredientId));
-            Assert.That(ingredientResponse.Quantity, Is.EqualTo(3));
-        });
+    private void SetupMeals(IEnumerable<Meal> meals)
+    {
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(meals.ToList()));
+    }
+
+    private void SetupIngredients(IEnumerable<Ingredient> ingredients)
+    {
+        _ingredientsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Ingredient>(ingredients.ToList()));
     }
 
     [Test]
     public async Task HandleAsync_Should_Return_ValidationProblem_When_Request_Is_Invalid()
     {
-        var id = Guid.NewGuid();
-        var request = new UpdateTreatmentRequest();
-        var userId = Guid.NewGuid();
-
-        var validationResult = new ValidationResult([
-            new ValidationFailure("", "Validation error message")
-        ]);
+        var treatmentId = Guid.NewGuid();
 
         _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(validationResult);
+            .Setup(v => v.ValidateAsync(It.IsAny<UpdateTreatmentRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult
+            {
+                Errors = { new ValidationFailure("Meals", "At least one is required.") }
+            });
 
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Returns(userId);
+        var result = await Endpoint.HandleAsync(treatmentId, new UpdateTreatmentRequest(),
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
 
-        var result = await Endpoint.HandleAsync(
-            id,
-            request,
-            _validatorMock.Object,
-            _currentUserMock.Object,
-            _treatmentRepositoryMock.Object,
-            _readingRepositoryMock.Object,
-            _mealRepositoryMock.Object,
-            _ingredientRepositoryMock.Object,
-            _injectionRepositoryMock.Object,
-            CancellationToken.None);
-
-        Assert.That(result.Result, Is.InstanceOf<ValidationProblem>());
+        Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_Exception_When_User_Is_Not_Authenticated()
+    public void HandleAsync_Should_Throw_NotFoundException_When_Treatment_Not_Found()
     {
-        var id = Guid.NewGuid();
-        var request = new UpdateTreatmentRequest();
+        var treatmentId = Guid.NewGuid();
 
-        _validatorMock
-            .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
+        _treatmentsRepositoryMock
+            .Setup(r => r.AnyAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
 
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest { InsulinId = Guid.NewGuid(), Units = 5m }
+        };
+
+        Assert.That(async () => await Endpoint.HandleAsync(treatmentId, request,
+                _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+                _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
+            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("TREATMENT_NOT_FOUND"));
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Treatment>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Insulin_Not_Found()
+    {
+        var treatmentId = Guid.NewGuid();
+        var treatment = CreateTreatment(treatmentId);
+        SetupTreatment(treatment);
+
+        _insulinsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Insulin, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Insulin?)null);
+
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest { InsulinId = Guid.NewGuid(), Units = 5m }
+        };
+
+        Assert.That(async () => await Endpoint.HandleAsync(treatmentId, request,
+                _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+                _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
+            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INSULIN_NOT_FOUND"));
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Reading_Not_Found()
+    {
+        var treatmentId = Guid.NewGuid();
+        var treatment = CreateTreatment(treatmentId);
+        SetupTreatment(treatment);
+
+        _readingsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Reading?)null);
+
+        var request = new UpdateTreatmentRequest { ReadingId = Guid.NewGuid() };
+
+        Assert.That(async () => await Endpoint.HandleAsync(treatmentId, request,
+                _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+                _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
+            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("READING_NOT_FOUND"));
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_UnauthorizedException_When_User_Is_Not_Logged_In()
+    {
         _currentUserMock
             .Setup(c => c.GetUserId())
-            .Throws(new UnauthorizedAccessException("User is not authenticated"));
+            .Throws<UnauthorizedAccessException>();
 
-        Assert.ThrowsAsync<UnauthorizedAccessException>(async () =>
-            await Endpoint.HandleAsync(
-                id,
-                request,
-                _validatorMock.Object,
-                _currentUserMock.Object,
-                _treatmentRepositoryMock.Object,
-                _readingRepositoryMock.Object,
-                _mealRepositoryMock.Object,
-                _ingredientRepositoryMock.Object,
-                _injectionRepositoryMock.Object,
-                CancellationToken.None));
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest { InsulinId = Guid.NewGuid(), Units = 5m }
+        };
+
+        Assert.That(async () => await Endpoint.HandleAsync(Guid.NewGuid(), request,
+                _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+                _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+                _mealService, _ingredientsService, _treatmentService, CancellationToken.None),
+            Throws.InstanceOf<UnauthorizedAccessException>());
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Update_Existing_Injection()
+    {
+        var treatmentId = Guid.NewGuid();
+        var insulinId = Guid.NewGuid();
+        var existingInsulin = CreateInsulin(insulinId);
+        var treatment = CreateTreatment(treatmentId);
+        treatment.Injection!.Insulin = existingInsulin;
+        SetupTreatment(treatment);
+
+        var newInsulinId = Guid.NewGuid();
+        var newInsulin = CreateInsulin(newInsulinId);
+        newInsulin.Name = "Novorapid";
+        _insulinsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Insulin, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(newInsulin);
+
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest { InsulinId = newInsulinId, Units = 8m }
+        };
+
+        var result = await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Treatment>(t =>
+            t.InjectionId == treatment.InjectionId &&
+            t.Injection!.InsulinId == newInsulinId &&
+            t.Injection.Units == 8m
+        ), It.IsAny<CancellationToken>()), Times.Once);
+
+        var okResult = result.Result as Ok<UpdateTreatmentResponse>;
+        Assert.Multiple(() =>
+        {
+            Assert.That(okResult!.Value.InsulinName, Is.EqualTo("Novorapid"));
+            Assert.That(okResult.Value.InsulinUnits, Is.EqualTo(8m));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Add_Injection_When_Treatment_Has_None()
+    {
+        var treatmentId = Guid.NewGuid();
+        var treatment = CreateTreatment(treatmentId);
+        treatment.Injection = null;
+        treatment.InjectionId = null;
+        SetupTreatment(treatment);
+
+        var insulinId = Guid.NewGuid();
+        var insulin = CreateInsulin(insulinId);
+        _insulinsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Insulin, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(insulin);
+
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest { InsulinId = insulinId, Units = 10m }
+        };
+
+        var result = await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Treatment>(t =>
+            t.InjectionId != null &&
+            t.Injection!.InsulinId == insulinId &&
+            t.Injection.Units == 10m
+        ), It.IsAny<CancellationToken>()), Times.Once);
+
+        var okResult = result.Result as Ok<UpdateTreatmentResponse>;
+        Assert.Multiple(() =>
+        {
+            Assert.That(okResult!.Value.InsulinName, Is.EqualTo("Fiasp"));
+            Assert.That(okResult.Value.InsulinUnits, Is.EqualTo(10m));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Update_Reading()
+    {
+        var treatmentId = Guid.NewGuid();
+        var treatment = CreateTreatment(treatmentId);
+        treatment.ReadingId = null;
+        treatment.Reading = null;
+        SetupTreatment(treatment);
+
+        var readingId = Guid.NewGuid();
+        var reading = CreateReading(readingId);
+        _readingsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Reading, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(reading);
+
+        var request = new UpdateTreatmentRequest { ReadingId = readingId };
+
+        var result = await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Treatment>(t =>
+            t.ReadingId == readingId
+        ), It.IsAny<CancellationToken>()), Times.Once);
+
+        var okResult = result.Result as Ok<UpdateTreatmentResponse>;
+        Assert.That(okResult!.Value, Is.Not.Null);
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Update_Meals_And_Recalculate_Nutrition()
+    {
+        var treatmentId = Guid.NewGuid();
+        var mealId1 = Guid.NewGuid();
+        var meal1 = CreateMeal(mealId1);
+        var treatment = CreateTreatment(treatmentId);
+        treatment.Meals.Add(new TreatmentMeal
+        {
+            Id = Guid.NewGuid(),
+            TreatmentId = treatmentId,
+            MealId = mealId1,
+            Meal = meal1,
+            Quantity = 1m,
+            Created = DateTimeOffset.UtcNow,
+        });
+        treatment.Calories = meal1.Calories;
+        treatment.Carbs = meal1.Carbs;
+        treatment.Protein = meal1.Protein;
+        treatment.Fat = meal1.Fat;
+        SetupTreatment(treatment);
+
+        var mealId2 = Guid.NewGuid();
+        var meal2 = CreateMeal(mealId2);
+        meal2.Calories = 200m;
+        meal2.Carbs = 20m;
+        meal2.Protein = 10m;
+        meal2.Fat = 4m;
+        SetupMeals(new List<Meal> { meal2 });
+
+        var request = new UpdateTreatmentRequest
+        {
+            Meals =
+            [
+                new UpdateTreatmentRequest.UpdateTreatmentMealRequest { MealId = mealId1, Quantity = 2m },
+                new UpdateTreatmentRequest.UpdateTreatmentMealRequest { MealId = mealId2, Quantity = 1m },
+            ]
+        };
+
+        var result = await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Treatment>(t =>
+            t.Meals.Count == 2 &&
+            t.Meals.Any(tm => tm.MealId == mealId1 && tm.Quantity == 2m) &&
+            t.Meals.Any(tm => tm.MealId == mealId2 && tm.Quantity == 1m) &&
+            t.Calories == 400m &&
+            t.Carbs == 40m &&
+            t.Protein == 20m &&
+            t.Fat == 8m
+        ), It.IsAny<CancellationToken>()), Times.Once);
+
+        var okResult = result.Result as Ok<UpdateTreatmentResponse>;
+        Assert.Multiple(() =>
+        {
+            Assert.That(okResult!.Value.MealCount, Is.EqualTo(2));
+            Assert.That(okResult.Value.IngredientCount, Is.EqualTo(0));
+            Assert.That(okResult.Value.Calories, Is.EqualTo(400m));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Update_Ingredients_And_Recalculate_Nutrition()
+    {
+        var treatmentId = Guid.NewGuid();
+        var ingredientId1 = Guid.NewGuid();
+        var servingId1 = Guid.NewGuid();
+        var ingredient1 = CreateIngredient(ingredientId1);
+        var serving1 = CreateServing(servingId1, ingredientId1);
+        ingredient1.Servings.Add(serving1);
+
+        var treatment = CreateTreatment(treatmentId);
+        treatment.Ingredients.Add(new TreatmentIngredient
+        {
+            Id = Guid.NewGuid(),
+            TreatmentId = treatmentId,
+            IngredientId = ingredientId1,
+            Ingredient = ingredient1,
+            ServingId = servingId1,
+            Serving = serving1,
+            Quantity = 1m,
+            Created = DateTimeOffset.UtcNow,
+        });
+        treatment.Calories = serving1.Calories;
+        treatment.Carbs = serving1.Carbs;
+        treatment.Protein = serving1.Protein;
+        treatment.Fat = serving1.Fat;
+        SetupTreatment(treatment);
+
+        var ingredientId2 = Guid.NewGuid();
+        var servingId2 = Guid.NewGuid();
+        var ingredient2 = CreateIngredient(ingredientId2);
+        ingredient2.Servings.Add(CreateServing(servingId2, ingredientId2));
+        SetupIngredients(new List<Ingredient> { ingredient2 });
+
+        var request = new UpdateTreatmentRequest
+        {
+            Ingredients =
+            [
+                new UpdateTreatmentRequest.UpdateTreatmentIngredientRequest
+                {
+                    IngredientId = ingredientId1,
+                    ServingId = servingId1,
+                    Quantity = 2m,
+                },
+                new UpdateTreatmentRequest.UpdateTreatmentIngredientRequest
+                {
+                    IngredientId = ingredientId2,
+                    ServingId = servingId2,
+                    Quantity = 1m,
+                },
+            ]
+        };
+
+        var result = await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Treatment>(t =>
+            t.Ingredients.Count == 2 &&
+            t.Ingredients.Any(ti => ti.IngredientId == ingredientId1 && ti.Quantity == 2m) &&
+            t.Ingredients.Any(ti => ti.IngredientId == ingredientId2 && ti.Quantity == 1m) &&
+            t.Calories == 300m &&
+            t.Carbs == 30m &&
+            t.Protein == 15m &&
+            t.Fat == 6m
+        ), It.IsAny<CancellationToken>()), Times.Once);
+
+        var okResult = result.Result as Ok<UpdateTreatmentResponse>;
+        Assert.Multiple(() =>
+        {
+            Assert.That(okResult!.Value.MealCount, Is.EqualTo(0));
+            Assert.That(okResult.Value.IngredientCount, Is.EqualTo(2));
+            Assert.That(okResult.Value.Calories, Is.EqualTo(300m));
+        });
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Not_Call_UpdateTreatmentFoods_When_No_Food_Changes()
+    {
+        var treatmentId = Guid.NewGuid();
+        var treatment = CreateTreatment(treatmentId);
+        SetupTreatment(treatment);
+
+        var insulinId = Guid.NewGuid();
+        var insulin = CreateInsulin(insulinId);
+        _insulinsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Insulin, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(insulin);
+
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest { InsulinId = insulinId, Units = 3m }
+        };
+
+        var result = await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _mealsRepositoryMock.Verify(r => r.GetAll(), Times.Never);
+        _ingredientsRepositoryMock.Verify(r => r.GetAll(), Times.Never);
+        Assert.That(result.Result, Is.TypeOf<Ok<UpdateTreatmentResponse>>());
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Set_Updated_Timestamp()
+    {
+        var treatmentId = Guid.NewGuid();
+        var treatment = CreateTreatment(treatmentId);
+        SetupTreatment(treatment);
+
+        _insulinsRepositoryMock
+            .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<Insulin, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(treatment.Injection!.Insulin);
+
+        var request = new UpdateTreatmentRequest
+        {
+            Injection = new UpdateTreatmentRequest.UpdateInjectionRequest
+            {
+                InsulinId = treatment.Injection!.InsulinId,
+                Units = treatment.Injection.Units
+            }
+        };
+
+        var beforeUpdate = DateTimeOffset.UtcNow;
+
+        await Endpoint.HandleAsync(treatmentId, request,
+            _validatorMock.Object, _currentUserMock.Object, _treatmentsRepositoryMock.Object,
+            _readingsRepositoryMock.Object, _insulinsRepositoryMock.Object,
+            _mealService, _ingredientsService, _treatmentService, CancellationToken.None);
+
+        _treatmentsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Treatment>(t =>
+            t.Updated >= beforeUpdate && t.Updated <= DateTimeOffset.UtcNow
+        ), It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private Treatment CreateTreatment(Guid id)
+    {
+        var readingId = Guid.NewGuid();
+        var insulinId = Guid.NewGuid();
+        var injectionId = Guid.NewGuid();
+
+        return new Treatment
+        {
+            Id = id,
+            UserId = _userId,
+            ReadingId = readingId,
+            Reading = CreateReading(readingId),
+            InjectionId = injectionId,
+            Injection = new Injection
+            {
+                Id = injectionId,
+                UserId = _userId,
+                InsulinId = insulinId,
+                Insulin = CreateInsulin(insulinId),
+                Units = 5m,
+                Created = DateTimeOffset.UtcNow,
+            },
+            Calories = 0m,
+            Carbs = 0m,
+            Protein = 0m,
+            Fat = 0m,
+            Created = DateTimeOffset.UtcNow.AddDays(-2),
+        };
     }
 }

@@ -1,14 +1,15 @@
-﻿using FluentValidation;
-using CgmLink.Api.Endpoints.Treatments.NewTreatment;
+using CgmLink.Api.Services;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -22,11 +23,12 @@ internal static class Endpoint
         [FromBody] UpdateTreatmentRequest request,
         [FromServices] IValidator<UpdateTreatmentRequest> validator,
         [FromServices] ICurrentUser currentUser,
-        [FromServices] IRepository<Treatment> treatmentRepository,
-        [FromServices] IRepository<Reading> readingRepository,
-        [FromServices] IRepository<Meal> mealRepository,
-        [FromServices] IRepository<Ingredient> ingredientRepository,
-        [FromServices] IRepository<Injection> injectionRepository,
+        [FromServices] IRepository<Treatment> treatmentsRepository,
+        [FromServices] IRepository<Reading> readingsRepository,
+        [FromServices] IRepository<Insulin> insulinsRepository,
+        [FromServices] IMealService mealService,
+        [FromServices] IIngredientsService ingredientsService,
+        [FromServices] ITreatmentService treatmentService,
         CancellationToken cancellationToken)
     {
         if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
@@ -37,133 +39,142 @@ internal static class Endpoint
 
         var userId = currentUser.GetUserId();
 
-        var treatment = treatmentRepository
-            .Find(t => t.Id == id && t.UserId == userId, new FindOptions { IsAsNoTracking = false })
-            .Include(i => i.Injection)
-            .Include(r => r.Reading)
+        if (!await treatmentsRepository
+                .AnyAsync(t => t.Id == id && t.UserId == userId && t.Deleted == null, cancellationToken)
+                .ConfigureAwait(false))
+        {
+            throw new NotFoundException("TREATMENT_NOT_FOUND");
+        }
+
+        var treatment = await treatmentsRepository.GetAll()
             .Include(t => t.Meals)
+                .ThenInclude(tm => tm.Meal)
             .Include(t => t.Ingredients)
+                .ThenInclude(ti => ti.Ingredient)
+            .Include(t => t.Ingredients)
+                .ThenInclude(ti => ti.Serving)
+            .Include(t => t.Injection)
+                .ThenInclude(i => i.Insulin)
             .AsSplitQuery()
-            .FirstOrDefault();
+            .FirstOrDefaultAsync(t => t.Id == id, cancellationToken)
+            .ConfigureAwait(false);
 
         if (treatment is null)
         {
             throw new NotFoundException("TREATMENT_NOT_FOUND");
         }
 
-        Injection? injection = null;
+        var updated = DateTimeOffset.UtcNow;
 
-        if (request.Injection?.Id is not null)
+        var injection = treatment.Injection;
+
+        var injectionRequest = request.Injection;
+
+        if (injectionRequest is not null)
         {
-            injection = injectionRepository
-            .Find(i => i.Id == request.Injection.Id && i.UserId == userId, new FindOptions { IsAsNoTracking = true })
-            .Include(i => i.Insulin).FirstOrDefault();
+            var insulin = await insulinsRepository
+                .FindOneAsync(i => i.Id == injectionRequest.InsulinId && (i.UserId == userId || i.UserId == null),
+                    cancellationToken: cancellationToken)
+                .ConfigureAwait(false);
+
+            if (insulin is null)
+            {
+                throw new NotFoundException("INSULIN_NOT_FOUND");
+            }
 
             if (injection is null)
             {
-                throw new NotFoundException("INJECTION_NOT_FOUND");
+                injection = new Injection
+                {
+                    Id = Guid.NewGuid(),
+                    UserId = userId,
+                    InsulinId = insulin.Id,
+                    Units = injectionRequest.Units,
+                    Created = updated,
+                    Insulin = insulin,
+                };
             }
-
-            injection.Updated = DateTimeOffset.UtcNow;
-            injection.InsulinId = request.Injection.InsulinId;
-            injection.Units = request.Injection.Units;
-        }
-        else if (request.Injection is not null)
-        {
-            injection = new Injection
+            else
             {
-                Id = Guid.NewGuid(),
-                UserId = userId,
-                InsulinId = request.Injection.InsulinId,
-                Units = request.Injection.Units,
-                Created = DateTimeOffset.UtcNow,
-            };
+                injection.InsulinId = insulin.Id;
+                injection.Units = injectionRequest.Units;
+                injection.Updated = updated;
+                injection.Insulin = insulin;
+            }
         }
 
-        treatment.Injection = injection;
-
-        var mealIds = request.Meals.Select(m => m.Id).ToList();
-        var meals = mealRepository.Find(m => mealIds.Contains(m.Id) && m.UserId == userId, new FindOptions { IsAsNoTracking = true }).ToList();
-        var invalidMealIds = mealIds.Except(meals.Select(m => m.Id)).ToList();
-
-        if (invalidMealIds.Count > 0)
-        {
-            throw new NotFoundException("MEAL_NOT_FOUND");
-        }
-
-        var ingredientIds = request.Ingredients.Select(i => i.Id).ToList();
-        var ingredients = ingredientRepository.Find(i => ingredientIds.Contains(i.Id) && i.UserId == userId, new FindOptions { IsAsNoTracking = true }).ToList();
-        var invalidIngredientIds = ingredientIds.Except(ingredients.Select(i => i.Id)).ToList();
-
-        if (invalidIngredientIds.Count > 0)
-        {
-            throw new NotFoundException("INGREDIENT_NOT_FOUND");
-        }
-
-        Reading? reading = null;
         if (request.ReadingId is not null)
         {
-            reading = await readingRepository
-                .FindOneAsync(r => r.Id == request.ReadingId && r.UserId == userId, new FindOptions { IsAsNoTracking = true }, cancellationToken)
+            var reading = await readingsRepository
+                .FindOneAsync(r => r.Id == request.ReadingId && r.UserId == userId,
+                    new FindOptions { IsAsNoTracking = true }, cancellationToken)
                 .ConfigureAwait(false);
+
             if (reading is null)
             {
                 throw new NotFoundException("READING_NOT_FOUND");
             }
         }
 
-        treatment.ReadingId = request.ReadingId;
+        var mealLookup = new Dictionary<Guid, Meal>();
 
-        if (request.Created is not null)
+        if (request.Meals is not null)
         {
-            treatment.Created = request.Created.Value;
+            var existingMealIds = treatment.Meals.Select(tm => tm.MealId).ToHashSet();
+            var mealsToValidate = request.Meals.Where(m => !existingMealIds.Contains(m.MealId)).ToList();
+
+            mealLookup = await mealService
+                .GetValidatedMealsAsync(mealsToValidate, userId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
-        treatment.Meals = request.Meals.Select(m => new TreatmentMeal
-        {
-            Id = Guid.NewGuid(),
-            MealId = m.Id,
-            TreatmentId = treatment.Id,
-            Quantity = m.Quantity,
-        }).ToList();
-        treatment.Ingredients = request.Ingredients.Select(i => new TreatmentIngredient
-        {
-            Id = Guid.NewGuid(),
-            IngredientId = i.Id,
-            TreatmentId = treatment.Id,
-            Quantity = i.Quantity,
-        }).ToList();
-        treatment.Updated = DateTimeOffset.UtcNow;
+        var ingredientLookup = new Dictionary<Guid, Ingredient>();
 
-        await treatmentRepository.UpdateAsync(treatment, cancellationToken);
-
-        var response = new UpdateTreatmentResponse
+        if (request.Ingredients is not null)
         {
-            Id = treatment.Id,
-            ReadingId = treatment.ReadingId,
-            ReadingGlucoseLevel = reading?.GlucoseLevel,
-            Type = (Models.TreatmentType)treatment.Type,
+            var existingByIngredientId = treatment.Ingredients.ToDictionary(ti => ti.IngredientId);
+            var ingredientsToValidate = new List<IMealIngredientRequest>();
 
-            Meals = treatment.Meals.Select(m => new UpdateTreatmentMealResponse
+            foreach (var requested in request.Ingredients)
             {
-                Id = m.MealId,
-                Name = m.Meal?.Name ?? "",
-                Quantity = m.Quantity,
-            }).ToList(),
-            Ingredients = treatment.Ingredients.Select(i => new UpdateTreatmentIngredientResponse
-            {
-                Id = i.IngredientId,
-                Name = i.Ingredient?.Name ?? "",
-                Quantity = i.Quantity,
-            }).ToList(),
-            InjectionId = treatment.InjectionId,
-            InsulinId = injection?.Insulin?.Id,
-            InsulinName = injection?.Insulin?.Name,
-            InsulinUnits = injection?.Units,
-            Created = treatment.Created,
-            Updated = treatment.Updated
-        };
+                if (!existingByIngredientId.TryGetValue(requested.IngredientId, out var existing) ||
+                    (existing.Ingredient?.Deleted is null && existing.ServingId != requested.ServingId))
+                {
+                    ingredientsToValidate.Add(requested);
+                }
+            }
 
-        return TypedResults.Ok(response);
+            ingredientLookup = await ingredientsService
+                .GetValidatedIngredientsAsync(ingredientsToValidate, userId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        if (injection is not null)
+        {
+            treatment.Injection = injection;
+            treatment.InjectionId = injection.Id;
+        }
+
+        if (request.ReadingId is not null)
+        {
+            treatment.ReadingId = request.ReadingId;
+        }
+
+        if (request.Meals is not null || request.Ingredients is not null)
+        {
+            treatmentService.UpdateTreatmentFoods(
+                treatment,
+                request.Meals,
+                request.Ingredients,
+                mealLookup,
+                ingredientLookup,
+                updated);
+        }
+
+        treatment.Updated = updated;
+
+        await treatmentsRepository.UpdateAsync(treatment, cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Ok(UpdateTreatmentResponse.ToResponse(treatment));
     }
 }

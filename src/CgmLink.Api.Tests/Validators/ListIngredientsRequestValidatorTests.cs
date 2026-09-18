@@ -1,6 +1,5 @@
-﻿using FluentValidation.TestHelper;
-using CgmLink.Api.Endpoints.Ingredients.List;
-using CgmLink.Api.Endpoints.Meals.List;
+using FluentValidation.TestHelper;
+using CgmLink.Api.Endpoints.Ingredients.ListIngredients;
 using CgmLink.Api.Models;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -8,46 +7,48 @@ using NUnit.Framework;
 namespace CgmLink.Api.Tests.Validators;
 
 [TestFixture]
-public class ListIngredientsRequestValidatorTests
+class ListIngredientsRequestValidatorTests
 {
     private readonly ListIngredientsRequest.ListIngredientsValidator _validator;
 
     public ListIngredientsRequestValidatorTests()
     {
-        var apiSettings = Options.Create(new ApiSettings { MaxPageSize = 100 });
+        var apiSettings = Options.Create(new ApiSettings
+        {
+            MaxPageSize = 25
+        });
         _validator = new ListIngredientsRequest.ListIngredientsValidator(apiSettings);
     }
 
     [Test]
-    public void Should_Have_Error_When_Search_Is_Less_Than_3_Characters()
+    public void Should_Not_Have_Error_When_SortBy_Is_Supported()
     {
-        var model = new ListIngredientsRequest { Search = "ab" };
-        var result = _validator.TestValidate(model);
-        result.ShouldHaveValidationErrorFor(x => x.Search)
-            .WithErrorMessage("SEARCH_LENGTH_INVALID");
+        var request = new ListIngredientsRequest { Page = 0, PageSize = 10, SortBy = "Name" };
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveValidationErrorFor(r => r.SortBy);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Search_Is_3_Characters_Or_More()
+    public void Should_Not_Have_Error_When_SortBy_Is_Not_Provided()
     {
-        var model = new ListIngredientsRequest { Search = "abc" };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Search);
+        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
+        var result = _validator.TestValidate(request);
+        result.ShouldNotHaveValidationErrorFor(r => r.SortBy);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Search_Is_Null()
+    public void Should_Have_Error_When_SortBy_Is_Not_Supported()
     {
-        var model = new ListIngredientsRequest { Search = null };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Search);
+        var request = new ListIngredientsRequest { Page = 0, PageSize = 10, SortBy = "Bogus" };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.SortBy);
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Search_Is_Empty()
+    public void Should_Have_Error_When_SortDirection_Is_Invalid()
     {
-        var model = new ListIngredientsRequest { Search = string.Empty };
-        var result = _validator.TestValidate(model);
-        result.ShouldNotHaveValidationErrorFor(x => x.Search);
+        var request = new ListIngredientsRequest { Page = 0, PageSize = 10, SortDirection = (SortDirection)(-1) };
+        var result = _validator.TestValidate(request);
+        result.ShouldHaveValidationErrorFor(r => r.SortDirection);
     }
 }

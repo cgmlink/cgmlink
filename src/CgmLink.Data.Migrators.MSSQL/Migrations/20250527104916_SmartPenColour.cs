@@ -10,6 +10,8 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.Sql("UPDATE pens SET Serial = LEFT(Serial, 100) WHERE LEN(Serial) > 100");
+
             migrationBuilder.AlterColumn<string>(
                 name: "Serial",
                 table: "pens",

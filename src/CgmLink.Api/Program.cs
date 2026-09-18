@@ -5,6 +5,7 @@ using FluentValidation;
 using CgmLink.Api.Endpoints;
 using CgmLink.Api.Middleware;
 using CgmLink.Api.Models;
+using CgmLink.Api.Services;
 using CgmLink.Api.Swagger;
 using CgmLink.AspNetCore.Extensions;
 using CgmLink.AspNetCore.Settings;
@@ -13,7 +14,6 @@ using CgmLink.Data.Repository;
 using CgmLink.Identity;
 using CgmLink.LibreLinkClient;
 using CgmLink.Mail;
-using CgmLink.Nutrition;
 using CgmLink.Sync.LibreLink;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -66,13 +66,15 @@ builder.Services.AddValidatorsFromAssemblyContaining(typeof(Program));
 builder.Services.AddHealthChecks().AddDatabaseHealthChecks();
 builder.Services.AddData(builder.Configuration.GetSection("Data").Bind);
 builder.Services.AddIdentity(builder.Configuration.GetSection("Identity").Bind);
-builder.Services.AddNutrition(builder.Configuration.GetSection("Nutrition").Bind);
 
 builder.Services.AddTransient<ExceptionMiddleware>();
 
 builder.Services.AddScoped<CgmLinkDbInitializer>();
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("Api"));
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+builder.Services.AddScoped<IIngredientsService, IngredientsService>();
+builder.Services.AddScoped<IMealService, MealService>();
+builder.Services.AddScoped<ITreatmentService, TreatmentService>();
 builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
@@ -113,8 +115,12 @@ if (!app.Environment.IsDevelopment() && securityHeaderSettings.EnableHsts)
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseSecurity();
 
-app.UseSwagger();
-app.UseSwaggerUI();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+    app.UseStaticFiles();
+}
 
 app.UseHttpsRedirection();
 
@@ -124,7 +130,6 @@ app.UseHealthChecks("/health");
 
 app.MapIdentityEndpoints();
 app.MapCgmLinkEndpoints();
-app.MapNutritionEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {

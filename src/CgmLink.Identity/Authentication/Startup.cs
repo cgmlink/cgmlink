@@ -45,8 +45,10 @@ internal static class Startup
                     ValidateIssuerSigningKey = true,
                     IssuerSigningKey = new SymmetricSecurityKey(key),
                     ValidateIssuer = true,
+                    ValidIssuer = identityOptions.Issuer,
                     ValidateLifetime = true,
                     ValidateAudience = true,
+                    ValidAudience = identityOptions.Audience,
                     RoleClaimType = ClaimTypes.Role,
                     ClockSkew = TimeSpan.Zero
                 };

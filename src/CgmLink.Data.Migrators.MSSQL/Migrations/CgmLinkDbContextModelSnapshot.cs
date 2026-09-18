@@ -49,7 +49,46 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Barcode")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("Deleted")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("ProductId")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
+                    b.Property<DateTimeOffset?>("Updated")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Barcode")
+                        .IsUnique()
+                        .HasFilter("[Barcode] IS NOT NULL");
+
+                    b.ToTable("ingredients");
+                });
+
+            modelBuilder.Entity("CgmLink.Data.Entities.IngredientServing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Calories")
                         .HasColumnType("decimal(18,2)");
@@ -63,36 +102,34 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<DateTimeOffset?>("Deleted")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<string>("Description")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("ExternalId")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<decimal>("Fat")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("ImageUrl")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Protein")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("ThumbnailUrl")
-                        .HasColumnType("nvarchar(max)");
+                    b.Property<decimal?>("ServingAmount")
+                        .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("Uom")
-                        .HasColumnType("int");
-
-                    b.Property<DateTimeOffset?>("Updated")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
+                    b.Property<string>("ServingUnit")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("IngredientId");
 
-                    b.ToTable("ingredients");
+                    b.ToTable("ingredient_servings");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Injection", b =>
@@ -106,8 +143,8 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<Guid>("InsulinId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<double>("Units")
-                        .HasColumnType("float");
+                    b.Property<decimal>("Units")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTimeOffset?>("Updated")
                         .HasColumnType("datetimeoffset");
@@ -166,15 +203,36 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("Calories")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Carbs")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset?>("Deleted")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<decimal>("Fat")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ImageUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<decimal>("Protein")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
 
                     b.Property<DateTimeOffset?>("Updated")
                         .HasColumnType("datetimeoffset");
@@ -192,8 +250,10 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
             modelBuilder.Entity("CgmLink.Data.Entities.MealIngredient", b =>
                 {
                     b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<Guid>("IngredientId")
                         .HasColumnType("uniqueidentifier");
@@ -204,13 +264,18 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<Guid>("ServingId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.HasKey("Id");
 
                     b.HasIndex("IngredientId");
 
                     b.HasIndex("MealId");
 
-                    b.ToTable("meals_ingredients");
+                    b.HasIndex("ServingId");
+
+                    b.ToTable("meal_ingredients");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Pen", b =>
@@ -310,11 +375,26 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("Calories")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("Carbs")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<DateTimeOffset>("Created")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<DateTimeOffset?>("Deleted")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<decimal>("Fat")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<Guid?>("InjectionId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Protein")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<Guid?>("ReadingId")
                         .HasColumnType("uniqueidentifier");
@@ -341,11 +421,17 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<Guid>("IngredientId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<decimal>("Quantity")
                         .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ServingId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("TreatmentId")
                         .HasColumnType("uniqueidentifier");
@@ -354,15 +440,20 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
 
                     b.HasIndex("IngredientId");
 
+                    b.HasIndex("ServingId");
+
                     b.HasIndex("TreatmentId");
 
-                    b.ToTable("treatment_ingredient");
+                    b.ToTable("treatment_ingredients");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.TreatmentMeal", b =>
                 {
                     b.Property<Guid>("Id")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<Guid>("MealId")
                         .HasColumnType("uniqueidentifier");
@@ -379,7 +470,7 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
 
                     b.HasIndex("TreatmentId");
 
-                    b.ToTable("treatment_meal");
+                    b.ToTable("treatment_meals");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.User", b =>
@@ -431,6 +522,30 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.UseTphMappingStrategy();
                 });
 
+            modelBuilder.Entity("CgmLink.Data.Entities.UserIngredient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("IngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IngredientId");
+
+                    b.HasIndex("UserId", "IngredientId")
+                        .IsUnique();
+
+                    b.ToTable("user_ingredients");
+                });
+
             modelBuilder.Entity("CgmLink.Data.Entities.Patient", b =>
                 {
                     b.HasBaseType("CgmLink.Data.Entities.User");
@@ -471,15 +586,15 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Navigation("Patient");
                 });
 
-            modelBuilder.Entity("CgmLink.Data.Entities.Ingredient", b =>
+            modelBuilder.Entity("CgmLink.Data.Entities.IngredientServing", b =>
                 {
-                    b.HasOne("CgmLink.Data.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
+                    b.HasOne("CgmLink.Data.Entities.Ingredient", "Ingredient")
+                        .WithMany("Servings")
+                        .HasForeignKey("IngredientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("User");
+                    b.Navigation("Ingredient");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Injection", b =>
@@ -524,20 +639,28 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
             modelBuilder.Entity("CgmLink.Data.Entities.MealIngredient", b =>
                 {
                     b.HasOne("CgmLink.Data.Entities.Ingredient", "Ingredient")
-                        .WithMany("Meals")
+                        .WithMany()
                         .HasForeignKey("IngredientId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("CgmLink.Data.Entities.Meal", "Meal")
-                        .WithMany("MealIngredients")
+                        .WithMany("Ingredients")
                         .HasForeignKey("MealId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CgmLink.Data.Entities.IngredientServing", "Serving")
+                        .WithMany()
+                        .HasForeignKey("ServingId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
                     b.Navigation("Ingredient");
 
                     b.Navigation("Meal");
+
+                    b.Navigation("Serving");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Pen", b =>
@@ -610,6 +733,12 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
+                    b.HasOne("CgmLink.Data.Entities.IngredientServing", "Serving")
+                        .WithMany()
+                        .HasForeignKey("ServingId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("CgmLink.Data.Entities.Treatment", "Treatment")
                         .WithMany("Ingredients")
                         .HasForeignKey("TreatmentId")
@@ -617,6 +746,8 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                         .IsRequired();
 
                     b.Navigation("Ingredient");
+
+                    b.Navigation("Serving");
 
                     b.Navigation("Treatment");
                 });
@@ -736,6 +867,25 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Navigation("Settings");
                 });
 
+            modelBuilder.Entity("CgmLink.Data.Entities.UserIngredient", b =>
+                {
+                    b.HasOne("CgmLink.Data.Entities.Ingredient", "Ingredient")
+                        .WithMany("Users")
+                        .HasForeignKey("IngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CgmLink.Data.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Ingredient");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("CgmLink.Data.Entities.Patient", b =>
                 {
                     b.HasOne("CgmLink.Data.Entities.User", null)
@@ -774,12 +924,14 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
 
             modelBuilder.Entity("CgmLink.Data.Entities.Ingredient", b =>
                 {
-                    b.Navigation("Meals");
+                    b.Navigation("Servings");
+
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Meal", b =>
                 {
-                    b.Navigation("MealIngredients");
+                    b.Navigation("Ingredients");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.Treatment", b =>

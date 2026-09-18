@@ -165,6 +165,12 @@
   <data name="IngredientIdInvalid" xml:space="preserve">
     <value>INGREDIENT_ID_INVALID</value>
   </data>
+  <data name="DuplicateIngredientId" xml:space="preserve">
+    <value>DUPLICATE_INGREDIENT_ID</value>
+  </data>
+  <data name="DuplicateMealId" xml:space="preserve">
+    <value>DUPLICATE_MEAL_ID</value>
+  </data>
   <data name="QuantityGreaterThanZero" xml:space="preserve">
     <value>QUANTITY_GREATER_THAN_ZERO</value>
   </data>
@@ -248,5 +254,17 @@
   </data>
   <data name="InjectionIdInvalid" xml:space="preserve">
     <value>INJECTION_ID_INVALID</value>
+  </data>
+  <data name="UomInvalidForNutritionProduct" xml:space="preserve">
+    <value>UOM_INVALID_FOR_NUTRITION_PRODUCT</value>
+  </data>
+  <data name="SortByInvalid" xml:space="preserve">
+    <value>SORT_BY_INVALID</value>
+  </data>
+  <data name="SortDirectionInvalid" xml:space="preserve">
+    <value>SORT_DIRECTION_INVALID</value>
+  </data>
+  <data name="TreatmentRequiredWhenAllNull" xml:space="preserve">
+    <value>TREATMENT_REQUIRED_WHEN_ALL_NULL</value>
   </data>
 </root>

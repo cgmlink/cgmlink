@@ -20,8 +20,6 @@ COPY ["CgmLink.Mail", "CgmLink.Mail"]
 COPY ["CgmLink.LibreLinkClient", "CgmLink.LibreLinkClient"]
 COPY ["CgmLink.Sync.LibreLink", "CgmLink.Sync.LibreLink"]
 COPY ["CgmLink.Resources", "CgmLink.Resources"]
-COPY ["CgmLink.Nutrition", "CgmLink.Nutrition"]
-COPY ["CgmLink.Nutrition.Data", "CgmLink.Nutrition.Data"]
 WORKDIR "/src/CgmLink.Api"
 RUN dotnet build "CgmLink.Api.csproj" -c "$BuildConfiguration" -o /app/build
 

@@ -1,69 +1,65 @@
-﻿using FluentValidation;
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Api.Services;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Authentication;
+using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CgmLink.Api.Endpoints.Meals.NewMeal;
 
 internal static class Endpoint
 {
-    internal static async Task<Results<Created<NewMealResponse>, UnauthorizedHttpResult, ValidationProblem>> HandleAsync(
+    internal static async Task<Results<Created<NewMealResponse>, ValidationProblem>> HandleAsync(
         [FromBody] NewMealRequest request,
         [FromServices] IValidator<NewMealRequest> validator,
+        [FromServices] IRepository<Meal> mealsRepository,
+        [FromServices] IIngredientsService ingredientsService,
+        [FromServices] IRepository<User> usersRepository,
         [FromServices] ICurrentUser currentUser,
-        [FromServices] IRepository<Meal> mealRepository,
-        [FromServices] IRepository<Ingredient> ingredientRepository)
+        [FromServices] IMealService mealService,
+        CancellationToken cancellationToken)
     {
-        if (await validator.ValidateAsync(request).ConfigureAwait(false) is
+        if (await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false) is
             { IsValid: false } validation)
         {
             return TypedResults.ValidationProblem(validation.ToDictionary());
         }
 
         var userId = currentUser.GetUserId();
-
-        var ingredientIds = request.MealIngredients.Select(x => x.IngredientId).ToList();
-        var validIngredientIds = ingredientRepository
-            .Find(x => ingredientIds.Contains(x.Id))
-            .Select(x => x.Id)
-            .ToList();
-
-        var invalidIngredientIds = ingredientIds.Except(validIngredientIds).ToList();
-        if (invalidIngredientIds.Count != 0)
+        var user = await usersRepository.FindOneAsync(u => u.Id == userId, cancellationToken: cancellationToken).ConfigureAwait(false);
+        if (user is null)
         {
-            throw new BadRequestException(Resources.ValidationMessages.IngredientIdInvalid);
+            throw new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
         }
 
-        var newMeal = new Meal
+        var ingredientLookup = await ingredientsService
+            .GetValidatedIngredientsAsync(request.Ingredients, userId, cancellationToken)
+            .ConfigureAwait(false);
+
+        var meal = new Meal
         {
             Name = request.Name,
+            ImageUrl = request.ImageUrl,
+            ThumbnailUrl = request.ThumbnailUrl,
             UserId = userId,
+            Calories = 0m,
+            Carbs = 0m,
+            Protein = 0m,
+            Fat = 0m,
             Created = DateTimeOffset.UtcNow,
-            MealIngredients = [],
-        };
-        newMeal.MealIngredients = request.MealIngredients.Select(x => new MealIngredient()
-        {
-            Id = Guid.NewGuid(),
-            MealId = newMeal.Id,
-            IngredientId = x.IngredientId,
-            Quantity = x.Quantity,
-        }).ToList();
-
-        await mealRepository.AddAsync(newMeal).ConfigureAwait(false);
-
-        var response = new NewMealResponse
-        {
-            Id = newMeal.Id,
-            Name = newMeal.Name,
         };
 
-        return TypedResults.Created($"/api/v1/meals/{newMeal.Id}", response);
+        mealService.UpdateMealsIngredients(meal, request.Ingredients, ingredientLookup);
+        mealService.RecalculateMealsNutrition(meal);
+
+        await mealsRepository.AddAsync(meal, cancellationToken).ConfigureAwait(false);
+
+        return TypedResults.Created($"/api/v1/meals/{meal.Id}", NewMealResponse.ToResponse(meal));
     }
 }

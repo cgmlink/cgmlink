@@ -1,0 +1,259 @@
+using CgmLink.Api.Services;
+using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data.Entities;
+using CgmLink.Data.Repository;
+using CgmLink.Data.Tests;
+using Moq;
+using NUnit.Framework;
+using System;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+namespace CgmLink.Api.Tests.Services;
+
+[TestFixture]
+public class MealServiceTests
+{
+    private Mock<IRepository<Meal>> _mealsRepositoryMock;
+    private MealService _service;
+
+    [SetUp]
+    public void SetUp()
+    {
+        _mealsRepositoryMock = new Mock<IRepository<Meal>>();
+        _service = new MealService(_mealsRepositoryMock.Object);
+    }
+
+    [Test]
+    public void RecalculateNutrition_Should_Return_Zeros_When_Meal_Has_No_Ingredients()
+    {
+        var meal = CreateMeal();
+
+        var result = _service.RecalculateMealsNutrition(meal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.SameAs(meal));
+            Assert.That(meal.Calories, Is.EqualTo(0m));
+            Assert.That(meal.Carbs, Is.EqualTo(0m));
+            Assert.That(meal.Protein, Is.EqualTo(0m));
+            Assert.That(meal.Fat, Is.EqualTo(0m));
+        });
+    }
+
+    [Test]
+    public void RecalculateNutrition_Should_Multiply_Serving_Nutrition_By_Quantity()
+    {
+        var meal = CreateMeal();
+        meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
+
+        var result = _service.RecalculateMealsNutrition(meal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.SameAs(meal));
+            Assert.That(meal.Calories, Is.EqualTo(200m));
+            Assert.That(meal.Carbs, Is.EqualTo(20m));
+            Assert.That(meal.Protein, Is.EqualTo(10m));
+            Assert.That(meal.Fat, Is.EqualTo(4m));
+        });
+    }
+
+    [Test]
+    public void RecalculateNutrition_Should_Sum_Multiple_Ingredient_Lines()
+    {
+        var meal = CreateMeal();
+        meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
+        meal.Ingredients.Add(CreateMealIngredient(CreateServing(50m, 5m, 3m, 1m), 1m));
+
+        _service.RecalculateMealsNutrition(meal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(250m));
+            Assert.That(meal.Carbs, Is.EqualTo(25m));
+            Assert.That(meal.Protein, Is.EqualTo(13m));
+            Assert.That(meal.Fat, Is.EqualTo(5m));
+        });
+    }
+
+    [Test]
+    public void RecalculateNutrition_Should_Skip_Lines_When_Serving_Not_Loaded()
+    {
+        var meal = CreateMeal();
+        meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
+        meal.Ingredients.Add(new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = meal.Id,
+            Meal = meal,
+            IngredientId = Guid.NewGuid(),
+            ServingId = Guid.NewGuid(),
+            Serving = null,
+            Quantity = 3m,
+            Created = DateTimeOffset.UtcNow,
+        });
+
+        _service.RecalculateMealsNutrition(meal);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(200m));
+            Assert.That(meal.Carbs, Is.EqualTo(20m));
+            Assert.That(meal.Protein, Is.EqualTo(10m));
+            Assert.That(meal.Fat, Is.EqualTo(4m));
+        });
+    }
+
+    [Test]
+    public async Task RecalculateNutritionForIngredient_Should_Recalculate_Meals_Containing_The_Ingredient()
+    {
+        var ingredientId = Guid.NewGuid();
+        var meal = CreateMeal();
+        var serving = CreateServing(100m, 10m, 5m, 2m);
+        var mealIngredient = new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = meal.Id,
+            Meal = meal,
+            IngredientId = ingredientId,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = 2m,
+            Created = DateTimeOffset.UtcNow,
+        };
+        meal.Ingredients.Add(mealIngredient);
+
+        var otherMeal = CreateMeal();
+        var otherMealIngredient = CreateMealIngredient(CreateServing(50m, 5m, 3m, 1m), 1m);
+        otherMealIngredient.Meal = otherMeal;
+        otherMeal.Ingredients.Add(otherMealIngredient);
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal, otherMeal }));
+
+        await _service.RecalculateMealsWithIngredientNutrition(ingredientId, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(200m));
+            Assert.That(meal.Carbs, Is.EqualTo(20m));
+            Assert.That(meal.Protein, Is.EqualTo(10m));
+            Assert.That(meal.Fat, Is.EqualTo(4m));
+            Assert.That(otherMeal.Calories, Is.EqualTo(0m));
+        });
+    }
+
+    private static Meal CreateMeal()
+    {
+        return new Meal
+        {
+            Id = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
+            Name = "Breakfast",
+            Calories = 0m,
+            Carbs = 0m,
+            Protein = 0m,
+            Fat = 0m,
+            Created = DateTimeOffset.UtcNow,
+        };
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Return_Lookup_When_Meals_Are_Valid()
+    {
+        var meal = CreateMeal();
+        meal.UserId = _userId;
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal }));
+
+        var result = await _service.GetValidatedMealsAsync(
+            [new RequestMeal(meal.Id, 2m)], _userId, CancellationToken.None);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result.Keys, Does.Contain(meal.Id));
+            Assert.That(result[meal.Id], Is.SameAs(meal));
+        });
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Throw_BadRequest_When_Meal_Not_Found()
+    {
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal>()));
+
+        Assert.That(async () => await _service.GetValidatedMealsAsync(
+                [new RequestMeal(Guid.NewGuid(), 1m)], _userId, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Throw_BadRequest_When_Meal_Not_Linked_To_User()
+    {
+        var meal = CreateMeal();
+        meal.UserId = Guid.NewGuid();
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal }));
+
+        Assert.That(async () => await _service.GetValidatedMealsAsync(
+                [new RequestMeal(meal.Id, 1m)], _userId, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
+    }
+
+    [Test]
+    public async Task GetValidatedMealsAsync_Should_Throw_BadRequest_When_Meal_Is_Soft_Deleted()
+    {
+        var meal = CreateMeal();
+        meal.UserId = _userId;
+        meal.Deleted = DateTimeOffset.UtcNow;
+
+        _mealsRepositoryMock
+            .Setup(r => r.GetAll())
+            .Returns(new TestAsyncEnumerable<Meal>(new List<Meal> { meal }));
+
+        Assert.That(async () => await _service.GetValidatedMealsAsync(
+                [new RequestMeal(meal.Id, 1m)], _userId, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("MEAL_ID_INVALID"));
+    }
+
+    private readonly Guid _userId = Guid.NewGuid();
+
+    private sealed record RequestMeal(Guid MealId, decimal Quantity) : ITreatmentMealRequest;
+
+    private static IngredientServing CreateServing(decimal calories, decimal carbs, decimal protein, decimal fat)
+    {
+        return new IngredientServing
+        {
+            Id = Guid.NewGuid(),
+            Description = "1 cup",
+            Calories = calories,
+            Carbs = carbs,
+            Protein = protein,
+            Fat = fat,
+            Created = DateTimeOffset.UtcNow,
+        };
+    }
+
+    private static MealIngredient CreateMealIngredient(IngredientServing serving, decimal quantity)
+    {
+        return new MealIngredient
+        {
+            Id = Guid.NewGuid(),
+            MealId = Guid.NewGuid(),
+            IngredientId = Guid.NewGuid(),
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = quantity,
+            Created = DateTimeOffset.UtcNow,
+        };
+    }
+}

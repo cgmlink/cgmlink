@@ -1,14 +1,13 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.EntityFrameworkCore;
 
 namespace CgmLink.Data.Entities;
 
 /// <summary>
-/// A meal is a collection of ingredients that are consumed together.
+/// A meal is a combination of ingredients.
 /// </summary>
 [ExcludeFromCodeCoverage]
 [Table("meals")]
@@ -34,7 +33,20 @@ public class Meal : ISoftDeletable
     /// <summary>
     /// The name of the meal.
     /// </summary>
-    public required string Name { get; set; } = string.Empty;
+    [MaxLength(255)]
+    public required string Name { get; set; }
+
+    /// <summary>
+    /// The URL of the meal image.
+    /// </summary>
+    [MaxLength(2048)]
+    public string? ImageUrl { get; set; }
+
+    /// <summary>
+    /// The URL of the meal thumbnail image.
+    /// </summary>
+    [MaxLength(2048)]
+    public string? ThumbnailUrl { get; set; }
 
     /// <summary>
     /// The date and time the meal was created.
@@ -46,12 +58,33 @@ public class Meal : ISoftDeletable
     /// </summary>
     public DateTimeOffset? Updated { get; set; }
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// The date and time the meal was soft-deleted.
+    /// </summary>
     public DateTimeOffset? Deleted { get; set; }
 
     /// <summary>
-    /// The list of ingredients associated with the meal.
+    /// The total calories of all the ingredients in the meal.
     /// </summary>
-    [DeleteBehavior(DeleteBehavior.NoAction)]
-    public virtual ICollection<MealIngredient> MealIngredients { get; set; } = [];
+    public required decimal Calories { get; set; }
+
+    /// <summary>
+    /// The total carbohydrates in grams of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Carbs { get; set; }
+
+    /// <summary>
+    /// The total protein in grams of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Protein { get; set; }
+
+    /// <summary>
+    /// The total fat in grams of all the ingredients in the meal.
+    /// </summary>
+    public required decimal Fat { get; set; }
+
+    /// <summary>
+    /// The ingredients that make up the meal.
+    /// </summary>
+    public virtual ICollection<MealIngredient> Ingredients { get; set; } = [];
 }

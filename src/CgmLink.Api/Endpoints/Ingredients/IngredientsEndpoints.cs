@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using System.Diagnostics.CodeAnalysis;
-using CgmLink.AspNetCore.Exceptions;
 
 namespace CgmLink.Api.Endpoints.Ingredients;
 
@@ -14,9 +13,14 @@ public static class IngredientsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/ingredients")
             .WithTags("Ingredients");
 
-        group.MapGet("/", List.Endpoint.HandleAsync)
+        group.MapGet("/", ListIngredients.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("ListIngredients")
+            .RequireAuthorization();
+
+        group.MapGet("/{id:guid}", GetIngredient.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("GetIngredient")
             .RequireAuthorization();
 
         group.MapPost("/", NewIngredient.Endpoint.HandleAsync)
@@ -29,7 +33,7 @@ public static class IngredientsEndpoints
             .WithName("UpdateIngredient")
             .RequireAuthorization();
 
-        group.MapDelete("/{id:guid}", RemoveIngredient.Endpoint.HandleAsync)
+        group.MapDelete("/{id:guid}", DeleteIngredient.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("DeleteIngredient")
             .RequireAuthorization();

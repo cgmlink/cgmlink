@@ -1,19 +1,28 @@
-﻿using FluentValidation;
-using CgmLink.Api.Models;
+using FluentValidation;
+using CgmLink.Resources;
+using System.Collections.Generic;
 
 namespace CgmLink.Api.Endpoints.Ingredients.NewIngredient;
 
-public record NewIngredientRequest
+public sealed record NewIngredientRequest
 {
-    public string? Barcode { get; set; }
-    public string? ImageUrl { get; set; }
-    public string? ThumbnailUrl { get; set; }
-    public required string Name { get; set; }
-    public decimal Carbs { get; set; }
-    public decimal Protein { get; set; }
-    public decimal Fat { get; set; }
-    public decimal Calories { get; set; }
-    public required UnitOfMeasurement Uom { get; set; }
+    public required string Name { get; init; }
+    public string? Barcode { get; init; }
+    public string? ProductId { get; init; }
+    public string? ImageUrl { get; init; }
+    public string? ThumbnailUrl { get; init; }
+    public ICollection<NewIngredientServingRequest> Servings { get; init; } = [];
+
+    public sealed record NewIngredientServingRequest
+    {
+        public string? Description { get; init; }
+        public decimal? ServingAmount { get; init; }
+        public string? ServingUnit { get; init; }
+        public required decimal Calories { get; init; }
+        public required decimal Carbs { get; init; }
+        public required decimal Protein { get; init; }
+        public required decimal Fat { get; init; }
+    }
 
     public sealed class NewIngredientRequestValidator : AbstractValidator<NewIngredientRequest>
     {
@@ -21,19 +30,26 @@ public record NewIngredientRequest
         {
             RuleFor(x => x.Name)
                 .NotEmpty()
-                .WithMessage(Resources.ValidationMessages.NameRequired);
-            RuleFor(x => x.Carbs)
-                .GreaterThanOrEqualTo(0)
-                .WithMessage(Resources.ValidationMessages.CarbsGreaterThanOrEqualToZero);
-            RuleFor(x => x.Protein)
-                .GreaterThanOrEqualTo(0)
-                .WithMessage(Resources.ValidationMessages.ProteinGreaterThanOrEqualToZero);
-            RuleFor(x => x.Fat)
-                .GreaterThanOrEqualTo(0)
-                .WithMessage(Resources.ValidationMessages.FatGreaterThanOrEqualToZero);
-            RuleFor(x => x.Calories)
-                .GreaterThanOrEqualTo(0)
-                .WithMessage(Resources.ValidationMessages.CaloriesGreaterThanOrEqualToZero);
+                .WithMessage(ValidationMessages.NameRequired);
+
+            RuleFor(x => x.Servings)
+                .NotEmpty();
+
+            RuleForEach(x => x.Servings).ChildRules(serving =>
+            {
+                serving.RuleFor(s => s.Calories)
+                    .GreaterThanOrEqualTo(0)
+                    .WithMessage(ValidationMessages.CaloriesGreaterThanOrEqualToZero);
+                serving.RuleFor(s => s.Carbs)
+                    .GreaterThanOrEqualTo(0)
+                    .WithMessage(ValidationMessages.CarbsGreaterThanOrEqualToZero);
+                serving.RuleFor(s => s.Protein)
+                    .GreaterThanOrEqualTo(0)
+                    .WithMessage(ValidationMessages.ProteinGreaterThanOrEqualToZero);
+                serving.RuleFor(s => s.Fat)
+                    .GreaterThanOrEqualTo(0)
+                    .WithMessage(ValidationMessages.FatGreaterThanOrEqualToZero);
+            });
         }
     }
 }

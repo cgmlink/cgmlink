@@ -1,8 +1,7 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using System.Diagnostics.CodeAnalysis;
-using CgmLink.AspNetCore.Exceptions;
 
 namespace CgmLink.Api.Endpoints.Meals;
 
@@ -14,7 +13,7 @@ public static class MealsEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/meals")
             .WithTags("Meals");
 
-        group.MapGet("/", List.Endpoint.HandleAsync)
+        group.MapGet("/", ListMeals.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("ListMeals")
             .RequireAuthorization();
@@ -24,17 +23,22 @@ public static class MealsEndpoints
             .WithName("GetMeal")
             .RequireAuthorization();
 
+        group.MapGet("/{id:guid}/ingredients", ListMealIngredients.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("ListMealIngredients")
+            .RequireAuthorization();
+
         group.MapPost("/", NewMeal.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("CreateMeal")
             .RequireAuthorization();
 
-        group.MapPatch("/", UpdateMeal.Endpoint.HandleAsync)
+        group.MapPatch("/{id:guid}", UpdateMeal.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("UpdateMeal")
             .RequireAuthorization();
 
-        group.MapDelete("/{id:guid}", RemoveMeal.Endpoint.HandleAsync)
+        group.MapDelete("/{id:guid}", DeleteMeal.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("DeleteMeal")
             .RequireAuthorization();

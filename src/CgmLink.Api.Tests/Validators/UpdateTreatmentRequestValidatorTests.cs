@@ -1,127 +1,81 @@
-﻿using FluentValidation.TestHelper;
-using CgmLink.Api.Endpoints.Injections.UpdateInjection;
 using CgmLink.Api.Endpoints.Treatments.UpdateTreatment;
+using CgmLink.Resources;
+using FluentValidation.TestHelper;
 using NUnit.Framework;
 using System;
-using static CgmLink.Api.Endpoints.Treatments.UpdateTreatment.UpdateTreatmentRequest;
 
 namespace CgmLink.Api.Tests.Validators;
 
 [TestFixture]
-public class UpdateTreatmentRequestValidatorTests
+class UpdateTreatmentRequestValidatorTests
 {
-    private UpdateTreatmentRequest.UpdateTreatmentRequestValidator _validator;
-
-    [SetUp]
-    public void SetUp()
-    {
-        _validator = new UpdateTreatmentRequest.UpdateTreatmentRequestValidator();
-    }
+    private readonly UpdateTreatmentRequest.UpdateTreatmentRequestValidator _validator = new();
 
     [Test]
-    public void Validate_Should_Return_Error_When_All_Update_Values_Are_Invalid()
+    public void Should_Have_Error_When_Same_Ingredient_Is_Repeated_With_Different_Servings()
     {
+        var ingredientId = Guid.NewGuid();
         var request = new UpdateTreatmentRequest
         {
-            Injection = null,
-            Meals = [],
-            Ingredients = [],
-            ReadingId = null
+            Ingredients =
+            [
+                new UpdateTreatmentRequest.UpdateTreatmentIngredientRequest
+                {
+                    IngredientId = ingredientId,
+                    ServingId = Guid.NewGuid(),
+                    Quantity = 1m,
+                },
+                new UpdateTreatmentRequest.UpdateTreatmentIngredientRequest
+                {
+                    IngredientId = ingredientId,
+                    ServingId = Guid.NewGuid(),
+                    Quantity = 2m,
+                },
+            ],
         };
 
         var result = _validator.TestValidate(request);
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(result.IsValid, Is.False);
-            Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
-                x => x.ErrorMessage == "INJECTION_ID_REQUIRED_WHEN_ALL_NULL"));
-            Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
-                x => x.ErrorMessage == "MEAL_REQUIRED_WHEN_ALL_NULL"));
-            Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
-                x => x.ErrorMessage == "READING_ID_REQUIRED_WHEN_ALL_NULL"));
-            Assert.That(result.Errors, Has.Exactly(1).Matches<FluentValidation.Results.ValidationFailure>(
-                x => x.ErrorMessage == "INGREDIENT_REQUIRED_WHEN_ALL_NULL"));
-        });
+        result.ShouldHaveValidationErrorFor(x => x.Ingredients)
+            .WithErrorMessage(ValidationMessages.DuplicateIngredientId);
     }
 
     [Test]
-    public void Validate_Should_Pass_When_Only_Injection_Is_Provided()
+    public void Should_Not_Have_Error_When_Ingredients_Are_Not_Provided()
     {
+        var request = new UpdateTreatmentRequest { ReadingId = Guid.NewGuid() };
+
+        var result = _validator.TestValidate(request);
+
+        result.ShouldNotHaveValidationErrorFor(x => x.Ingredients);
+    }
+
+    [Test]
+    public void Should_Have_Error_When_Same_Meal_Is_Repeated()
+    {
+        var mealId = Guid.NewGuid();
         var request = new UpdateTreatmentRequest
         {
-            Injection = new UpdateTreatmentInjectionRequest { Id = Guid.NewGuid(), InsulinId = Guid.NewGuid(), Units = 1 },
-            Meals = [],
-            Ingredients = [],
-            ReadingId = null
+            Meals =
+            [
+                new UpdateTreatmentRequest.UpdateTreatmentMealRequest { MealId = mealId, Quantity = 1m },
+                new UpdateTreatmentRequest.UpdateTreatmentMealRequest { MealId = mealId, Quantity = 2m },
+            ],
         };
 
         var result = _validator.TestValidate(request);
 
-        Assert.That(result.IsValid, Is.True);
+        result.ShouldHaveValidationErrorFor(x => x.Meals)
+            .WithErrorMessage(ValidationMessages.DuplicateMealId);
     }
 
     [Test]
-    public void Validate_Should_Pass_When_Only_Meal_Is_Provided()
+    public void Should_Not_Have_Error_When_Meals_Are_Not_Provided()
     {
-        var request = new UpdateTreatmentRequest
-        {
-            Injection = null,
-            Meals = [new UpdateTreatmentMealRequest { Id = Guid.NewGuid(), Quantity = 1 }],
-            Ingredients = [],
-            ReadingId = null
-        };
+        var request = new UpdateTreatmentRequest { ReadingId = Guid.NewGuid() };
 
         var result = _validator.TestValidate(request);
 
-        Assert.That(result.IsValid, Is.True);
-    }
-
-    [Test]
-    public void Validate_Should_Pass_When_Only_Ingredient_Is_Provided()
-    {
-        var request = new UpdateTreatmentRequest
-        {
-            Injection = null,
-            Meals = [],
-            Ingredients = [new UpdateTreatmentIngredientRequest { Id = Guid.NewGuid(), Quantity = 1 }],
-            ReadingId = null
-        };
-
-        var result = _validator.TestValidate(request);
-
-        Assert.That(result.IsValid, Is.True);
-    }
-
-    [Test]
-    public void Validate_Should_Pass_When_Only_ReadingId_Is_Provided()
-    {
-        var request = new UpdateTreatmentRequest
-        {
-            Injection = null,
-            Meals = [],
-            Ingredients = [],
-            ReadingId = Guid.NewGuid()
-        };
-
-        var result = _validator.TestValidate(request);
-
-        Assert.That(result.IsValid, Is.True);
-    }
-
-    [Test]
-    public void Validate_Should_Pass_When_Multiple_Values_Are_Provided()
-    {
-        var request = new UpdateTreatmentRequest
-        {
-            Injection = new UpdateTreatmentInjectionRequest { Id = Guid.NewGuid(), InsulinId = Guid.NewGuid(), Units = 1 },
-            Meals = [new UpdateTreatmentMealRequest { Id = Guid.NewGuid(), Quantity = 1 }],
-            Ingredients = [new UpdateTreatmentIngredientRequest { Id = Guid.NewGuid(), Quantity = 1 }],
-            ReadingId = null
-        };
-
-        var result = _validator.TestValidate(request);
-
-        Assert.That(result.IsValid, Is.True);
+        result.ShouldNotHaveValidationErrorFor(x => x.Meals);
     }
 }

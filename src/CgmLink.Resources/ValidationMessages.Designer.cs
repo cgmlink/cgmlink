@@ -115,6 +115,24 @@ namespace CgmLink.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to DUPLICATE_INGREDIENT_ID.
+        /// </summary>
+        public static string DuplicateIngredientId {
+            get {
+                return ResourceManager.GetString("DuplicateIngredientId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to DUPLICATE_MEAL_ID.
+        /// </summary>
+        public static string DuplicateMealId {
+            get {
+                return ResourceManager.GetString("DuplicateMealId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to DURATION_GREATER_THAN_ZERO.
         /// </summary>
         public static string DurationGreaterThanZero {
@@ -421,6 +439,24 @@ namespace CgmLink.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to SORT_BY_INVALID.
+        /// </summary>
+        public static string SortByInvalid {
+            get {
+                return ResourceManager.GetString("SortByInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to SORT_DIRECTION_INVALID.
+        /// </summary>
+        public static string SortDirectionInvalid {
+            get {
+                return ResourceManager.GetString("SortDirectionInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to TERMS_NOT_ACCEPTED.
         /// </summary>
         public static string TermsNotAccepted {
@@ -448,11 +484,29 @@ namespace CgmLink.Resources {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to TREATMENT_REQUIRED_WHEN_ALL_NULL.
+        /// </summary>
+        public static string TreatmentRequiredWhenAllNull {
+            get {
+                return ResourceManager.GetString("TreatmentRequiredWhenAllNull", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to UNITS_GREATER_THAN_ZERO.
         /// </summary>
         public static string UnitsGreaterThanZero {
             get {
                 return ResourceManager.GetString("UnitsGreaterThanZero", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to UOM_INVALID_FOR_NUTRITION_PRODUCT.
+        /// </summary>
+        public static string UomInvalidForNutritionProduct {
+            get {
+                return ResourceManager.GetString("UomInvalidForNutritionProduct", resourceCulture);
             }
         }
     }

@@ -1,50 +1,92 @@
-﻿using FluentValidation;
+using CgmLink.Api.Services;
+using CgmLink.Resources;
+using FluentValidation;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace CgmLink.Api.Endpoints.Treatments.NewTreatment;
 
-public record NewTreatmentRequest
+public sealed record NewTreatmentRequest
 {
-    public DateTimeOffset? Created { get; set; }
-    public ICollection<NewTreatmentMeal> Meals { get; set; } = [];
-    public ICollection<NewTreatmentIngredient> Ingredients { get; set; } = [];
-    public NewInjection? Injection { get; set; }
-    public Guid? ReadingId { get; set; }
+    public DateTimeOffset? Created { get; init; }
+    public NewInjectionRequest? Injection { get; init; }
+    public Guid? ReadingId { get; init; }
+    public ICollection<NewTreatmentMealRequest> Meals { get; init; } = [];
+    public ICollection<NewTreatmentIngredientRequest> Ingredients { get; init; } = [];
 
-    public class NewTreatmentRequestValidator : AbstractValidator<NewTreatmentRequest>
+    public sealed record NewInjectionRequest
+    {
+        public required Guid InsulinId { get; init; }
+        public required decimal Units { get; init; }
+    }
+
+    public sealed record NewTreatmentMealRequest : ITreatmentMealRequest
+    {
+        public required Guid MealId { get; init; }
+        public required decimal Quantity { get; init; }
+    }
+
+    public sealed record NewTreatmentIngredientRequest : IMealIngredientRequest
+    {
+        public required Guid IngredientId { get; init; }
+        public required Guid ServingId { get; init; }
+        public required decimal Quantity { get; init; }
+    }
+
+    public sealed class NewTreatmentRequestValidator : AbstractValidator<NewTreatmentRequest>
     {
         public NewTreatmentRequestValidator()
         {
-            RuleFor(request => request)
-                .Must(request => request.Meals.Count > 0 || request.Ingredients.Count > 0 || request.Injection != null)
-                .WithMessage(Resources.ValidationMessages.MealInjectionIdInjectionIdMustBeProvided);
-            RuleFor(x => x.Injection.InsulinId)
+            RuleFor(x => x)
+                .Must(x => x.Meals.Count > 0 || x.Ingredients.Count > 0 || x.Injection is not null)
+                .WithMessage(ValidationMessages.MealInjectionIdInjectionIdMustBeProvided);
+
+            RuleFor(x => x.Injection!.InsulinId)
                 .NotEmpty()
-                .When(request => request.Injection is not null)
-                .WithMessage(Resources.ValidationMessages.InsulinIdInvalid);
-            RuleFor(x => x.Injection.Units)
+                .WithMessage(ValidationMessages.InsulinIdInvalid)
+                .When(x => x.Injection is not null);
+
+            RuleFor(x => x.Injection!.Units)
                 .GreaterThan(0)
-                .When(request => request.Injection is not null)
-                .WithMessage(Resources.ValidationMessages.UnitsGreaterThanZero);
+                .WithMessage(ValidationMessages.UnitsGreaterThanZero)
+                .When(x => x.Injection is not null);
+
+            RuleForEach(x => x.Meals).ChildRules(meal =>
+            {
+                meal.RuleFor(m => m.MealId)
+                    .NotEmpty()
+                    .WithMessage(ValidationMessages.MealIdInvalid);
+                meal.RuleFor(m => m.Quantity)
+                    .GreaterThan(0)
+                    .WithMessage(ValidationMessages.QuantityGreaterThanZero);
+            });
+
+            RuleFor(x => x.Meals)
+                .Must(meals => meals.Select(m => m.MealId).Distinct().Count() == meals.Count)
+                .WithMessage(ValidationMessages.DuplicateMealId);
+
+            RuleForEach(x => x.Ingredients).ChildRules(ingredient =>
+            {
+                ingredient.RuleFor(i => i.IngredientId)
+                    .NotEmpty()
+                    .WithMessage(ValidationMessages.IngredientIdInvalid);
+                ingredient.RuleFor(i => i.ServingId)
+                    .NotEmpty()
+                    .WithMessage(ValidationMessages.IngredientIdInvalid);
+                ingredient.RuleFor(i => i.Quantity)
+                    .GreaterThan(0)
+                    .WithMessage(ValidationMessages.QuantityGreaterThanZero);
+            });
+
+            RuleFor(x => x.Ingredients)
+                .Must(ingredients => ingredients.Select(i => i.IngredientId).Distinct().Count() == ingredients.Count)
+                .WithMessage(ValidationMessages.DuplicateIngredientId);
+
+            RuleFor(x => x.ReadingId)
+                .NotEmpty()
+                .WithMessage(ValidationMessages.ReadingIdRequiredWhenAllNull)
+                .When(x => x.ReadingId is not null);
         }
     }
-}
-
-public record NewInjection
-{
-    public Guid InsulinId { get; set; }
-    public double Units { get; set; }
-}
-
-public record NewTreatmentMeal
-{
-    public Guid Id { get; set; }
-    public decimal Quantity { get; set; }
-}
-
-public record NewTreatmentIngredient
-{
-    public Guid Id { get; set; }
-    public decimal Quantity { get; set; }
 }
