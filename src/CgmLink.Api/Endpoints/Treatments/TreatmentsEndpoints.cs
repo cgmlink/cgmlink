@@ -33,6 +33,11 @@ public static class TreatmentsEndpoints
             .WithName("UpdateTreatment")
             .RequireAuthorization();
 
+        group.MapDelete("/{id:guid}", DeleteTreatment.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("DeleteTreatment")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }
