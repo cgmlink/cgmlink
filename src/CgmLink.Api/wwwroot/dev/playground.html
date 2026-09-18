@@ -173,6 +173,7 @@
       <div id="tab-meals" hidden>
         <div class="toolbar">
           <button id="refreshMealsBtn" class="secondary">Refresh list</button>
+          <button id="newMealBtn" class="secondary">New meal</button>
           <span id="mealCount" class="muted" style="align-self:center;"></span>
         </div>
         <div id="mealsTableBox">
@@ -186,7 +187,7 @@
           <button id="getMealBtn" style="flex:0 0 auto;">Get meal</button>
         </div>
 
-        <div class="card">
+        <div id="mealForm" class="card" hidden>
           <h3>New meal</h3>
           <div class="form-grid">
             <div class="full"><label>Name *</label><input id="mealName" type="text" placeholder="e.g. Breakfast" /></div>
@@ -200,14 +201,30 @@
             <span id="mealIngHint" class="muted small" style="align-self:center;"></span>
           </div>
           <div class="actions" style="margin-top:12px;">
-            <button id="mealResetBtn" class="secondary">Reset</button>
+            <button id="mealCancelBtn" class="secondary">Cancel</button>
             <button id="mealCreateBtn">Create meal</button>
           </div>
         </div>
       </div>
 
       <div id="tab-treatments" hidden>
-        <div class="card">
+        <div class="toolbar">
+          <button id="refreshTreatmentsBtn" class="secondary">Refresh list</button>
+          <button id="newTreatmentBtn" class="secondary">New treatment</button>
+          <span id="treatmentCount" class="muted" style="align-self:center;"></span>
+        </div>
+        <div id="treatmentsTableBox">
+          <div class="empty">Click "Refresh list" to load the treatments for the signed-in user.</div>
+        </div>
+
+        <div id="treatmentDetail"></div>
+
+        <div class="row">
+          <input id="treatmentId" type="text" placeholder="Or look up a treatment by its id..." style="font-family:'Consolas',monospace;" />
+          <button id="getTreatmentBtn" style="flex:0 0 auto;">Get treatment</button>
+        </div>
+
+        <div id="trForm" class="card" hidden>
           <h3>New treatment</h3>
           <p class="muted" style="margin:0 0 12px;">A treatment links a reading to an insulin injection and/or food (meals and ingredients).</p>
           <div class="form-grid">
@@ -238,45 +255,8 @@
           </div>
 
           <div class="actions" style="margin-top:12px;">
-            <button id="trResetBtn" class="secondary">Reset</button>
+            <button id="trCancelBtn" class="secondary">Cancel</button>
             <button id="trCreateBtn">Create treatment</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h3>Update treatment</h3>
-          <label>Treatment ID *</label>
-          <input id="trUpdateId" type="text" placeholder="Guid of the treatment to update" />
-          <div class="muted small" style="margin-top:4px;">Only the items you fill in are sent. Meals/ingredients replace the whole set when rows are present; injection and readingId are set when included.</div>
-
-          <div class="card" style="margin-top:12px;">
-            <div class="header-line"><h3 style="font-size:13px;">Injection</h3><label class="muted small" style="margin:0;white-space:nowrap;"><input id="trUpdIncludeInjection" type="checkbox" /> Include injection</label></div>
-            <div class="form-grid">
-              <div><label>Insulin</label><select id="trUpdInsulin"><option value="">Select insulin…</option></select></div>
-              <div><label>Units</label><input id="trUpdUnits" type="number" step="any" min="0" /></div>
-            </div>
-          </div>
-
-          <label style="margin-top:12px;">Reading ID (optional - sent when filled in)</label>
-          <input id="trUpdReadingId" type="text" placeholder="leave blank to skip" />
-
-          <label>Meals (optional - replaces the meal set when rows are present)</label>
-          <div id="trUpdMealRows"></div>
-          <div class="row">
-            <button id="addTrUpdMealBtn" class="secondary small">+ Add meal</button>
-            <span id="trUpdMealHint" class="muted small" style="align-self:center;"></span>
-          </div>
-
-          <label>Ingredients (optional - replaces the ingredient set when rows are present)</label>
-          <div id="trUpdIngredientRows"></div>
-          <div class="row">
-            <button id="addTrUpdIngredientBtn" class="secondary small">+ Add ingredient</button>
-            <span id="trUpdIngHint" class="muted small" style="align-self:center;"></span>
-          </div>
-
-          <div class="actions" style="margin-top:12px;">
-            <button id="trUpdResetBtn" class="secondary">Reset</button>
-            <button id="trUpdBtn">Update treatment</button>
           </div>
         </div>
       </div>
@@ -349,12 +329,11 @@
     $("getMealBtn").disabled = !on;
     $("addMealIngredientBtn").disabled = !on;
     $("mealCreateBtn").disabled = !on;
+    $("refreshTreatmentsBtn").disabled = !on;
+    $("getTreatmentBtn").disabled = !on;
     $("addTrMealBtn").disabled = !on;
     $("addTrIngredientBtn").disabled = !on;
     $("trCreateBtn").disabled = !on;
-    $("addTrUpdMealBtn").disabled = !on;
-    $("addTrUpdIngredientBtn").disabled = !on;
-    $("trUpdBtn").disabled = !on;
   }
 
   function showResponse(res, ms) {
@@ -497,6 +476,7 @@
       authMessage("Signed in as " + (out.data.email || email.value), "ok");
       refreshIngredients();
       refreshMeals();
+      refreshTreatments();
     } else if (out.ok && out.data && !out.data.token) {
       setToken(null);
       authMessage("Login returned HTTP 200 but no token. Response:\n" + out.text, "err");
@@ -520,6 +500,7 @@
         authMessage("Registered and signed in as " + email.value, "ok");
         refreshIngredients();
         refreshMeals();
+        refreshTreatments();
       } else {
         authMessage("Registered. Now log in with the same email and password.", "ok");
       }
@@ -993,6 +974,18 @@
     mealIngHint.textContent = "";
   }
 
+  function showMealForm() {
+    resetMealForm();
+    $("mealForm").hidden = false;
+    $("mealForm").scrollIntoView({ block: "nearest" });
+    $("mealName").focus();
+  }
+
+  function closeMealForm() {
+    resetMealForm();
+    $("mealForm").hidden = true;
+  }
+
   async function createMeal() {
     const name = $("mealName").value.trim();
     if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
@@ -1009,7 +1002,7 @@
     if (!out || !out.ok) return;
     $("mealId").value = out.data.id || "";
     showMealCard(out.data, await getMealIngredients(out.data.id));
-    resetMealForm();
+    closeMealForm();
     refreshMeals(true);
   }
 
@@ -1088,6 +1081,8 @@
   let mealOptions = null;
   let insulinOptions = null;
   let treatmentsLoaded = false;
+  let treatmentsCache = [];
+  let trState = { page: 0, pageSize: 25, sortBy: "Created", sortDir: "Desc", totalPages: 1 };
 
   async function loadMealOptions(force) {
     if (mealOptions && !force) return mealOptions;
@@ -1102,7 +1097,7 @@
     if (insulinOptions && !force) return insulinOptions;
     insulinOptions = [];
     const out = await run("list insulins", () =>
-      requestJson("api/v1/insulins?page=0&pageSize=25", "GET"));
+      requestJson("api/v1/insulins?page=0&pageSize=25&sortDirection=Desc", "GET"));
     if (out && out.ok && out.data) insulinOptions = out.data.insulins || [];
     return insulinOptions;
   }
@@ -1114,7 +1109,6 @@
     const opts = '<option value="">Select insulin…</option>' + insulinOptions.map((o) =>
       '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
     $("trInsulin").innerHTML = opts;
-    $("trUpdInsulin").innerHTML = opts;
     await loadMealOptions();
   }
 
@@ -1196,6 +1190,18 @@
     $("trIngHint").textContent = "";
   }
 
+  function showTreatmentForm() {
+    resetTreatmentForm();
+    $("trForm").hidden = false;
+    $("trForm").scrollIntoView({ block: "nearest" });
+    $("trReadingId").focus();
+  }
+
+  function closeTreatmentForm() {
+    resetTreatmentForm();
+    $("trForm").hidden = true;
+  }
+
   async function createTreatment() {
     const payload = {};
     const createdVal = $("trCreated").value;
@@ -1222,38 +1228,215 @@
 
     const out = await run("create treatment", () => requestJson("api/v1/treatments", "POST", payload));
     if (!out || !out.ok) return;
-    $("trUpdateId").value = out.data.id || "";
-    resetTreatmentForm();
+    closeTreatmentForm();
+    refreshTreatments(true);
+    if (out.data.id) showTreatmentCard(out.data);
   }
 
-  function resetUpdateTreatmentForm() {
-    $("trUpdIncludeInjection").checked = false;
-    $("trUpdInsulin").selectedIndex = 0;
-    $("trUpdUnits").value = "";
-    $("trUpdReadingId").value = "";
-    $("trUpdMealRows").innerHTML = "";
-    $("trUpdIngredientRows").innerHTML = "";
-    $("trUpdMealHint").textContent = "";
-    $("trUpdIngHint").textContent = "";
+  async function refreshTreatments(resetPage) {
+    if (!token) return;
+    if (resetPage) trState.page = 0;
+    const out = await run("list treatments", () =>
+      requestJson("api/v1/treatments?" + queryFor(trState), "GET"));
+    if (!out || !out.ok || !out.data) return;
+    treatmentsCache = (out.data.treatments || []);
+    trState.totalPages = Math.max(1, Number(out.data.numberOfPages) || 1);
+    if (trState.page > trState.totalPages - 1) trState.page = trState.totalPages - 1;
+    renderTreatmentsTable();
+    $("treatmentCount").textContent = treatmentsCache.length + " shown";
   }
 
-  async function updateTreatment() {
-    const id = $("trUpdateId").value.trim();
-    if (!id) { showResponse({ status: "form", text: "Enter a treatment id." }); return; }
+  function renderTreatmentsTable() {
+    const box = $("treatmentsTableBox");
+    if (!treatmentsCache.length) {
+      box.innerHTML = '<div class="empty">No treatments found for this user yet. Create one below, or look up by ID.</div>' + pagerHtml(trState);
+      wirePager(box, trState, refreshTreatments);
+      return;
+    }
+    const rows = treatmentsCache.map((t) =>
+      "<tr id='treatment-" + t.id + "'>" +
+        "<td class='muted'>" + fmtDate(t.created) + "</td>" +
+        "<td class='muted'>" + fmtDate(t.updated) + "</td>" +
+        "<td>" + t.calories + " kcal</td>" +
+        "<td>" + t.carbs + " g</td>" +
+        "<td>" + t.protein + " g</td>" +
+        "<td>" + t.fat + " g</td>" +
+        "<td>" + (t.glucoseLevel != null ? t.glucoseLevel + " mmol/L" : "-") + "</td>" +
+        "<td>" + (t.injectionUnits != null ? t.injectionUnits + " u" : "-") + "</td>" +
+        "<td>" + (esc(t.insulinName) || "-") + "</td>" +
+        "<td style='text-align:right;'>" +
+          "<button class='small secondary' data-view-treatment='" + t.id + "'>View</button> " +
+          "<button class='small secondary' data-edit-treatment='" + t.id + "'>Edit</button>" +
+        "</td>" +
+      "</tr>").join("");
+    box.innerHTML =
+      "<table><thead><tr>" +
+        sortLabel(trState, "Created", "Created") +
+        sortLabel(trState, "Updated", "Updated") +
+        sortLabel(trState, "Calories", "Calories") +
+        sortLabel(trState, "Carbs", "Carbs") +
+        sortLabel(trState, "Protein", "Protein") +
+        sortLabel(trState, "Fat", "Fat") +
+        "<th>Glucose</th>" +
+        "<th>Units</th>" +
+        "<th>Insulin</th>" +
+        "<th style='text-align:right;'>Actions</th>" +
+      "</tr></thead>" +
+      "<tbody>" + rows + "</tbody></table>" + pagerHtml(trState);
+    wireSort(box, trState, refreshTreatments);
+    wirePager(box, trState, refreshTreatments);
+    box.querySelectorAll("[data-view-treatment]").forEach((b) =>
+      b.addEventListener("click", () => viewTreatmentFromList(b.dataset.viewTreatment)));
+    box.querySelectorAll("[data-edit-treatment]").forEach((b) =>
+      b.addEventListener("click", () => editTreatment(b.dataset.editTreatment)));
+  }
+
+  function clearTreatmentExpansions() {
+    document.querySelectorAll("#treatmentsTableBox tr.expansion").forEach((tr) => tr.remove());
+  }
+
+  function expandTreatmentUnder(id) {
+    clearTreatmentExpansions();
+    const row = document.getElementById("treatment-" + id);
+    if (!row) return null;
+    const tr = document.createElement("tr");
+    tr.className = "expansion";
+    const td = document.createElement("td");
+    td.colSpan = 10;
+    tr.appendChild(td);
+    row.after(tr);
+    return td;
+  }
+
+  async function viewTreatmentFromList(id) {
+    const out = await run("get treatment", () => requestJson("api/v1/treatments/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const cell = expandTreatmentUnder(id);
+    if (!cell) return;
+    cell.innerHTML = treatmentCardHtml(out.data);
+    cell.querySelector("[data-close-treatment]").addEventListener("click", clearTreatmentExpansions);
+    if (out.data.id) $("treatmentId").value = out.data.id;
+  }
+
+  async function editTreatment(id) {
+    const out = await run("get treatment", () => requestJson("api/v1/treatments/" + id, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const d = out.data;
+    const cell = expandTreatmentUnder(id);
+    if (!cell) return;
+    cell.innerHTML =
+      '<div class="card">' +
+        '<div class="header-line"><h3>Edit treatment</h3>' +
+          '<div class="actions">' +
+            '<button class="small secondary" data-edit-cancel>Cancel</button> ' +
+            '<button class="small" data-edit-save>Save</button>' +
+          '</div></div>' +
+        '<div class="form-grid">' +
+          '<div class="full"><label>Reading ID (optional)</label><input data-edit-reading type="text" placeholder="leave blank to skip" /></div>' +
+        '</div>' +
+        '<div class="card" style="margin-top:12px;">' +
+          '<div class="header-line"><h3 style="font-size:13px;">Injection</h3>' +
+            '<label class="muted small" style="margin:0;white-space:nowrap;"><input data-edit-include-inj type="checkbox" /> Include injection</label></div>' +
+          '<div class="form-grid">' +
+            '<div><label>Insulin</label><select data-edit-insulin><option value="">Select insulin…</option></select></div>' +
+            '<div><label>Units</label><input data-edit-units type="number" step="any" min="0" /></div>' +
+          '</div>' +
+        '</div>' +
+        '<label style="margin-top:12px;">Meals (optional - replaces the meal set when rows are present)</label>' +
+        '<div data-edit-meal-rows></div>' +
+        '<div class="row">' +
+          '<button class="secondary small" data-edit-add-meal>+ Add meal</button>' +
+          '<span data-edit-meal-hint class="muted small" style="align-self:center;"></span>' +
+        '</div>' +
+        '<label>Ingredients (optional - replaces the ingredient set when rows are present)</label>' +
+        '<div data-edit-ing-rows></div>' +
+        '<div class="row">' +
+          '<button class="secondary small" data-edit-add-ing>+ Add ingredient</button>' +
+          '<span data-edit-ing-hint class="muted small" style="align-self:center;"></span>' +
+        '</div>' +
+      '</div>';
+    cell.querySelector("[data-edit-cancel]").addEventListener("click", clearTreatmentExpansions);
+    cell.querySelector("[data-edit-save]").addEventListener("click", () => saveEditTreatment(id, cell));
+    cell.querySelector("[data-edit-add-meal]").addEventListener("click", () =>
+      addTreatmentMealRow(undefined, undefined, cell.querySelector("[data-edit-meal-rows]"), cell.querySelector("[data-edit-meal-hint]")));
+    cell.querySelector("[data-edit-add-ing]").addEventListener("click", () =>
+      addMealIngredientRow(undefined, undefined, undefined, cell.querySelector("[data-edit-ing-rows]"), cell.querySelector("[data-edit-ing-hint]")));
+
+    cell.querySelector("[data-edit-reading]").value = (d.reading && d.reading.id) ? d.reading.id : "";
+
+    await loadTreatmentPickers();
+    const insulinSel = cell.querySelector("[data-edit-insulin]");
+    insulinSel.innerHTML = '<option value="">Select insulin…</option>' + insulinOptions.map((o) =>
+      '<option value="' + o.id + '">' + esc(o.name) + '</option>').join("");
+    if (d.insulinName && d.insulinUnits != null) {
+      cell.querySelector("[data-edit-include-inj]").checked = true;
+      const match = insulinOptions.find((o) => o.name === d.insulinName);
+      if (match) insulinSel.value = match.id;
+      cell.querySelector("[data-edit-units]").value = d.insulinUnits;
+    }
+
+    const mealRowsEl = cell.querySelector("[data-edit-meal-rows]");
+    const mealHint = cell.querySelector("[data-edit-meal-hint]");
+    if (d.meals && d.meals.length) {
+      for (const m of d.meals) {
+        if (!mealOptions.some((o) => o.id === m.mealId)) {
+          mealHint.textContent = (mealHint.textContent ? mealHint.textContent + " " : "") + "Some meals are outside the picker list and were skipped - add them manually.";
+          continue;
+        }
+        await addTreatmentMealRow(m.mealId, m.quantity, mealRowsEl);
+      }
+    } else {
+      mealHint.textContent = "No meals on this treatment - add some below.";
+    }
+
+    const ingRowsEl = cell.querySelector("[data-edit-ing-rows]");
+    const ingHint = cell.querySelector("[data-edit-ing-hint]");
+    const ingredients = d.ingredients || [];
+    if (ingredients.length) {
+      const options = await loadMealIngredients(true);
+      for (const i of ingredients) {
+        if (!options.some((o) => o.id === i.ingredientId)) {
+          ingHint.textContent = (ingHint.textContent ? ingHint.textContent + " " : "") + "Some ingredients are outside the picker list and were skipped - add them manually.";
+          continue;
+        }
+        const servingId = (i.serving && i.serving.id) || i.servingId || "";
+        await addMealIngredientRow(i.ingredientId, servingId, i.quantity, ingRowsEl);
+      }
+    } else {
+      ingHint.textContent = "No ingredients on this treatment - add some below.";
+    }
+  }
+
+  async function saveEditTreatment(id, cell) {
     const payload = {};
 
-    const injection = collectInjection("trUpd", "trUpdIncludeInjection");
-    if (injection === false) return;
-    if (injection) payload.injection = injection;
-
-    const readingId = $("trUpdReadingId").value.trim();
+    const readingId = cell.querySelector("[data-edit-reading]").value.trim();
     if (readingId) payload.readingId = readingId;
 
-    const meals = collectMealRows($("trUpdMealRows"));
+    if (cell.querySelector("[data-edit-include-inj]").checked) {
+      const insulinId = cell.querySelector("[data-edit-insulin]").value;
+      const unitsVal = cell.querySelector("[data-edit-units]").value;
+      if (!insulinId && unitsVal === "") {
+        showResponse({ status: "form", text: "Injection is included but no insulin and units were chosen." });
+        return;
+      }
+      if (!insulinId || unitsVal === "") {
+        showResponse({ status: "form", text: "Injection needs both an insulin and units." });
+        return;
+      }
+      const units = Number(unitsVal);
+      if (!Number.isFinite(units) || units <= 0) {
+        showResponse({ status: "form", text: "Injection units must be greater than zero." });
+        return;
+      }
+      payload.injection = { insulinId, units };
+    }
+
+    const meals = collectMealRows(cell.querySelector("[data-edit-meal-rows]"));
     if (meals === null) return;
     if (meals.length) payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
 
-    const ingredients = collectMealIngredients($("trUpdIngredientRows"));
+    const ingredients = collectMealIngredients(cell.querySelector("[data-edit-ing-rows]"));
     if (ingredients === null) return;
     if (ingredients.length) payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
 
@@ -1263,7 +1446,72 @@
     }
 
     const out = await run("update treatment", () => requestJson("api/v1/treatments/" + id, "PATCH", payload));
-    if (out && out.ok) resetUpdateTreatmentForm();
+    if (!out || !out.ok) return;
+    clearTreatmentExpansions();
+    $("treatmentId").value = id;
+    if (out.data && out.data.id) showTreatmentCard(out.data);
+    refreshTreatments(true);
+  }
+
+  function treatmentCardHtml(d) {
+    let h = '<div class="card"><div class="header-line"><h3>Treatment</h3><div class="actions">' +
+      '<button class="small secondary" data-close-treatment>Close</button></div></div>' +
+      '<div class="meta-line">Id: ' + esc(d.id || "-") + " &middot; Created " + fmtDate(d.created) +
+      (d.updated ? " &middot; Updated " + fmtDate(d.updated) : "") + '</div>' +
+      '<table><thead><tr><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>' +
+      "<tr><td>" + d.calories + " kcal</td><td>" + d.carbs + " g</td><td>" + d.protein + " g</td><td>" + d.fat + " g</td></tr>" +
+      "</tbody></table>";
+    if (d.reading) {
+      h += '<div class="muted" style="margin:12px 0 6px;">Reading</div>' +
+        "<table><thead><tr><th>Glucose</th><th>Direction</th><th>Created</th></tr></thead><tbody>" +
+        "<tr><td>" + d.reading.glucoseLevel + " mmol/L</td><td>" + d.reading.direction + "</td><td>" + fmtDate(d.reading.created) + "</td></tr>" +
+        "</tbody></table>";
+    }
+    if (d.insulinName || d.insulinUnits) {
+      h += '<div class="muted" style="margin:12px 0 6px;">Injection</div>' +
+        "<table><thead><tr><th>Insulin</th><th>Units</th></tr></thead><tbody>" +
+        "<tr><td>" + esc(d.insulinName || "-") + "</td><td>" + (d.insulinUnits ?? "-") + " u</td></tr>" +
+        "</tbody></table>";
+    }
+    h += '<div class="muted" style="margin:12px 0 6px;">Meals</div>';
+    if (d.meals && d.meals.length) {
+      h += "<table><thead><tr><th>Name</th><th>Qty</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      d.meals.forEach((m) => {
+        h += "<tr><td>" + esc(m.name) + "</td><td>" + m.quantity + "</td>" +
+          "<td>" + m.calories + " kcal</td><td>" + m.carbs + " g</td><td>" + m.protein + " g</td><td>" + m.fat + " g</td></tr>";
+      });
+      h += "</tbody></table>";
+    } else {
+      h += '<div class="muted">No meals.</div>';
+    }
+    h += '<div class="muted" style="margin:12px 0 6px;">Ingredients</div>';
+    if (d.ingredients && d.ingredients.length) {
+      h += "<table><thead><tr><th>Name</th><th>Serving</th><th>Qty</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      d.ingredients.forEach((i) => {
+        const serving = i.serving ? esc(i.serving.description || "-") : "-";
+        h += "<tr><td>" + esc(i.ingredientName) + "</td><td>" + serving + "</td><td>" + i.quantity + "</td>" +
+          "<td>" + i.calories + " kcal</td><td>" + i.carbs + " g</td><td>" + i.protein + " g</td><td>" + i.fat + " g</td></tr>";
+      });
+      h += "</tbody></table>";
+    } else {
+      h += '<div class="muted">No ingredients.</div>';
+    }
+    h += "</div>";
+    return h;
+  }
+
+  function showTreatmentCard(d) {
+    const box = $("treatmentDetail");
+    box.innerHTML = treatmentCardHtml(d);
+    box.querySelector("[data-close-treatment]").addEventListener("click", () => { box.innerHTML = ""; });
+  }
+
+  async function getTreatment() {
+    const id = $("treatmentId").value.trim();
+    if (!id) { showResponse({ status: "form", text: "Enter a treatment id." }); return; }
+    const out = await run("get treatment", () => requestJson("api/v1/treatments/" + id, "GET"));
+    if (out && out.ok && out.data) showTreatmentCard(out.data);
+    else $("treatmentDetail").innerHTML = "";
   }
 
   /* ---------- raw ---------- */
@@ -1299,17 +1547,18 @@
   $("getMealBtn").addEventListener("click", getMeal);
   $("mealId").addEventListener("keydown", (e) => { if (e.key === "Enter") getMeal(); });
   $("refreshMealsBtn").addEventListener("click", () => refreshMeals(false));
+  $("newMealBtn").addEventListener("click", showMealForm);
   $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
-  $("mealResetBtn").addEventListener("click", resetMealForm);
+  $("mealCancelBtn").addEventListener("click", closeMealForm);
   $("mealCreateBtn").addEventListener("click", createMeal);
+  $("refreshTreatmentsBtn").addEventListener("click", () => refreshTreatments(false));
+  $("newTreatmentBtn").addEventListener("click", showTreatmentForm);
+  $("getTreatmentBtn").addEventListener("click", getTreatment);
+  $("treatmentId").addEventListener("keydown", (e) => { if (e.key === "Enter") getTreatment(); });
   $("addTrMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trMealRows"), $("trMealHint")));
   $("addTrIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trIngredientRows"), $("trIngHint")));
-  $("trResetBtn").addEventListener("click", resetTreatmentForm);
+  $("trCancelBtn").addEventListener("click", closeTreatmentForm);
   $("trCreateBtn").addEventListener("click", createTreatment);
-  $("addTrUpdMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trUpdMealRows"), $("trUpdMealHint")));
-  $("addTrUpdIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trUpdIngredientRows"), $("trUpdIngHint")));
-  $("trUpdResetBtn").addEventListener("click", resetUpdateTreatmentForm);
-  $("trUpdBtn").addEventListener("click", updateTreatment);
   $("sendBtn").addEventListener("click", rawSend);
   $("path").addEventListener("keydown", (e) => { if (e.key === "Enter") rawSend(); });
 
@@ -1318,7 +1567,7 @@
     baseUrl.addEventListener("change", () => { try { localStorage.setItem(BASE_KEY, baseUrl.value.trim()); } catch (_) {} });
     try {
       const saved = localStorage.getItem(TOKEN_KEY);
-      if (saved) { setToken(saved); refreshIngredients(); refreshMeals(); }
+      if (saved) { setToken(saved); refreshIngredients(); refreshMeals(); refreshTreatments(); }
     } catch (_) { }
     renderAuth();
   })();

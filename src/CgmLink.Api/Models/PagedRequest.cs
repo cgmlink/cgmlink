@@ -14,7 +14,7 @@ public record PagedRequest
 
     public string? SortBy { get; set; }
 
-    public SortDirection SortDirection { get; set; } = SortDirection.Desc;
+    public SortDirection? SortDirection { get; set; }
 
     public class PagedRequestValidator<T> : AbstractValidator<T> where T : PagedRequest
     {
@@ -22,7 +22,10 @@ public record PagedRequest
         {
             RuleFor(x => x.Page).GreaterThanOrEqualTo(0);
             RuleFor(x => x.PageSize).InclusiveBetween(1, apiSettings.Value.MaxPageSize);
-            RuleFor(x => x.SortDirection).IsInEnum().WithMessage(Resources.ValidationMessages.SortDirectionInvalid);
+            RuleFor(x => x.SortDirection)
+                .IsInEnum()
+                .WithMessage(Resources.ValidationMessages.SortDirectionInvalid)
+                .When(x => x.SortDirection is not null);
         }
     }
 }

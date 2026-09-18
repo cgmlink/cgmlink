@@ -181,7 +181,7 @@ public class ListIngredientsTests
             .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(ingredients.Count);
 
-        var request = new ListIngredientsRequest { Page = 1, PageSize = 1 };
+        var request = new ListIngredientsRequest { Page = 1, PageSize = 1, SortDirection = SortDirection.Desc };
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
