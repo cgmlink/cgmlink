@@ -34,7 +34,7 @@ internal static class IdentityEndpoints
         group.MapPost("/revoke-token", RevokeToken.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .RequireAuthorization();
-        group.MapPost("/me", Me.Endpoint.HandleAsync)
+        group.MapGet("/me", Me.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .RequireAuthorization();
 
