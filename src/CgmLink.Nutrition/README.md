@@ -32,7 +32,9 @@ The fatsecret API is called with OAuth 1.0 HMAC-SHA1 (2-legged, consumer key + s
 
 ## Configuration
 
-Options live in `appsettings.json` / user secrets:
+Options live in `appsettings.json` / user secrets. Nutrition services are only registered when
+`Nutrition:CacheConnectionString` is set; the fatsecret options are registered only when its credentials
+are provided:
 
 ```json
 {

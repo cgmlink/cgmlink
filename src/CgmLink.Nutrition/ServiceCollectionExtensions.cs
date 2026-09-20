@@ -3,6 +3,7 @@ using CgmLink.Nutrition.Endpoints;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System;
@@ -13,27 +14,27 @@ namespace CgmLink.Nutrition;
 [ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions
 {
-    /// <summary>
-    /// Adds nutrition services to the service collection.
-    /// </summary>
-    /// <param name="services">Service collection to add nutrition services to.</param>
-    /// <param name="configureNutrition">Configures the <see cref="NutritionOptions"/>.</param>
-    /// <param name="configureFatSecret">Configures the <see cref="FatSecretOptions"/> when fatsecret is used as the nutrition source.</param>
-    /// <returns>Service collection containing nutrition services.</returns>
-    public static IServiceCollection AddNutrition(
-        this IServiceCollection services,
-        Action<NutritionOptions> configureNutrition,
-        Action<FatSecretOptions>? configureFatSecret = null)
+    public static IServiceCollection AddNutrition(this IServiceCollection services, IConfiguration configuration)
     {
+        var nutritionSection = configuration.GetSection("Nutrition");
+        if (string.IsNullOrWhiteSpace(nutritionSection.Get<NutritionOptions>()?.CacheConnectionString))
+        {
+            return services;
+        }
+
         services.AddOptions<NutritionOptions>()
-            .Configure(configureNutrition)
+            .Configure(nutritionSection.Bind)
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        if (configureFatSecret is not null)
+        var fatSecretSection = configuration.GetSection("FatSecret");
+        var fatSecretOptions = fatSecretSection.Get<FatSecretOptions>();
+        if (fatSecretOptions is not null
+            && !string.IsNullOrWhiteSpace(fatSecretOptions.ConsumerKey)
+            && !string.IsNullOrWhiteSpace(fatSecretOptions.ConsumerSecret))
         {
             services.AddOptions<FatSecretOptions>()
-                .Configure(configureFatSecret)
+                .Configure(fatSecretSection.Bind)
                 .ValidateDataAnnotations()
                 .ValidateOnStart();
         }
@@ -51,11 +52,6 @@ public static class ServiceCollectionExtensions
         return services;
     }
 
-    /// <summary>
-    /// Maps nutrition endpoints to the application.
-    /// </summary>
-    /// <param name="endpoints">Endpoint route builder to map nutrition endpoints.</param>
-    /// <returns>Endpoint route builder with nutrition endpoints mapped.</returns>
     public static IEndpointRouteBuilder MapNutritionEndpoints(this IEndpointRouteBuilder endpoints)
     {
         return endpoints.MapNutritionEndpointsInternal();

@@ -90,7 +90,7 @@ builder.Services.AddLibreLinkClientFactory();
 
 builder.Services.AddMail(builder.Configuration.GetSection("Mail").Bind);
 
-builder.Services.AddNutrition(builder.Configuration.GetSection("Nutrition").Bind, builder.Configuration.GetSection("FatSecret").Bind);
+builder.Services.AddNutrition(builder.Configuration);
 
 builder.Services.Configure<DataServiceOptions>(builder.Configuration.GetSection("DataService"));
 builder.Services.AddHostedService<DataService>();
