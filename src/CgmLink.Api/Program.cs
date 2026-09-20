@@ -143,8 +143,11 @@ using (var scope = app.Services.CreateScope())
     var dbInitializer = scope.ServiceProvider.GetRequiredService<CgmLinkDbInitializer>();
     await dbInitializer.InitialiseDbAsync(app.Lifetime.ApplicationStopping);
 
-    var cacheInitializer = scope.ServiceProvider.GetRequiredService<NutritionDbInitializer>();
-    await cacheInitializer.InitialiseCacheAsync(app.Lifetime.ApplicationStopping);
+    var cacheInitializer = scope.ServiceProvider.GetService<NutritionDbInitializer>();
+    if (cacheInitializer is not null)
+    {
+        await cacheInitializer.InitialiseCacheAsync(app.Lifetime.ApplicationStopping);
+    }
 }
 
 await app.RunAsync();

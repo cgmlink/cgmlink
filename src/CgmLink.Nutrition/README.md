@@ -20,8 +20,12 @@ into CGM Link.
 The provider-specific product data is cached in a **separate** database (see `Nutrition:CacheConnectionString`)
 so it never touches the user data database. The cache is provider-agnostic: it stores only the values the
 API needs (`NutritionProduct`), not raw provider JSON, so another nutrition source can replace or join
-fatsecret later. Reads treat expired cache rows as misses and refetch from the source. A background hosted
-service (`NutritionCacheCleanupService`) deletes expired rows on a schedule (SQL Server has no TTL).
+fatsecret later. Reads treat expired cache rows as misses and refetch from the source.
+
+The cache itself is behind the `INutritionCache` abstraction, selected by `Nutrition:CacheProvider`
+(`mssql` today; `redis` and `memory` can be dropped in as separate implementations). The `mssql`
+backend has no TTL, so a background hosted service (`SqlCacheCleanupService`) deletes expired
+rows on a schedule.
 
 ## Nutrition sources
 
@@ -39,6 +43,7 @@ are provided:
 ```json
 {
   "Nutrition": {
+    "CacheProvider": "mssql",
     "CacheConnectionString": "",
     "CacheExpiry": "24:00:00",
     "CacheCleanupInterval": "01:00:00"

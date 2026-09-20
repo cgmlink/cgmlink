@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using CgmLink.Nutrition.Data;
+using CgmLink.Nutrition.Data.Sql;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -29,7 +30,7 @@ internal sealed class ServiceCollectionExtensionsTests
         services.AddNutrition(Configuration(ValidCacheConnectionString));
 
         Assert.That(services.Any(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)
-            && d.ImplementationType == typeof(NutritionCacheCleanupService)), Is.True);
+            && d.ImplementationType == typeof(SqlCacheCleanupService)), Is.True);
     }
 
     [Test]
@@ -50,7 +51,28 @@ internal sealed class ServiceCollectionExtensionsTests
         services.AddNutrition(Configuration(null));
 
         Assert.That(services.Any(d => d.ServiceType == typeof(Microsoft.Extensions.Hosting.IHostedService)
-            && d.ImplementationType == typeof(NutritionCacheCleanupService)), Is.False);
+            && d.ImplementationType == typeof(SqlCacheCleanupService)), Is.False);
+    }
+
+    [Test]
+    public void AddNutrition_RegistersNutritionCache_WhenCacheConfigured()
+    {
+        var services = new ServiceCollection();
+
+        services.AddNutrition(Configuration(ValidCacheConnectionString));
+
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionCache)
+            && d.ImplementationType == typeof(SqlServerNutritionCache)), Is.True);
+    }
+
+    [Test]
+    public void AddNutrition_DoesNotRegisterNutritionCache_WhenCacheNotConfigured()
+    {
+        var services = new ServiceCollection();
+
+        services.AddNutrition(Configuration(null));
+
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionCache)), Is.False);
     }
 
     [Test]

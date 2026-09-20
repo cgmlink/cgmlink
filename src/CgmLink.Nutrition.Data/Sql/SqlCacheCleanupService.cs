@@ -1,4 +1,3 @@
-using CgmLink.Nutrition.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -8,23 +7,20 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CgmLink.Nutrition;
+namespace CgmLink.Nutrition.Data.Sql;
 
-/// <summary>
-/// Periodically deletes expired nutrition cache entries so the cache database stays bounded.
-/// </summary>
-public partial class NutritionCacheCleanupService : IHostedService, IDisposable
+public partial class SqlCacheCleanupService : IHostedService, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly ILogger<NutritionCacheCleanupService> _logger;
+    private readonly ILogger<SqlCacheCleanupService> _logger;
     private readonly NutritionOptions _options;
     private Timer? _timer;
 
     private bool _disposed;
 
-    public NutritionCacheCleanupService(
+    public SqlCacheCleanupService(
         IServiceScopeFactory scopeFactory,
-        ILogger<NutritionCacheCleanupService> logger,
+        ILogger<SqlCacheCleanupService> logger,
         IOptions<NutritionOptions> options)
     {
         _scopeFactory = scopeFactory ?? throw new ArgumentNullException(nameof(scopeFactory));
