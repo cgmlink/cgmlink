@@ -17,7 +17,9 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CgmLink.Nutrition.Data\CgmLink.Nutrition.Data.csproj" />
+      <ProjectReference Include="..\CgmLink.Nutrition.Caching\CgmLink.Nutrition.Caching.csproj" />
+      <ProjectReference Include="..\CgmLink.Nutrition.Caching.Ef\CgmLink.Nutrition.Caching.Ef.csproj" />
+      <ProjectReference Include="..\CgmLink.Nutrition.FatSecretClient\CgmLink.Nutrition.FatSecretClient.csproj" />
     </ItemGroup>
 
 </Project>

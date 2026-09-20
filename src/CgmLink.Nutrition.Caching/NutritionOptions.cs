@@ -1,12 +1,12 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 
-namespace CgmLink.Nutrition.Data;
+namespace CgmLink.Nutrition.Caching;
 
 public sealed class NutritionOptions
 {
     [Required]
-    public NutritionCacheProvider CacheProvider { get; init; } = NutritionCacheProvider.Mssql;
+    public NutritionCacheProvider CacheProvider { get; init; } = NutritionCacheProvider.Ef;
 
     [Required]
     public string CacheConnectionString { get; init; } = "";

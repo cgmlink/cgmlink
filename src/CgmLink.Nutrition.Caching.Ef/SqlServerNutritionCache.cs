@@ -1,12 +1,12 @@
-using CgmLink.Nutrition.Data.Entities;
-using Microsoft.EntityFrameworkCore;
+using CgmLink.Nutrition.Caching.Entities;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
-namespace CgmLink.Nutrition.Data.Sql;
+namespace CgmLink.Nutrition.Caching.Ef;
 
-public sealed class SqlServerNutritionCache : INutritionCache
+internal sealed class SqlServerNutritionCache : INutritionCache
 {
     private readonly NutritionCacheDbContext _db;
 

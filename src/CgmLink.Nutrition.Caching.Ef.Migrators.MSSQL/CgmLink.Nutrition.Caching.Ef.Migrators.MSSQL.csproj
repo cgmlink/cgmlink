@@ -20,7 +20,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CgmLink.Nutrition.Data\CgmLink.Nutrition.Data.csproj" />
+      <ProjectReference Include="..\CgmLink.Nutrition.Caching.Ef\CgmLink.Nutrition.Caching.Ef.csproj" />
     </ItemGroup>
 
 </Project>

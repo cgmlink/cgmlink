@@ -1,12 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.CodeAnalysis;
-using Microsoft.EntityFrameworkCore;
 
-namespace CgmLink.Nutrition.Data.Entities;
+namespace CgmLink.Nutrition.Caching.Entities;
 
 [ExcludeFromCodeCoverage]
-[PrimaryKey(nameof(Source), nameof(ProductId))]
 [Table("nutrition_products")]
 public class NutritionProduct
 {

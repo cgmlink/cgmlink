@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace CgmLink.Nutrition;
+namespace CgmLink.Nutrition.FatSecretClient;
 
 public sealed class FatSecretOptions
 {

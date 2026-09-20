@@ -1,14 +1,14 @@
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
-namespace CgmLink.Nutrition.Data;
+namespace CgmLink.Nutrition.Caching.Ef;
 
 [ExcludeFromCodeCoverage]
-public sealed class NutritionDbInitializer
+internal sealed class NutritionDbInitializer : INutritionDbInitializer
 {
     private readonly NutritionCacheDbContext _db;
 

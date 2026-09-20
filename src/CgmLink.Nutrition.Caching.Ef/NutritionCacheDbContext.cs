@@ -1,8 +1,8 @@
-using CgmLink.Nutrition.Data.Entities;
+using CgmLink.Nutrition.Caching.Entities;
 using System.Diagnostics.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 
-namespace CgmLink.Nutrition.Data;
+namespace CgmLink.Nutrition.Caching.Ef;
 
 [ExcludeFromCodeCoverage]
 public class NutritionCacheDbContext : DbContext
@@ -11,5 +11,13 @@ public class NutritionCacheDbContext : DbContext
 
     public NutritionCacheDbContext(DbContextOptions<NutritionCacheDbContext> options) : base(options)
     {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<NutritionProduct>()
+            .HasKey(p => new { p.Source, p.ProductId });
     }
 }

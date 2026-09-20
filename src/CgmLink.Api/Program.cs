@@ -15,7 +15,7 @@ using CgmLink.Identity;
 using CgmLink.LibreLinkClient;
 using CgmLink.Mail;
 using CgmLink.Nutrition;
-using CgmLink.Nutrition.Data;
+using CgmLink.Nutrition.Caching;
 using CgmLink.Sync.LibreLink;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -143,7 +143,7 @@ using (var scope = app.Services.CreateScope())
     var dbInitializer = scope.ServiceProvider.GetRequiredService<CgmLinkDbInitializer>();
     await dbInitializer.InitialiseDbAsync(app.Lifetime.ApplicationStopping);
 
-    var cacheInitializer = scope.ServiceProvider.GetService<NutritionDbInitializer>();
+    var cacheInitializer = scope.ServiceProvider.GetService<INutritionDbInitializer>();
     if (cacheInitializer is not null)
     {
         await cacheInitializer.InitialiseCacheAsync(app.Lifetime.ApplicationStopping);

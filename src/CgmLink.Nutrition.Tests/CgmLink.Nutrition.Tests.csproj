@@ -25,7 +25,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CgmLink.Nutrition.Data\CgmLink.Nutrition.Data.csproj" />
       <ProjectReference Include="..\CgmLink.Nutrition\CgmLink.Nutrition.csproj" />
     </ItemGroup>
 

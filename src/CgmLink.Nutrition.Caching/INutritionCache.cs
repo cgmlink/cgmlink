@@ -1,8 +1,8 @@
-using CgmLink.Nutrition.Data.Entities;
+using CgmLink.Nutrition.Caching.Entities;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CgmLink.Nutrition.Data;
+namespace CgmLink.Nutrition.Caching;
 
 public interface INutritionCache
 {

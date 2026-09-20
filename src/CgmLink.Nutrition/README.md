@@ -23,7 +23,7 @@ API needs (`NutritionProduct`), not raw provider JSON, so another nutrition sour
 fatsecret later. Reads treat expired cache rows as misses and refetch from the source.
 
 The cache itself is behind the `INutritionCache` abstraction, selected by `Nutrition:CacheProvider`
-(`mssql` today; `redis` and `memory` can be dropped in as separate implementations). The `mssql`
+(`ef` today; `distributed` and `memory` backends can be added as separate implementations). The `ef`
 backend has no TTL, so a background hosted service (`SqlCacheCleanupService`) deletes expired
 rows on a schedule.
 
@@ -43,7 +43,7 @@ are provided:
 ```json
 {
   "Nutrition": {
-    "CacheProvider": "mssql",
+    "CacheProvider": "ef",
     "CacheConnectionString": "",
     "CacheExpiry": "24:00:00",
     "CacheCleanupInterval": "01:00:00"
@@ -72,13 +72,16 @@ Planned (all authenticated and versioned under `/api/v1/nutrition`):
 
 ## Projects
 
-- `CgmLink.Nutrition` — nutrition source clients, endpoints, and DI wiring.
-- `CgmLink.Nutrition.Data` — cache database (`NutritionCacheDbContext`, `NutritionProduct`) and cleanup service.
-- `CgmLink.Nutrition.Data.Migrators.MSSQL` — migrations for the cache schema.
+- `CgmLink.Nutrition` — nutrition endpoints and DI wiring.
+- `CgmLink.Nutrition.Caching` — cache abstraction (`INutritionCache`, `INutritionDbInitializer`, `NutritionProduct`, options). No storage backend dependencies.
+- `CgmLink.Nutrition.Caching.Ef` — EF backed cache (`NutritionCacheDbContext`, `SqlServerNutritionCache`, cleanup service, initializer).
+- `CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL` — migrations for the cache schema.
+- `CgmLink.Nutrition.FatSecretClient` — fatsecret options and client registration.
+- `CgmLink.Nutrition.Caching.Distributed` — planned distributed (e.g. redis) cache backend.
 
 ## Migrations
 
-Nutrition cache schema lives in `CgmLink.Nutrition.Data.Migrators.MSSQL`. Add a migration with:
+Nutrition cache schema lives in `CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL`. Add a migration with:
 
 ```powershell
 .\scripts\add-migration.ps1 -dbContext NutritionCacheDbContext -name <name>

@@ -1,8 +1,8 @@
-using CgmLink.Nutrition.Data;
+using CgmLink.Nutrition.Caching.Ef;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
-namespace CgmLink.Nutrition.Migrators.MSSQL;
+namespace CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL;
 
 public class DesignTimeDbContextFactory : IDesignTimeDbContextFactory<NutritionCacheDbContext>
 {

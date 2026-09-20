@@ -7,9 +7,9 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace CgmLink.Nutrition.Data.Sql;
+namespace CgmLink.Nutrition.Caching.Ef;
 
-public partial class SqlCacheCleanupService : IHostedService, IDisposable
+internal partial class SqlCacheCleanupService : IHostedService, IDisposable
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SqlCacheCleanupService> _logger;

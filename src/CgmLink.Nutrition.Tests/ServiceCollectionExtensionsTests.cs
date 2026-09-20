@@ -1,6 +1,7 @@
 using System.Collections.Generic;
-using CgmLink.Nutrition.Data;
-using CgmLink.Nutrition.Data.Sql;
+using CgmLink.Nutrition.Caching;
+using CgmLink.Nutrition.Caching.Ef;
+using CgmLink.Nutrition.FatSecretClient;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -19,7 +20,7 @@ internal sealed class ServiceCollectionExtensionsTests
 
         services.AddNutrition(Configuration(ValidCacheConnectionString));
 
-        Assert.That(services.Any(d => d.ServiceType == typeof(NutritionDbInitializer)), Is.True);
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionDbInitializer)), Is.True);
     }
 
     [Test]
@@ -40,7 +41,7 @@ internal sealed class ServiceCollectionExtensionsTests
 
         services.AddNutrition(Configuration(null));
 
-        Assert.That(services.Any(d => d.ServiceType == typeof(NutritionDbInitializer)), Is.False);
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionDbInitializer)), Is.False);
     }
 
     [Test]
