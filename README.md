@@ -18,5 +18,5 @@ CGM Link: Your open source partner in diabetes care.
 ## CgmLink.Mail
 [See docs](./src/CgmLink.Mail/README.md).
 
-## CgmLink.Nutrition.Data.Importer
-[See docs](./src/CgmLink.Nutrition.Data.Importer/README.md).
+## CgmLink.Nutrition
+[See docs](./src/CgmLink.Nutrition/README.md).

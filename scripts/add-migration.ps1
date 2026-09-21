@@ -19,10 +19,10 @@ switch ($dbContext) {
         $projectPath = '../CgmLink.Data.Migrators.MSSQL/'
         $startupProject = '../CgmLink.Api'
     }
-    'CgmLinkNutritionDbContext' {
-        $workingDirectory = $rootDirectory + "/src/CgmLink.Nutrition.Data"
-        $projectPath = '../CgmLink.Nutrition.Data.Migrators.MSSQL/'
-        $startupProject = '../CgmLink.Nutrition.Data.Importer'
+    'NutritionCacheDbContext' {
+        $workingDirectory = $rootDirectory + "/src/CgmLink.Nutrition.Caching.Ef"
+        $projectPath = '../CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL/'
+        $startupProject = '../CgmLink.Api'
     }
 }
 

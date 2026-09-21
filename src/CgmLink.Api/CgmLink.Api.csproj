@@ -49,6 +49,8 @@
     <ProjectReference Include="..\CgmLink.Data.Migrators.MSSQL\CgmLink.Data.Migrators.MSSQL.csproj" />
     <ProjectReference Include="..\CgmLink.Identity\CgmLink.Identity.csproj" />
     <ProjectReference Include="..\CgmLink.Mail\CgmLink.Mail.csproj" />
+    <ProjectReference Include="..\CgmLink.Nutrition\CgmLink.Nutrition.csproj" />
+    <ProjectReference Include="..\CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL\CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL.csproj" />
     <ProjectReference Include="..\CgmLink.Resources\CgmLink.Resources.csproj" />
     <ProjectReference Include="..\CgmLink.Sync.LibreLink\CgmLink.Sync.LibreLink.csproj" />
   </ItemGroup>

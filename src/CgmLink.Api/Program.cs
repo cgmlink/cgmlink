@@ -14,6 +14,8 @@ using CgmLink.Data.Repository;
 using CgmLink.Identity;
 using CgmLink.LibreLinkClient;
 using CgmLink.Mail;
+using CgmLink.Nutrition;
+using CgmLink.Nutrition.Caching;
 using CgmLink.Sync.LibreLink;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Configuration;
@@ -46,8 +48,10 @@ builder.Services.AddSwaggerGen(opt =>
     {
         return type.FullName.Replace("CgmLink.Api.Endpoints.", "")
             .Replace("CgmLink.Identity.Endpoints.", "")
+            .Replace("CgmLink.Nutrition.Endpoints.", "")
             .Replace("CgmLink.Api.Models.", "")
             .Replace("CgmLink.Identity.Models.", "")
+            .Replace("CgmLink.Nutrition.Models.", "")
             .Replace(".", "_");
     });
     opt.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
@@ -85,6 +89,8 @@ builder.Services.Configure<LibreLinkOptions>(builder.Configuration.GetSection("L
 builder.Services.AddLibreLinkClientFactory();
 
 builder.Services.AddMail(builder.Configuration.GetSection("Mail").Bind);
+
+builder.Services.AddNutrition(builder.Configuration);
 
 builder.Services.Configure<DataServiceOptions>(builder.Configuration.GetSection("DataService"));
 builder.Services.AddHostedService<DataService>();
@@ -130,11 +136,18 @@ app.UseHealthChecks("/health");
 
 app.MapIdentityEndpoints();
 app.MapCgmLinkEndpoints();
+app.MapNutritionEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
     var dbInitializer = scope.ServiceProvider.GetRequiredService<CgmLinkDbInitializer>();
     await dbInitializer.InitialiseDbAsync(app.Lifetime.ApplicationStopping);
+
+    var cacheInitializer = scope.ServiceProvider.GetService<INutritionDbInitializer>();
+    if (cacheInitializer is not null)
+    {
+        await cacheInitializer.InitialiseCacheAsync(app.Lifetime.ApplicationStopping);
+    }
 }
 
 await app.RunAsync();
