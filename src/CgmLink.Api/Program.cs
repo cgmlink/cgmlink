@@ -41,29 +41,36 @@ builder.Services.AddApiVersioning(options =>
         options.SubstituteApiVersionInUrl = true;
     })
     .EnableApiVersionBinding();
-builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
-builder.Services.AddSwaggerGen(opt =>
+
+var swaggerSettings = builder.Configuration.GetSection(SwaggerSettings.SectionName)
+    .Get<SwaggerSettings>() ?? new SwaggerSettings();
+
+if (swaggerSettings.Enabled)
 {
-    opt.CustomSchemaIds(type =>
+    builder.Services.ConfigureOptions<ConfigureSwaggerOptions>();
+    builder.Services.AddSwaggerGen(opt =>
     {
-        return type.FullName.Replace("CgmLink.Api.Endpoints.", "")
-            .Replace("CgmLink.Identity.Endpoints.", "")
-            .Replace("CgmLink.Nutrition.Endpoints.", "")
-            .Replace("CgmLink.Api.Models.", "")
-            .Replace("CgmLink.Identity.Models.", "")
-            .Replace("CgmLink.Nutrition.Models.", "")
-            .Replace(".", "_");
+        opt.CustomSchemaIds(type =>
+        {
+            return type.FullName.Replace("CgmLink.Api.Endpoints.", "")
+                .Replace("CgmLink.Identity.Endpoints.", "")
+                .Replace("CgmLink.Nutrition.Endpoints.", "")
+                .Replace("CgmLink.Api.Models.", "")
+                .Replace("CgmLink.Identity.Models.", "")
+                .Replace("CgmLink.Nutrition.Models.", "")
+                .Replace(".", "_");
+        });
+        opt.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
+        {
+            Type = SecuritySchemeType.Http,
+            BearerFormat = "JWT",
+            In = ParameterLocation.Header,
+            Scheme = "bearer"
+        });
+        opt.OperationFilter<SecurityRequirementsOperationFilter>();
+        opt.SchemaFilter<XEnumNamesSchemaFilter>();
     });
-    opt.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
-    {
-        Type = SecuritySchemeType.Http,
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Scheme = "bearer"
-    });
-    opt.OperationFilter<SecurityRequirementsOperationFilter>();
-    opt.SchemaFilter<XEnumNamesSchemaFilter>();
-});
+}
 
 builder.Services.AddValidatorsFromAssemblyContaining(typeof(Program));
 
@@ -121,9 +128,13 @@ if (!app.Environment.IsDevelopment() && securityHeaderSettings.EnableHsts)
 app.UseMiddleware<ExceptionMiddleware>();
 app.UseSecurity();
 
-if (app.Environment.IsDevelopment())
+if (swaggerSettings.Enabled)
 {
     app.UseSwagger();
+}
+
+if (swaggerSettings.UI)
+{
     app.UseSwaggerUI();
     app.UseStaticFiles();
 }
