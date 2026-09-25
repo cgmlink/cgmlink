@@ -11,6 +11,7 @@ public sealed class FatSecretOptions
     public string ClientSecret { get; init; } = "";
 
     [Required]
+    [Url]
     public string TokenUrl { get; init; } = "https://oauth.fatsecret.com/connect/token";
 
     [Required]
@@ -22,5 +23,6 @@ public sealed class FatSecretOptions
     public string Language { get; init; } = "en";
 
     [Required]
+    [Url]
     public string ApiBaseUrl { get; init; } = "https://platform.fatsecret.com/rest/";
 }

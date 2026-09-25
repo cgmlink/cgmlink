@@ -1,3 +1,4 @@
+using CgmLink.Nutrition.Contracts;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -36,6 +37,8 @@ public static class ServiceCollectionExtensions
             var options = serviceProvider.GetRequiredService<IOptions<FatSecretOptions>>().Value;
             client.BaseAddress = new Uri(options.ApiBaseUrl, UriKind.Absolute);
         });
+        services.TryAddTransient<INutritionSourceClient>(serviceProvider =>
+            serviceProvider.GetRequiredService<IFatSecretClient>());
 
         return services;
     }

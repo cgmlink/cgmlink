@@ -22,6 +22,10 @@ so it never touches the user data database. The cache is provider-agnostic: it s
 API needs (`NutritionProduct`), not raw provider JSON, so another nutrition source can replace or join
 fatsecret later. Reads treat expired cache rows as misses and refetch from the source.
 
+Nutrition sources return the provider-neutral `NutritionFood`, `NutritionFoodSearchResult`, and
+`NutritionServing` contracts. Provider payloads are validated and translated at the client boundary,
+so callers do not depend on fatsecret response models.
+
 The cache itself is behind the `INutritionCache` abstraction, selected by `Nutrition:CacheProvider`
 (`ef` today; `distributed` and `memory` backends can be added as separate implementations). The `ef`
 backend has no TTL, so a background hosted service (`SqlCacheCleanupService`) deletes expired
@@ -74,6 +78,7 @@ Planned (all authenticated and versioned under `/api/v1/nutrition`):
 ## Projects
 
 - `CgmLink.Nutrition` — nutrition endpoints and DI wiring.
+- `CgmLink.Nutrition.Contracts` — provider-neutral source client and normalized food/serving models.
 - `CgmLink.Nutrition.Caching` — cache abstraction (`INutritionCache`, `INutritionDbInitializer`, `NutritionProduct`, options). No storage backend dependencies.
 - `CgmLink.Nutrition.Caching.Ef` — EF backed cache (`NutritionCacheDbContext`, `SqlServerNutritionCache`, cleanup service, initializer).
 - `CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL` — migrations for the cache schema.

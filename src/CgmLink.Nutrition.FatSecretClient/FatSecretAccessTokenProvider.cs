@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using CgmLink.Nutrition.FatSecretClient.Exceptions;
-using Microsoft.Extensions.Http;
+using CgmLink.Nutrition.FatSecretClient.Json;
 using Microsoft.Extensions.Options;
 
 namespace CgmLink.Nutrition.FatSecretClient;
@@ -23,15 +21,7 @@ internal sealed class FatSecretAccessTokenProvider : IFatSecretAccessTokenProvid
 
     private const int RefreshMarginSeconds = 30;
     private const int DefaultTokenLifetimeSeconds = 86400;
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        NumberHandling = JsonNumberHandling.AllowReadingFromString,
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-    };
-
-    private readonly HttpClient? _httpClient;
-    private readonly IHttpClientFactory? _httpClientFactory;
+    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IOptions<FatSecretOptions> _options;
     private readonly TimeProvider _timeProvider;
     private readonly SemaphoreSlim _refreshLock = new(1, 1);
@@ -39,16 +29,6 @@ internal sealed class FatSecretAccessTokenProvider : IFatSecretAccessTokenProvid
 
     private string? _accessToken;
     private DateTimeOffset _expiresAt;
-
-    internal FatSecretAccessTokenProvider(
-        HttpClient httpClient,
-        IOptions<FatSecretOptions> options,
-        TimeProvider? timeProvider = null)
-    {
-        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        _options = options ?? throw new ArgumentNullException(nameof(options));
-        _timeProvider = timeProvider ?? TimeProvider.System;
-    }
 
     public FatSecretAccessTokenProvider(
         IHttpClientFactory httpClientFactory,
@@ -133,9 +113,7 @@ internal sealed class FatSecretAccessTokenProvider : IFatSecretAccessTokenProvid
             throw new InvalidOperationException("FatSecret OAuth2 credentials are not configured.");
         }
 
-        using var factoryHttpClient = _httpClientFactory?.CreateClient(HttpClientName);
-        var httpClient = factoryHttpClient ?? _httpClient
-            ?? throw new InvalidOperationException("FatSecret OAuth2 HTTP client is not configured.");
+        using var httpClient = _httpClientFactory.CreateClient(HttpClientName);
         using var request = new HttpRequestMessage(HttpMethod.Post, options.TokenUrl);
         var credentials = Convert.ToBase64String(
             System.Text.Encoding.UTF8.GetBytes($"{options.ClientId}:{options.ClientSecret}"));
@@ -158,25 +136,10 @@ internal sealed class FatSecretAccessTokenProvider : IFatSecretAccessTokenProvid
             throw new FatSecretApiException("FatSecret OAuth2 token response did not contain an access token.");
         }
 
-        TokenResponse? token;
-        try
-        {
-            using var document = JsonDocument.Parse(content);
-            if (document.RootElement.ValueKind == JsonValueKind.Object
-                && document.RootElement.TryGetProperty("error", out _))
-            {
-                throw FatSecretApiException.FromResponse(content, (int)response.StatusCode);
-            }
-
-            token = document.RootElement.Deserialize<TokenResponse>(JsonOptions);
-        }
-        catch (JsonException exception)
-        {
-            throw new FatSecretApiException(
-                "FatSecret OAuth2 token response was not valid JSON.",
-                (int)response.StatusCode,
-                innerException: exception);
-        }
+        var token = FatSecretJsonSerializer.Deserialize<TokenResponse>(
+            content,
+            (int)response.StatusCode,
+            "FatSecret OAuth2 token response was not valid JSON.");
 
         if (string.IsNullOrWhiteSpace(token?.AccessToken))
         {

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CgmLink.Nutrition.Contracts;
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
 using CgmLink.Nutrition.FatSecretClient;
@@ -95,6 +96,7 @@ internal sealed class ServiceCollectionExtensionsTests
             Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ClientId, Is.EqualTo("key"));
             Assert.That(provider.GetRequiredService<IFatSecretClient>(), Is.Not.Null);
             Assert.That(provider.GetRequiredService<IFatSecretAccessTokenProvider>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<INutritionSourceClient>().Source, Is.EqualTo("fatsecret"));
         });
     }
 

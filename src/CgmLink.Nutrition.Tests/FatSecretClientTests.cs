@@ -7,7 +7,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Nutrition.FatSecretClient;
 using CgmLink.Nutrition.FatSecretClient.Exceptions;
-using CgmLink.Nutrition.FatSecretClient.Models;
 using Microsoft.Extensions.Options;
 using FatSecretClientImplementation = CgmLink.Nutrition.FatSecretClient.FatSecretClient;
 
@@ -46,7 +45,7 @@ internal sealed class FatSecretClientTests
         });
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions());
-        var tokenProvider = new FatSecretAccessTokenProvider(httpClient, options);
+        var tokenProvider = CreateTokenProvider(handler, options);
         var client = new FatSecretClientImplementation(httpClient, tokenProvider, options);
 
         var result = await client.SearchAsync("apple", pageNumber: 0, maxResults: 20);
@@ -127,7 +126,7 @@ internal sealed class FatSecretClientTests
         });
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions("https://platform.fatsecret.com/rest/server.api"));
-        var tokenProvider = new FatSecretAccessTokenProvider(httpClient, options);
+        var tokenProvider = CreateTokenProvider(handler, options);
         var client = new FatSecretClientImplementation(httpClient, tokenProvider, options);
 
         var food = await client.GetFoodAsync("33678");
@@ -154,7 +153,59 @@ internal sealed class FatSecretClientTests
             Assert.That(handler.Requests[1].Uri.AbsolutePath, Is.EqualTo("/rest/server.api"));
             Assert.That(query["method"], Is.EqualTo("food.get"));
             Assert.That(query["food_id"], Is.EqualTo("33678"));
+            Assert.That(query["region"], Is.EqualTo("US"));
+            Assert.That(query["language"], Is.EqualTo("en"));
         });
+    }
+
+    [Test]
+    public void GetFoodAsync_MissingRequiredMacro_ThrowsFatSecretApiException()
+    {
+        var handler = new RecordingHandler((uri, _) => uri.AbsolutePath == "/connect/token"
+            ? JsonResponse("{\"access_token\":\"access-token\",\"expires_in\":3600}")
+            : JsonResponse("""
+                {
+                  "food": {
+                    "food_id": "33678",
+                    "food_name": "Apple",
+                    "servings": {
+                      "serving": {
+                        "calories": "52",
+                        "carbohydrate": "13.81",
+                        "protein": "0.26"
+                      }
+                    }
+                  }
+                }
+                """));
+        using var httpClient = CreateHttpClient(handler);
+        var options = Options.Create(CreateOptions());
+        var client = new FatSecretClientImplementation(
+            httpClient,
+            CreateTokenProvider(handler, options),
+            options);
+
+        var exception = Assert.ThrowsAsync<FatSecretApiException>(async () => await client.GetFoodAsync("33678"));
+
+        Assert.That(exception!.Message, Does.Contain("'fat'"));
+    }
+
+    [Test]
+    public void SearchAsync_MissingProductId_ThrowsFatSecretApiException()
+    {
+        var handler = new RecordingHandler((uri, _) => uri.AbsolutePath == "/connect/token"
+            ? JsonResponse("{\"access_token\":\"access-token\",\"expires_in\":3600}")
+            : JsonResponse("{\"foods\":{\"food\":{\"food_name\":\"Apple\"}}}"));
+        using var httpClient = CreateHttpClient(handler);
+        var options = Options.Create(CreateOptions());
+        var client = new FatSecretClientImplementation(
+            httpClient,
+            CreateTokenProvider(handler, options),
+            options);
+
+        var exception = Assert.ThrowsAsync<FatSecretApiException>(async () => await client.SearchAsync("apple"));
+
+        Assert.That(exception!.Message, Does.Contain("'food_id'"));
     }
 
     [Test]
@@ -165,7 +216,7 @@ internal sealed class FatSecretClientTests
             """));
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions());
-        var provider = new FatSecretAccessTokenProvider(httpClient, options);
+        var provider = CreateTokenProvider(handler, options);
 
         var firstToken = await provider.GetAccessTokenAsync();
         var secondToken = await provider.GetAccessTokenAsync();
@@ -185,7 +236,7 @@ internal sealed class FatSecretClientTests
             $"{{\"access_token\":\"token-{index}\",\"expires_in\":3600}}"));
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions());
-        var provider = new FatSecretAccessTokenProvider(httpClient, options);
+        var provider = CreateTokenProvider(handler, options);
 
         var firstToken = await provider.GetAccessTokenAsync();
         provider.InvalidateIfCurrent("different-token");
@@ -224,7 +275,7 @@ internal sealed class FatSecretClientTests
         });
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions());
-        var tokenProvider = new FatSecretAccessTokenProvider(httpClient, options);
+        var tokenProvider = CreateTokenProvider(handler, options);
         var client = new FatSecretClientImplementation(httpClient, tokenProvider, options);
 
         await client.SearchAsync("apple");
@@ -253,7 +304,7 @@ internal sealed class FatSecretClientTests
         });
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions());
-        var tokenProvider = new FatSecretAccessTokenProvider(httpClient, options);
+        var tokenProvider = CreateTokenProvider(handler, options);
         var client = new FatSecretClientImplementation(httpClient, tokenProvider, options);
 
         var exception = Assert.ThrowsAsync<FatSecretApiException>(async () => await client.SearchAsync("apple"));
@@ -272,7 +323,7 @@ internal sealed class FatSecretClientTests
             "{\"error\":\"invalid_client\",\"error_description\":\"Client authentication failed.\"}",
             HttpStatusCode.BadRequest));
         using var httpClient = CreateHttpClient(handler);
-        var provider = new FatSecretAccessTokenProvider(httpClient, Options.Create(CreateOptions()));
+        var provider = CreateTokenProvider(handler, Options.Create(CreateOptions()));
 
         var exception = Assert.ThrowsAsync<FatSecretApiException>(async () => await provider.GetAccessTokenAsync());
 
@@ -290,7 +341,7 @@ internal sealed class FatSecretClientTests
         var handler = new RecordingHandler((_, _) => JsonResponse("{}"));
         using var httpClient = CreateHttpClient(handler);
         var options = Options.Create(CreateOptions());
-        var tokenProvider = new FatSecretAccessTokenProvider(httpClient, options);
+        var tokenProvider = CreateTokenProvider(handler, options);
         var client = new FatSecretClientImplementation(httpClient, tokenProvider, options);
 
         Assert.Multiple(() =>
@@ -318,6 +369,13 @@ internal sealed class FatSecretClientTests
         {
             BaseAddress = new Uri("https://platform.fatsecret.com/rest/"),
         };
+    }
+
+    private static FatSecretAccessTokenProvider CreateTokenProvider(
+        HttpMessageHandler handler,
+        IOptions<FatSecretOptions> options)
+    {
+        return new FatSecretAccessTokenProvider(new StubHttpClientFactory(handler), options);
     }
 
     private static HttpResponseMessage JsonResponse(
@@ -372,6 +430,21 @@ internal sealed class FatSecretClientTests
                 body));
             return _responder(request.RequestUri!, Requests.Count - 1);
         }
+    }
+
+    private sealed class StubHttpClientFactory : IHttpClientFactory
+    {
+        private readonly HttpMessageHandler _handler;
+
+        public StubHttpClientFactory(HttpMessageHandler handler)
+        {
+            _handler = handler;
+        }
+
+        public HttpClient CreateClient(string name) => new(_handler, disposeHandler: false)
+        {
+            BaseAddress = new Uri("https://platform.fatsecret.com/rest/"),
+        };
     }
 
     private sealed record RequestSnapshot(

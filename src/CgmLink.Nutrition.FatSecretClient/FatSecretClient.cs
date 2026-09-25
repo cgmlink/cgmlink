@@ -6,11 +6,11 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+using CgmLink.Nutrition.Contracts.Models;
 using CgmLink.Nutrition.FatSecretClient.Exceptions;
+using CgmLink.Nutrition.FatSecretClient.Json;
 using CgmLink.Nutrition.FatSecretClient.Models;
 using Microsoft.Extensions.Options;
 
@@ -18,26 +18,11 @@ namespace CgmLink.Nutrition.FatSecretClient;
 
 internal sealed class FatSecretClient : IFatSecretClient
 {
-    private static readonly JsonSerializerOptions JsonOptions = new()
-    {
-        NumberHandling = JsonNumberHandling.AllowReadingFromString,
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
-    };
+    public string Source => "fatsecret";
 
     private readonly HttpClient _httpClient;
     private readonly IFatSecretAccessTokenProvider _accessTokenProvider;
     private readonly IOptions<FatSecretOptions> _options;
-
-    internal FatSecretClient(
-        HttpClient httpClient,
-        IOptions<FatSecretOptions> options)
-        : this(
-            httpClient,
-            new FatSecretAccessTokenProvider(httpClient, options),
-            options)
-    {
-    }
 
     public FatSecretClient(
         HttpClient httpClient,
@@ -49,13 +34,22 @@ internal sealed class FatSecretClient : IFatSecretClient
         _options = options ?? throw new ArgumentNullException(nameof(options));
     }
 
-    public async Task<FatSecretSearchResults> SearchAsync(
+    public async Task<NutritionSearchResults> SearchAsync(
         string searchExpression,
         int? pageNumber = null,
         int? maxResults = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(searchExpression);
+        if (pageNumber < 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(pageNumber));
+        }
+
+        if (maxResults is < 1 or > 50)
+        {
+            throw new ArgumentOutOfRangeException(nameof(maxResults));
+        }
 
         var options = _options.Value;
         var parameters = new Dictionary<string, string>
@@ -71,21 +65,17 @@ internal sealed class FatSecretClient : IFatSecretClient
 
         var response = await RequestAsync<FoodSearchResponse>(parameters, cancellationToken).ConfigureAwait(false);
         var data = response?.Foods;
-        var items = data?.Food.Select(item => new FatSecretFoodSearchResult
-        {
-            ProductId = item.FoodId ?? "",
-            Name = item.FoodName ?? "",
-        })
+        var items = data?.Food.Select(MapSearchResult)
             .ToArray() ?? [];
 
-        return new FatSecretSearchResults(
+        return new NutritionSearchResults(
             items,
             data?.TotalResults,
             data?.PageNumber,
             data?.MaxResults);
     }
 
-    public async Task<FatSecretFood?> GetFoodAsync(
+    public async Task<NutritionFood?> GetFoodAsync(
         string foodId,
         CancellationToken cancellationToken = default)
     {
@@ -97,28 +87,13 @@ internal sealed class FatSecretClient : IFatSecretClient
             ["food_id"] = foodId,
             ["format"] = "json",
         };
+        var options = _options.Value;
+        AddIfNotBlank(parameters, "region", options.Region);
+        AddIfNotBlank(parameters, "language", options.Language);
 
         var response = await RequestAsync<FoodGetResponse>(parameters, cancellationToken).ConfigureAwait(false);
         var food = response?.Food;
-        return food is null
-            ? null
-            : new FatSecretFood
-            {
-                ProductId = food.FoodId ?? "",
-                Name = food.FoodName ?? "",
-                Servings = food.Servings?.Serving.Select(serving => new FatSecretFoodServing
-                {
-                    ExternalId = serving.ServingId,
-                    Description = serving.ServingDescription,
-                    ServingAmount = serving.MetricServingAmount,
-                    ServingUnit = serving.MetricServingUnit,
-                    Calories = serving.Calories,
-                    Carbs = serving.Carbohydrate,
-                    Protein = serving.Protein,
-                    Fat = serving.Fat,
-                })
-                    .ToArray() ?? [],
-            };
+        return food is null ? null : MapFood(food);
     }
 
     private async Task<T?> RequestAsync<T>(
@@ -158,21 +133,70 @@ internal sealed class FatSecretClient : IFatSecretClient
             return default;
         }
 
-        using var document = JsonDocument.Parse(content);
-        if (document.RootElement.ValueKind == JsonValueKind.Object
-            && document.RootElement.TryGetProperty("error", out _))
+        try
         {
-            var exception = FatSecretApiException.FromResponse(content, (int)response.StatusCode);
-            if (allowUnauthorizedRetry && IsAuthenticationFailure(response.StatusCode, exception))
-            {
-                _accessTokenProvider.InvalidateIfCurrent(accessToken);
-                return await RequestAsync<T>(parameters, cancellationToken, false).ConfigureAwait(false);
-            }
-
-            throw exception;
+            return FatSecretJsonSerializer.Deserialize<T>(
+                content,
+                (int)response.StatusCode,
+                "FatSecret API response was not valid JSON.");
         }
+        catch (FatSecretApiException exception) when (
+            allowUnauthorizedRetry && IsAuthenticationFailure(response.StatusCode, exception))
+        {
+            _accessTokenProvider.InvalidateIfCurrent(accessToken);
+            return await RequestAsync<T>(parameters, cancellationToken, false).ConfigureAwait(false);
+        }
+    }
 
-        return document.RootElement.Deserialize<T>(JsonOptions);
+    private static NutritionFoodSearchResult MapSearchResult(FoodSearchItem item)
+    {
+        return new NutritionFoodSearchResult
+        {
+            ProductId = RequiredText(item.FoodId, "food_id"),
+            Name = RequiredText(item.FoodName, "food_name"),
+        };
+    }
+
+    private static NutritionFood MapFood(FoodDetails food)
+    {
+        return new NutritionFood
+        {
+            ProductId = RequiredText(food.FoodId, "food_id"),
+            Name = RequiredText(food.FoodName, "food_name"),
+            Servings = food.Servings?.Serving.Select(MapServing).ToArray() ?? [],
+        };
+    }
+
+    private static NutritionServing MapServing(FoodServingResponse serving)
+    {
+        return new NutritionServing
+        {
+            ExternalId = serving.ServingId,
+            Description = serving.ServingDescription,
+            ServingAmount = serving.MetricServingAmount,
+            ServingUnit = serving.MetricServingUnit,
+            Calories = RequiredNumber(serving.Calories, "calories"),
+            Carbs = RequiredNumber(serving.Carbohydrate, "carbohydrate"),
+            Protein = RequiredNumber(serving.Protein, "protein"),
+            Fat = RequiredNumber(serving.Fat, "fat"),
+        };
+    }
+
+    private static string RequiredText(string? value, string fieldName)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+            ? value
+            : throw InvalidData(fieldName);
+    }
+
+    private static decimal RequiredNumber(decimal? value, string fieldName)
+    {
+        return value ?? throw InvalidData(fieldName);
+    }
+
+    private static FatSecretApiException InvalidData(string fieldName)
+    {
+        return new FatSecretApiException($"FatSecret API response did not contain required field '{fieldName}'.");
     }
 
     private static bool IsAuthenticationFailure(
