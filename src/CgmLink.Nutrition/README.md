@@ -31,8 +31,8 @@ rows on a schedule.
 
 ### fatsecret
 
-The fatsecret API is called with OAuth 1.0 HMAC-SHA1 (2-legged, consumer key + secret).
-`FatSecret:Authentication` is `"oauth1"`.
+The fatsecret API is called with OAuth 2.0 client credentials. The client uses a cached bearer token and
+retrieves food data through the `foods.search` and `food.get` methods.
 
 ## Configuration
 
@@ -49,9 +49,10 @@ are provided:
     "CacheCleanupInterval": "01:00:00"
   },
   "FatSecret": {
-    "ConsumerKey": "",
-    "ConsumerSecret": "",
-    "Authentication": "oauth1",
+    "ClientId": "",
+    "ClientSecret": "",
+    "TokenUrl": "https://oauth.fatsecret.com/connect/token",
+    "Scope": "basic",
     "Region": "US",
     "Language": "en",
     "ApiBaseUrl": "https://platform.fatsecret.com/rest/"

@@ -83,14 +83,19 @@ internal sealed class ServiceCollectionExtensionsTests
         var data = new Dictionary<string, string?>
         {
             ["Nutrition:CacheConnectionString"] = ValidCacheConnectionString,
-            ["FatSecret:ConsumerKey"] = "key",
-            ["FatSecret:ConsumerSecret"] = "secret",
+            ["FatSecret:ClientId"] = "key",
+            ["FatSecret:ClientSecret"] = "secret",
         };
 
         services.AddNutrition(new ConfigurationBuilder().AddInMemoryCollection(data).Build());
 
         using var provider = services.BuildServiceProvider();
-        Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ConsumerKey, Is.EqualTo("key"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ClientId, Is.EqualTo("key"));
+            Assert.That(provider.GetRequiredService<IFatSecretClient>(), Is.Not.Null);
+            Assert.That(provider.GetRequiredService<IFatSecretAccessTokenProvider>(), Is.Not.Null);
+        });
     }
 
     [Test]
@@ -101,7 +106,7 @@ internal sealed class ServiceCollectionExtensionsTests
         services.AddNutrition(Configuration(ValidCacheConnectionString));
 
         using var provider = services.BuildServiceProvider();
-        Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ConsumerKey, Is.Empty);
+        Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ClientId, Is.Empty);
     }
 
     private static IConfiguration Configuration(string? cacheConnectionString)

@@ -5,13 +5,16 @@ namespace CgmLink.Nutrition.FatSecretClient;
 public sealed class FatSecretOptions
 {
     [Required]
-    public string ConsumerKey { get; init; } = "";
+    public string ClientId { get; init; } = "";
 
     [Required]
-    public string ConsumerSecret { get; init; } = "";
+    public string ClientSecret { get; init; } = "";
 
     [Required]
-    public string Authentication { get; init; } = "oauth1";
+    public string TokenUrl { get; init; } = "https://oauth.fatsecret.com/connect/token";
+
+    [Required]
+    public string Scope { get; init; } = "basic";
 
     [Required]
     public string Region { get; init; } = "US";

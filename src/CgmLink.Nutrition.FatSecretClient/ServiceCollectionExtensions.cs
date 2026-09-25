@@ -1,5 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Options;
+using System;
 using System.Diagnostics.CodeAnalysis;
 
 namespace CgmLink.Nutrition.FatSecretClient;
@@ -12,8 +15,8 @@ public static class ServiceCollectionExtensions
         var fatSecretSection = configuration.GetSection("FatSecret");
         var fatSecretOptions = fatSecretSection.Get<FatSecretOptions>();
         if (fatSecretOptions is null
-            || string.IsNullOrWhiteSpace(fatSecretOptions.ConsumerKey)
-            || string.IsNullOrWhiteSpace(fatSecretOptions.ConsumerSecret))
+            || string.IsNullOrWhiteSpace(fatSecretOptions.ClientId)
+            || string.IsNullOrWhiteSpace(fatSecretOptions.ClientSecret))
         {
             return services;
         }
@@ -22,6 +25,17 @@ public static class ServiceCollectionExtensions
             .Configure(options => fatSecretSection.Bind(options))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.TryAddSingleton(TimeProvider.System);
+        services.AddHttpClient(FatSecretAccessTokenProvider.HttpClientName);
+        services.AddSingleton<FatSecretAccessTokenProvider>();
+        services.AddSingleton<IFatSecretAccessTokenProvider>(serviceProvider =>
+            serviceProvider.GetRequiredService<FatSecretAccessTokenProvider>());
+        services.AddHttpClient<IFatSecretClient, FatSecretClient>((serviceProvider, client) =>
+        {
+            var options = serviceProvider.GetRequiredService<IOptions<FatSecretOptions>>().Value;
+            client.BaseAddress = new Uri(options.ApiBaseUrl, UriKind.Absolute);
+        });
 
         return services;
     }
