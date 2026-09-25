@@ -1,4 +1,4 @@
-namespace CgmLink.Nutrition.Contracts.Models;
+namespace CgmLink.Nutrition.Source.Models;
 
 public sealed record NutritionSearchResults(
     IReadOnlyList<NutritionFoodSearchResult> Items,

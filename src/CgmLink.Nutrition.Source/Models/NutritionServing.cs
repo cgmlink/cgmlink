@@ -1,4 +1,4 @@
-namespace CgmLink.Nutrition.Contracts.Models;
+namespace CgmLink.Nutrition.Source.Models;
 
 /// <summary>
 /// A normalized serving whose nutrition values use the same units as an ingredient serving.

@@ -49,7 +49,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Caching.E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.FatSecretClient", "CgmLink.Nutrition.FatSecretClient\CgmLink.Nutrition.FatSecretClient.csproj", "{64B7FB0F-16D7-4436-A436-CB79C23B0133}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Contracts", "CgmLink.Nutrition.Contracts\CgmLink.Nutrition.Contracts.csproj", "{9F6C7A1E-34B2-4D91-A6E8-13C9F02B5D77}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Source", "CgmLink.Nutrition.Source\CgmLink.Nutrition.Source.csproj", "{9F6C7A1E-34B2-4D91-A6E8-13C9F02B5D77}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

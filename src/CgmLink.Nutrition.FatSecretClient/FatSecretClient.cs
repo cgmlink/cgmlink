@@ -8,7 +8,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using CgmLink.Nutrition.Contracts.Models;
+using CgmLink.Nutrition.Source.Models;
 using CgmLink.Nutrition.FatSecretClient.Exceptions;
 using CgmLink.Nutrition.FatSecretClient.Json;
 using CgmLink.Nutrition.FatSecretClient.Models;

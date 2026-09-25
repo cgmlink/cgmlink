@@ -78,7 +78,7 @@ Planned (all authenticated and versioned under `/api/v1/nutrition`):
 ## Projects
 
 - `CgmLink.Nutrition` — nutrition endpoints and DI wiring.
-- `CgmLink.Nutrition.Contracts` — provider-neutral source client and normalized food/serving models.
+- `CgmLink.Nutrition.Source` — provider-neutral source client and normalized food/serving models.
 - `CgmLink.Nutrition.Caching` — cache abstraction (`INutritionCache`, `INutritionDbInitializer`, `NutritionProduct`, options). No storage backend dependencies.
 - `CgmLink.Nutrition.Caching.Ef` — EF backed cache (`NutritionCacheDbContext`, `SqlServerNutritionCache`, cleanup service, initializer).
 - `CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL` — migrations for the cache schema.

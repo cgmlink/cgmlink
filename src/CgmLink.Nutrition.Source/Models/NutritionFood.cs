@@ -1,4 +1,4 @@
-namespace CgmLink.Nutrition.Contracts.Models;
+namespace CgmLink.Nutrition.Source.Models;
 
 /// <summary>
 /// A food returned by a nutrition data source, normalized for use by CGM Link.

@@ -1,6 +1,6 @@
-using CgmLink.Nutrition.Contracts.Models;
+using CgmLink.Nutrition.Source.Models;
 
-namespace CgmLink.Nutrition.Contracts;
+namespace CgmLink.Nutrition.Source;
 
 /// <summary>
 /// Retrieves normalized food data from an external nutrition source.

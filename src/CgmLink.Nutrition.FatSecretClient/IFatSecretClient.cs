@@ -1,4 +1,4 @@
-using CgmLink.Nutrition.Contracts;
+using CgmLink.Nutrition.Source;
 
 namespace CgmLink.Nutrition.FatSecretClient;
 
