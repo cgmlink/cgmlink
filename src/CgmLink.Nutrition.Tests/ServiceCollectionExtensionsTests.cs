@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
 using CgmLink.Nutrition.FatSecretClient;
+using CgmLink.Nutrition.Source;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -83,14 +84,18 @@ internal sealed class ServiceCollectionExtensionsTests
         var data = new Dictionary<string, string?>
         {
             ["Nutrition:CacheConnectionString"] = ValidCacheConnectionString,
-            ["FatSecret:ConsumerKey"] = "key",
-            ["FatSecret:ConsumerSecret"] = "secret",
+            ["FatSecret:ClientId"] = "client-id",
+            ["FatSecret:ClientSecret"] = "secret",
         };
 
         services.AddNutrition(new ConfigurationBuilder().AddInMemoryCollection(data).Build());
 
         using var provider = services.BuildServiceProvider();
-        Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ConsumerKey, Is.EqualTo("key"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ClientId, Is.EqualTo("client-id"));
+            Assert.That(provider.GetServices<INutritionSourceClient>().Single().Source, Is.EqualTo("fatsecret"));
+        });
     }
 
     [Test]
@@ -101,7 +106,7 @@ internal sealed class ServiceCollectionExtensionsTests
         services.AddNutrition(Configuration(ValidCacheConnectionString));
 
         using var provider = services.BuildServiceProvider();
-        Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ConsumerKey, Is.Empty);
+        Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ClientId, Is.Empty);
     }
 
     private static IConfiguration Configuration(string? cacheConnectionString)

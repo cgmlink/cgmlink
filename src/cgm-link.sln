@@ -49,6 +49,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Caching.E
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.FatSecretClient", "CgmLink.Nutrition.FatSecretClient\CgmLink.Nutrition.FatSecretClient.csproj", "{64B7FB0F-16D7-4436-A436-CB79C23B0133}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Source", "CgmLink.Nutrition.Source\CgmLink.Nutrition.Source.csproj", "{3A4E41DC-8160-4132-B96F-0A8A36AF674E}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -323,6 +325,18 @@ Global
 		{64B7FB0F-16D7-4436-A436-CB79C23B0133}.Release|x64.Build.0 = Release|Any CPU
 		{64B7FB0F-16D7-4436-A436-CB79C23B0133}.Release|x86.ActiveCfg = Release|Any CPU
 		{64B7FB0F-16D7-4436-A436-CB79C23B0133}.Release|x86.Build.0 = Release|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Debug|x64.Build.0 = Debug|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Debug|x86.Build.0 = Debug|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Release|x64.ActiveCfg = Release|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Release|x64.Build.0 = Release|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Release|x86.ActiveCfg = Release|Any CPU
+		{3A4E41DC-8160-4132-B96F-0A8A36AF674E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
