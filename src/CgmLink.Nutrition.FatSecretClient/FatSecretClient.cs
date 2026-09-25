@@ -76,15 +76,15 @@ internal sealed class FatSecretClient : IFatSecretClient
     }
 
     public async Task<NutritionFood?> GetFoodAsync(
-        string foodId,
+        string productId,
         CancellationToken cancellationToken = default)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(foodId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(productId);
 
         var parameters = new Dictionary<string, string>
         {
             ["method"] = "food.get",
-            ["food_id"] = foodId,
+            ["food_id"] = productId,
             ["format"] = "json",
         };
         var options = _options.Value;
