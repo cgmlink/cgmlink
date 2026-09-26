@@ -1,11 +1,11 @@
-using CgmLink.Nutrition.Api.Endpoints.GetFood;
+using CgmLink.Nutrition.Endpoints.GetFood;
 using CgmLink.Nutrition.Source;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace CgmLink.Nutrition.Api.Endpoints.SearchNutrition;
+namespace CgmLink.Nutrition.Endpoints.SearchNutrition;
 
 internal static class Endpoint
 {

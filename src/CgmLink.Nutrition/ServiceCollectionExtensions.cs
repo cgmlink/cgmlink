@@ -1,7 +1,7 @@
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
-using CgmLink.Nutrition.Api.Endpoints;
-using CgmLink.Nutrition.Api.Endpoints.SearchNutrition;
+using CgmLink.Nutrition.Endpoints;
+using CgmLink.Nutrition.Endpoints.SearchNutrition;
 using CgmLink.Nutrition.FatSecretClient;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -11,7 +11,7 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using System.Diagnostics.CodeAnalysis;
 
-namespace CgmLink.Nutrition.Api;
+namespace CgmLink.Nutrition;
 
 [ExcludeFromCodeCoverage]
 public static class ServiceCollectionExtensions

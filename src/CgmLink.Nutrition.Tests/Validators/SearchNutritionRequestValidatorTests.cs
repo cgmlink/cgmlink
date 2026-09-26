@@ -1,4 +1,4 @@
-using CgmLink.Nutrition.Api.Endpoints.SearchNutrition;
+using CgmLink.Nutrition.Endpoints.SearchNutrition;
 using FluentValidation.TestHelper;
 
 namespace CgmLink.Nutrition.Tests.Validators;

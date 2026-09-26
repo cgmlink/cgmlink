@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using System.Diagnostics.CodeAnalysis;
 
-namespace CgmLink.Nutrition.Api.Endpoints;
+namespace CgmLink.Nutrition.Endpoints;
 
 [ExcludeFromCodeCoverage]
 internal static class NutritionEndpoints

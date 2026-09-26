@@ -23,7 +23,7 @@ COPY ["CgmLink.Nutrition.Caching.Ef/", "CgmLink.Nutrition.Caching.Ef/"]
 COPY ["CgmLink.Nutrition.Caching/", "CgmLink.Nutrition.Caching/"]
 COPY ["CgmLink.Nutrition.FatSecretClient/", "CgmLink.Nutrition.FatSecretClient/"]
 COPY ["CgmLink.Nutrition.Source/", "CgmLink.Nutrition.Source/"]
-COPY ["CgmLink.Nutrition.Api/", "CgmLink.Nutrition.Api/"]
+COPY ["CgmLink.Nutrition/", "CgmLink.Nutrition/"]
 COPY ["CgmLink.Sync.LibreLink", "CgmLink.Sync.LibreLink"]
 COPY ["CgmLink.Resources", "CgmLink.Resources"]
 WORKDIR "/src/CgmLink.Api"

@@ -2,7 +2,7 @@ using CgmLink.Nutrition.Source;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace CgmLink.Nutrition.Api.Endpoints.GetFood;
+namespace CgmLink.Nutrition.Endpoints.GetFood;
 
 public sealed record GetFoodResponse
 {

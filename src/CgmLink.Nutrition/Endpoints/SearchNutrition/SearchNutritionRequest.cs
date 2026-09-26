@@ -1,7 +1,7 @@
 using FluentValidation;
 using System.ComponentModel.DataAnnotations;
 
-namespace CgmLink.Nutrition.Api.Endpoints.SearchNutrition;
+namespace CgmLink.Nutrition.Endpoints.SearchNutrition;
 
 public sealed record SearchNutritionRequest
 {

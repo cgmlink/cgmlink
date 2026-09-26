@@ -1,8 +1,8 @@
-using CgmLink.Nutrition.Api.Endpoints.GetFood;
+using CgmLink.Nutrition.Endpoints.GetFood;
 using CgmLink.Nutrition.Source;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;
-using BarcodeEndpoint = CgmLink.Nutrition.Api.Endpoints.GetFoodByBarcode.Endpoint;
+using BarcodeEndpoint = CgmLink.Nutrition.Endpoints.GetFoodByBarcode.Endpoint;
 
 namespace CgmLink.Nutrition.Tests.Endpoints;
 

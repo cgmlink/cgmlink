@@ -14,7 +14,7 @@ using CgmLink.Data.Repository;
 using CgmLink.Identity;
 using CgmLink.LibreLinkClient;
 using CgmLink.Mail;
-using CgmLink.Nutrition.Api;
+using CgmLink.Nutrition;
 using CgmLink.Nutrition.Caching;
 using CgmLink.Sync.LibreLink;
 using Microsoft.AspNetCore.Builder;
@@ -54,10 +54,10 @@ if (swaggerSettings.Enabled)
         {
             return type.FullName.Replace("CgmLink.Api.Endpoints.", "")
                 .Replace("CgmLink.Identity.Endpoints.", "")
-                .Replace("CgmLink.Nutrition.Api.Endpoints.", "")
+                .Replace("CgmLink.Nutrition.Endpoints.", "")
                 .Replace("CgmLink.Api.Models.", "")
                 .Replace("CgmLink.Identity.Models.", "")
-                .Replace("CgmLink.Nutrition.Api.Models.", "")
+                .Replace("CgmLink.Nutrition.Models.", "")
                 .Replace(".", "_");
         });
         opt.AddSecurityDefinition("bearer", new OpenApiSecurityScheme

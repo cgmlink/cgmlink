@@ -1,5 +1,5 @@
 using CgmLink.AspNetCore.Exceptions;
-using CgmLink.Nutrition.Api.Endpoints.GetFood;
+using CgmLink.Nutrition.Endpoints.GetFood;
 using CgmLink.Nutrition.Source;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Moq;

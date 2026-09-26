@@ -1,4 +1,4 @@
-# CgmLink.Nutrition.Api
+# CgmLink.Nutrition
 
 Nutrition subsystem integrating food databases (currently [fatsecret](https://platform.fatsecret.com/))
 into CGM Link.
@@ -71,7 +71,7 @@ Planned (all authenticated and versioned under `/api/v1/nutrition`):
 
 ## Projects
 
-- `CgmLink.Nutrition.Api` — nutrition endpoints and DI wiring.
+- `CgmLink.Nutrition` — nutrition endpoints and DI wiring.
 - `CgmLink.Nutrition.Source` — provider-neutral client contract and product/serving models.
 - `CgmLink.Nutrition.Caching` — cache abstraction (`INutritionCache`, `INutritionDbInitializer`, `NutritionProduct`, options). No storage backend dependencies.
 - `CgmLink.Nutrition.Caching.Ef` — EF backed cache (`NutritionCacheDbContext`, `SqlServerNutritionCache`, cleanup service, initializer).

@@ -1,7 +1,7 @@
-using CgmLink.Nutrition.Api.Endpoints.GetFood;
+using CgmLink.Nutrition.Endpoints.GetFood;
 using System.Collections.Generic;
 
-namespace CgmLink.Nutrition.Api.Endpoints.SearchNutrition;
+namespace CgmLink.Nutrition.Endpoints.SearchNutrition;
 
 public sealed record SearchNutritionResponse
 {

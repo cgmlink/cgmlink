@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using CgmLink.Nutrition.Api;
+using CgmLink.Nutrition;
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
 using CgmLink.Nutrition.FatSecretClient;

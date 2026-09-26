@@ -1,4 +1,4 @@
-using CgmLink.Nutrition.Api.Endpoints.SearchNutrition;
+using CgmLink.Nutrition.Endpoints.SearchNutrition;
 using CgmLink.Nutrition.Source;
 using FluentValidation;
 using FluentValidation.Results;
