@@ -25,7 +25,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\CgmLink.Nutrition\CgmLink.Nutrition.csproj" />
+      <ProjectReference Include="..\CgmLink.Nutrition.Api\CgmLink.Nutrition.Api.csproj" />
     </ItemGroup>
 
 </Project>

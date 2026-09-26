@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using CgmLink.Nutrition.Api;
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
 using CgmLink.Nutrition.FatSecretClient;
@@ -96,6 +97,21 @@ internal sealed class ServiceCollectionExtensionsTests
             Assert.That(provider.GetRequiredService<IOptions<FatSecretOptions>>().Value.ClientId, Is.EqualTo("client-id"));
             Assert.That(provider.GetServices<INutritionSourceClient>().Single().Source, Is.EqualTo("fatsecret"));
         });
+    }
+
+    [Test]
+    public void AddNutrition_RegistersFatSecretClient_WhenCacheNotConfigured()
+    {
+        var services = new ServiceCollection();
+        var data = new Dictionary<string, string?>
+        {
+            ["FatSecret:ClientId"] = "client-id",
+            ["FatSecret:ClientSecret"] = "secret",
+        };
+
+        services.AddNutrition(new ConfigurationBuilder().AddInMemoryCollection(data).Build());
+
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionSourceClient)), Is.True);
     }
 
     [Test]

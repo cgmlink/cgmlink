@@ -82,7 +82,7 @@ internal sealed class FatSecretClient : INutritionSourceClient
             BuildPath("food/barcode/find-by-id/v2", new Dictionary<string, string> { ["barcode"] = barcode }),
             cancellationToken).ConfigureAwait(false);
 
-        return response?.Food is null ? null : Map(response.Food);
+        return response?.Food is null ? null : Map(response.Food, barcode);
     }
 
     private async Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken)
@@ -179,10 +179,11 @@ internal sealed class FatSecretClient : INutritionSourceClient
             : [];
     }
 
-    private static NutritionProduct Map(Food food) => new()
+    private static NutritionProduct Map(Food food, string? barcode = null) => new()
     {
         ProductId = food.ProductId,
         Name = food.Name,
+        Barcode = barcode,
         Servings = food.Servings?.Items.Select(serving => new NutritionServing
         {
             ExternalId = serving.ExternalId,

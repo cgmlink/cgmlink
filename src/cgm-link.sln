@@ -37,7 +37,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Sync.LibreLink.Test
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Resources", "CgmLink.Resources\CgmLink.Resources.csproj", "{9C6697A5-0D88-48CA-B432-CF5234DF6BAA}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition", "CgmLink.Nutrition\CgmLink.Nutrition.csproj", "{6A79C5D9-C8AE-4F89-B0DA-3AD148D9661D}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Api", "CgmLink.Nutrition.Api\CgmLink.Nutrition.Api.csproj", "{6A79C5D9-C8AE-4F89-B0DA-3AD148D9661D}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CgmLink.Nutrition.Tests", "CgmLink.Nutrition.Tests\CgmLink.Nutrition.Tests.csproj", "{8289BF43-9DEF-4E44-BA1D-B35E720C5DE3}"
 EndProject
