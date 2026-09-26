@@ -31,8 +31,8 @@ rows on a schedule.
 
 ### fatsecret
 
-The fatsecret API is called with OAuth 1.0 HMAC-SHA1 (2-legged, consumer key + secret).
-`FatSecret:Authentication` is `"oauth1"`.
+The fatsecret API is called with the OAuth 2.0 client credentials flow. Access tokens are cached
+until shortly before expiry and used as bearer tokens for API requests.
 
 ## Configuration
 
@@ -49,12 +49,11 @@ are provided:
     "CacheCleanupInterval": "01:00:00"
   },
   "FatSecret": {
-    "ConsumerKey": "",
-    "ConsumerSecret": "",
-    "Authentication": "oauth1",
-    "Region": "US",
-    "Language": "en",
-    "ApiBaseUrl": "https://platform.fatsecret.com/rest/"
+    "ClientId": "",
+    "ClientSecret": "",
+    "Scope": "basic",
+    "ApiBaseUrl": "https://platform.fatsecret.com/rest/",
+    "TokenUrl": "https://oauth.fatsecret.com/connect/token"
   }
 }
 ```
@@ -73,6 +72,7 @@ Planned (all authenticated and versioned under `/api/v1/nutrition`):
 ## Projects
 
 - `CgmLink.Nutrition` — nutrition endpoints and DI wiring.
+- `CgmLink.Nutrition.Source` — provider-neutral client contract and product/serving models.
 - `CgmLink.Nutrition.Caching` — cache abstraction (`INutritionCache`, `INutritionDbInitializer`, `NutritionProduct`, options). No storage backend dependencies.
 - `CgmLink.Nutrition.Caching.Ef` — EF backed cache (`NutritionCacheDbContext`, `SqlServerNutritionCache`, cleanup service, initializer).
 - `CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL` — migrations for the cache schema.
