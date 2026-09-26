@@ -10,12 +10,7 @@ public sealed class FatSecretOptions
     [Required]
     public string ClientSecret { get; init; } = "";
 
-    public string Scope { get; init; } = "";
-
-    [Required]
-    public string Region { get; init; } = "US";
-
-    public string Language { get; init; } = "en";
+    public string Scope { get; init; } = "basic";
 
     [Required]
     public string ApiBaseUrl { get; init; } = "https://platform.fatsecret.com/rest/";

@@ -99,6 +99,22 @@ internal sealed class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public void AddNutrition_RegistersNutritionSource_WhenFatSecretConfiguredWithoutCache()
+    {
+        var services = new ServiceCollection();
+        var data = new Dictionary<string, string?>
+        {
+            ["FatSecret:ClientId"] = "client-id",
+            ["FatSecret:ClientSecret"] = "secret",
+        };
+
+        services.AddNutrition(new ConfigurationBuilder().AddInMemoryCollection(data).Build());
+
+        using var provider = services.BuildServiceProvider();
+        Assert.That(provider.GetServices<INutritionSourceClient>().Single().Source, Is.EqualTo("fatsecret"));
+    }
+
+    [Test]
     public void AddNutrition_DoesNotConfigureFatSecretOptions_WhenFatSecretNotConfigured()
     {
         var services = new ServiceCollection();

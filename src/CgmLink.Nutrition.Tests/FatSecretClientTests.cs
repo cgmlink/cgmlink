@@ -1,5 +1,4 @@
 using CgmLink.Nutrition.FatSecretClient;
-using Microsoft.Extensions.Options;
 using Moq;
 using System.Net;
 using System.Text;
@@ -9,14 +8,6 @@ namespace CgmLink.Nutrition.Tests;
 [TestFixture]
 internal sealed class FatSecretClientTests
 {
-    private static readonly FatSecretOptions OptionsValue = new()
-    {
-        ClientId = "client-id",
-        ClientSecret = "secret",
-        Region = "GB",
-        Language = "en"
-    };
-
     [Test]
     public async Task GetAsync_ReturnsOnlyStoredProductAndServingData()
     {
@@ -62,7 +53,7 @@ internal sealed class FatSecretClientTests
             Assert.That(result.Servings.Single().Protein, Is.EqualTo(3m));
             Assert.That(result.Servings.Single().Fat, Is.EqualTo(2m));
             Assert.That(handler.LastRequest!.RequestUri!.PathAndQuery,
-                Is.EqualTo("/rest/food/v5?food_id=50953&format=json&region=GB&language=en"));
+                Is.EqualTo("/rest/food/v5?food_id=50953&format=json"));
             Assert.That(handler.LastRequest.Headers.Authorization!.Scheme, Is.EqualTo("Bearer"));
             Assert.That(handler.LastRequest.Headers.Authorization.Parameter, Is.EqualTo("access-token"));
         });
@@ -72,10 +63,10 @@ internal sealed class FatSecretClientTests
     public async Task SearchAsync_ReturnsMappedFoodsAndUsesPaging()
     {
         const string json = """
-            {"foods_search":{"results":{"food":[
-              {"food_id":"1","food_name":"Apple","servings":{"serving":[]}},
-              {"food_id":"2","food_name":"Apple Pie","servings":{"serving":[]}}
-            ]}}}
+            {"foods":{"food":[
+              {"food_id":"1","food_name":"Apple"},
+              {"food_id":"2","food_name":"Apple Pie"}
+            ]}}
             """;
         var handler = JsonHandler(json);
         var sut = CreateClient(handler);
@@ -85,8 +76,29 @@ internal sealed class FatSecretClientTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Select(food => food.ProductId), Is.EqualTo(new[] { "1", "2" }));
-            Assert.That(handler.LastRequest!.RequestUri!.PathAndQuery, Is.EqualTo(
-                "/rest/foods/search/v5?search_expression=apple%20pie&page_number=2&max_results=10&format=json&region=GB&language=en"));
+            Assert.That(handler.LastRequest!.Method, Is.EqualTo(HttpMethod.Post));
+            Assert.That(handler.LastRequest.RequestUri!.PathAndQuery, Is.EqualTo("/rest/server.api"));
+            Assert.That(handler.LastContent, Does.Contain("method=foods.search"));
+            Assert.That(handler.LastContent, Does.Contain("search_expression=apple+pie"));
+            Assert.That(handler.LastContent, Does.Contain("page_number=2"));
+            Assert.That(handler.LastContent, Does.Contain("max_results=10"));
+        });
+    }
+
+    [Test]
+    public async Task SearchAsync_SingleResult_ReturnsOneProduct()
+    {
+        var handler = JsonHandler("""{"foods":{"food":{"food_id":"1","food_name":"Bread"}}}""");
+        var sut = CreateClient(handler);
+
+        var result = await sut.SearchAsync("bread");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Has.Count.EqualTo(1));
+            Assert.That(result.Single().ProductId, Is.EqualTo("1"));
+            Assert.That(result.Single().Name, Is.EqualTo("Bread"));
+            Assert.That(result.Single().Servings, Is.Empty);
         });
     }
 
@@ -102,8 +114,19 @@ internal sealed class FatSecretClientTests
         {
             Assert.That(result!.ProductId, Is.EqualTo("50953"));
             Assert.That(handler.LastRequest!.RequestUri!.PathAndQuery, Is.EqualTo(
-                "/rest/food/barcode/find-by-id/v2?barcode=0000012345678&format=json&region=GB&language=en"));
+                "/rest/food/barcode/find-by-id/v2?barcode=0000012345678&format=json"));
         });
+    }
+
+    [Test]
+    public void SearchAsync_FatSecretError_ThrowsHttpRequestException()
+    {
+        var handler = JsonHandler("""{"error":{"code":"14","message":"Missing scope: premier"}}""");
+        var sut = CreateClient(handler);
+
+        Assert.That(async () => await sut.SearchAsync("bread"),
+            Throws.TypeOf<HttpRequestException>()
+                .With.Message.EqualTo("FatSecret API error 14: Missing scope: premier"));
     }
 
     private static CgmLink.Nutrition.FatSecretClient.FatSecretClient CreateClient(RecordingHandler handler)
@@ -113,8 +136,7 @@ internal sealed class FatSecretClientTests
             .ReturnsAsync("access-token");
         return new CgmLink.Nutrition.FatSecretClient.FatSecretClient(
             new HttpClient(handler) { BaseAddress = new Uri("https://platform.fatsecret.com/rest/") },
-            authenticator.Object,
-            Options.Create(OptionsValue));
+            authenticator.Object);
     }
 
     private static RecordingHandler JsonHandler(string json) => new(_ => new HttpResponseMessage(HttpStatusCode.OK)
