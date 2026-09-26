@@ -51,9 +51,7 @@ are provided:
   "FatSecret": {
     "ClientId": "",
     "ClientSecret": "",
-    "Scope": "",
-    "Region": "US",
-    "Language": "en",
+    "Scope": "basic",
     "ApiBaseUrl": "https://platform.fatsecret.com/rest/",
     "TokenUrl": "https://oauth.fatsecret.com/connect/token"
   }
