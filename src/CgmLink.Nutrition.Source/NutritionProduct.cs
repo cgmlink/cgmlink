@@ -8,5 +8,7 @@ public sealed class NutritionProduct
 
     public required string Name { get; init; }
 
+    public string? Barcode { get; init; }
+
     public IReadOnlyCollection<NutritionServing> Servings { get; init; } = [];
 }

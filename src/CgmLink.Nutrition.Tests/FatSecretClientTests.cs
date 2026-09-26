@@ -113,6 +113,7 @@ internal sealed class FatSecretClientTests
         Assert.Multiple(() =>
         {
             Assert.That(result!.ProductId, Is.EqualTo("50953"));
+            Assert.That(result.Barcode, Is.EqualTo("0000012345678"));
             Assert.That(handler.LastRequest!.RequestUri!.PathAndQuery, Is.EqualTo(
                 "/rest/food/barcode/find-by-id/v2?barcode=0000012345678&format=json"));
         });

@@ -17,6 +17,12 @@
     </ItemGroup>
 
     <ItemGroup>
+      <PackageReference Include="Asp.Versioning.Http" Version="8.1.1" />
+      <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\CgmLink.AspNetCore\CgmLink.AspNetCore.csproj" />
       <ProjectReference Include="..\CgmLink.Nutrition.Caching\CgmLink.Nutrition.Caching.csproj" />
       <ProjectReference Include="..\CgmLink.Nutrition.Caching.Ef\CgmLink.Nutrition.Caching.Ef.csproj" />
       <ProjectReference Include="..\CgmLink.Nutrition.FatSecretClient\CgmLink.Nutrition.FatSecretClient.csproj" />

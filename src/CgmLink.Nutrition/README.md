@@ -64,7 +64,7 @@ Planned (all authenticated and versioned under `/api/v1/nutrition`):
 
 | Method | Route | nutrition source |
 |--------|-------|------------------|
-| GET | `/api/v1/nutrition/search?q=&page=&pageSize=` | `foods.search` |
+| GET | `/api/v1/nutrition/search?query=&page=&pageSize=` | `foods.search` |
 | GET | `/api/v1/nutrition/foods/{foodId}` | `food.get` |
 | GET | `/api/v1/nutrition/foods/barcode/{barcode}` | barcode lookup (no match → 404) |
 | POST | `/api/v1/nutrition/ingredients` `{ foodId, servingIds? }` | — |
