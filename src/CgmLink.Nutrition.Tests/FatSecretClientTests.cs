@@ -129,14 +129,62 @@ internal sealed class FatSecretClientTests
                 .With.Message.EqualTo("FatSecret API error 14: Missing scope: premier"));
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task GetAsync_AuthenticationFailure_RefreshesTokenAndRetries(bool fatSecretErrorResponse)
+    {
+        const string successJson = """{"food":{"food_id":"50953","food_name":"Cereal"}}""";
+        var requestCount = 0;
+        var handler = new RecordingHandler(_ => requestCount++ == 0
+            ? fatSecretErrorResponse
+                ? new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(
+                        """{"error":{"code":"13","message":"Invalid token"}}""",
+                        Encoding.UTF8,
+                        "application/json")
+                }
+                : new HttpResponseMessage(HttpStatusCode.Unauthorized)
+            : new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new StringContent(successJson, Encoding.UTF8, "application/json")
+            });
+        var authenticator = new Mock<IFatSecretAuthenticator>();
+        authenticator.SetupSequence(value => value.GetAccessTokenAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync("expired-token")
+            .ReturnsAsync("fresh-token");
+        authenticator.Setup(value => value.InvalidateAccessTokenAsync(
+                It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        var sut = CreateClient(handler, authenticator.Object);
+
+        var result = await sut.GetAsync("50953");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result!.ProductId, Is.EqualTo("50953"));
+            Assert.That(handler.RequestCount, Is.EqualTo(2));
+        });
+        authenticator.Verify(value => value.InvalidateAccessTokenAsync(
+            "expired-token", It.IsAny<CancellationToken>()), Times.Once);
+        authenticator.Verify(value => value.GetAccessTokenAsync(It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
     private static CgmLink.Nutrition.FatSecretClient.FatSecretClient CreateClient(RecordingHandler handler)
     {
         var authenticator = new Mock<IFatSecretAuthenticator>();
         authenticator.Setup(value => value.GetAccessTokenAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync("access-token");
+        return CreateClient(handler, authenticator.Object);
+    }
+
+    private static CgmLink.Nutrition.FatSecretClient.FatSecretClient CreateClient(
+        RecordingHandler handler,
+        IFatSecretAuthenticator authenticator)
+    {
         return new CgmLink.Nutrition.FatSecretClient.FatSecretClient(
             new HttpClient(handler) { BaseAddress = new Uri("https://platform.fatsecret.com/rest/") },
-            authenticator.Object);
+            authenticator);
     }
 
     private static RecordingHandler JsonHandler(string json) => new(_ => new HttpResponseMessage(HttpStatusCode.OK)

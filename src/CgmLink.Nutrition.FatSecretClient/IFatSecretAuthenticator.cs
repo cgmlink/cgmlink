@@ -6,4 +6,6 @@ namespace CgmLink.Nutrition.FatSecretClient;
 internal interface IFatSecretAuthenticator
 {
     Task<string> GetAccessTokenAsync(CancellationToken cancellationToken = default);
+
+    Task InvalidateAccessTokenAsync(string accessToken, CancellationToken cancellationToken = default);
 }

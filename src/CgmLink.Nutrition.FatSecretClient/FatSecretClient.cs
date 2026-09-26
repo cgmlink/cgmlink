@@ -1,3 +1,4 @@
+using CgmLink.Nutrition.FatSecretClient.Models;
 using CgmLink.Nutrition.Source;
 using System;
 using System.Collections.Generic;
@@ -42,18 +43,18 @@ internal sealed class FatSecretClient : INutritionSourceClient
         ArgumentOutOfRangeException.ThrowIfLessThan(maxResults, 1);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(maxResults, 50);
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, "server.api")
+        var formValues = new Dictionary<string, string>
         {
-            Content = new FormUrlEncodedContent(new Dictionary<string, string>
-            {
-                ["method"] = "foods.search",
-                ["search_expression"] = searchExpression,
-                ["page_number"] = pageNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["max_results"] = maxResults.ToString(System.Globalization.CultureInfo.InvariantCulture),
-                ["format"] = "json"
-            })
+            ["method"] = "foods.search",
+            ["search_expression"] = searchExpression,
+            ["page_number"] = pageNumber.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["max_results"] = maxResults.ToString(System.Globalization.CultureInfo.InvariantCulture),
+            ["format"] = "json"
         };
-        var response = await SendAsync<SearchResponse>(request, cancellationToken).ConfigureAwait(false);
+        var response = await SendAsync<SearchResponse>(() => new HttpRequestMessage(HttpMethod.Post, "server.api")
+        {
+            Content = new FormUrlEncodedContent(formValues)
+        }, cancellationToken).ConfigureAwait(false);
 
         return response?.Foods is null ? [] : MapSearchResults(response.Foods.Food);
     }
@@ -86,27 +87,71 @@ internal sealed class FatSecretClient : INutritionSourceClient
 
     private async Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken)
     {
-        using var request = new HttpRequestMessage(HttpMethod.Get, path);
-        return await SendAsync<T>(request, cancellationToken).ConfigureAwait(false);
+        return await SendAsync<T>(
+            () => new HttpRequestMessage(HttpMethod.Get, path),
+            cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<T?> SendAsync<T>(HttpRequestMessage request, CancellationToken cancellationToken)
+    private async Task<T?> SendAsync<T>(
+        Func<HttpRequestMessage> requestFactory,
+        CancellationToken cancellationToken)
     {
-        request.Headers.Authorization = new AuthenticationHeaderValue(
-            "Bearer",
-            await _authenticator.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false));
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        var accessToken = await _authenticator.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
+        using var response = await SendOnceAsync(requestFactory, accessToken, cancellationToken).ConfigureAwait(false);
         var json = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var error = DeserializeError(json);
+
+        if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && error?.Code != 13)
+        {
+            return Deserialize<T>(response, json, error);
+        }
+
+        await _authenticator.InvalidateAccessTokenAsync(accessToken, cancellationToken).ConfigureAwait(false);
+        accessToken = await _authenticator.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
+
+        using var retryResponse = await SendOnceAsync(requestFactory, accessToken, cancellationToken).ConfigureAwait(false);
+        var retryJson = await retryResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
+        var retryError = DeserializeError(retryJson);
+        return Deserialize<T>(retryResponse, retryJson, retryError);
+    }
+
+    private async Task<HttpResponseMessage> SendOnceAsync(
+        Func<HttpRequestMessage> requestFactory,
+        string accessToken,
+        CancellationToken cancellationToken)
+    {
+        using var request = requestFactory();
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
+        return await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static T? Deserialize<T>(HttpResponseMessage response, string json, Error? error)
+    {
         response.EnsureSuccessStatusCode();
 
-        var error = JsonSerializer.Deserialize<ErrorResponse>(json, JsonOptions)?.Error;
         if (error is not null)
         {
             throw new HttpRequestException($"FatSecret API error {error.Code}: {error.Message}");
         }
 
         return JsonSerializer.Deserialize<T>(json, JsonOptions);
+    }
+
+    private static Error? DeserializeError(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<ErrorResponse>(json, JsonOptions)?.Error;
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
     }
 
     private string BuildPath(string path, IReadOnlyDictionary<string, string> parameters)
@@ -125,16 +170,16 @@ internal sealed class FatSecretClient : INutritionSourceClient
         if (food.ValueKind == JsonValueKind.Array)
         {
             return food.EnumerateArray()
-                .Select(item => Map(item.Deserialize<FoodDto>(JsonOptions)!))
+                .Select(item => Map(item.Deserialize<Food>(JsonOptions)!))
                 .ToArray();
         }
 
         return food.ValueKind == JsonValueKind.Object
-            ? [Map(food.Deserialize<FoodDto>(JsonOptions)!)]
+            ? [Map(food.Deserialize<Food>(JsonOptions)!)]
             : [];
     }
 
-    private static NutritionProduct Map(FoodDto food) => new()
+    private static NutritionProduct Map(Food food) => new()
     {
         ProductId = food.ProductId,
         Name = food.Name,
@@ -151,81 +196,4 @@ internal sealed class FatSecretClient : INutritionSourceClient
         }).ToArray() ?? []
     };
 
-    private sealed class SearchResponse
-    {
-        [JsonPropertyName("foods")]
-        public FoodsDto? Foods { get; init; }
-    }
-
-    private sealed class FoodsDto
-    {
-        [JsonPropertyName("food")]
-        public JsonElement Food { get; init; }
-    }
-
-    private sealed class FoodResponse
-    {
-        [JsonPropertyName("food")]
-        public FoodDto? Food { get; init; }
-    }
-
-    private sealed class FoodDto
-    {
-        [JsonPropertyName("food_id")]
-        public string ProductId { get; init; } = "";
-
-        [JsonPropertyName("food_name")]
-        public string Name { get; init; } = "";
-
-        [JsonPropertyName("servings")]
-        public ServingsDto? Servings { get; init; }
-    }
-
-    private sealed class ServingsDto
-    {
-        [JsonPropertyName("serving")]
-        public ServingDto[] Items { get; init; } = [];
-    }
-
-    private sealed class ServingDto
-    {
-        [JsonPropertyName("serving_id")]
-        public string ExternalId { get; init; } = "";
-
-        [JsonPropertyName("serving_description")]
-        public string? Description { get; init; }
-
-        [JsonPropertyName("metric_serving_amount")]
-        public decimal? ServingAmount { get; init; }
-
-        [JsonPropertyName("metric_serving_unit")]
-        public string? ServingUnit { get; init; }
-
-        [JsonPropertyName("calories")]
-        public decimal Calories { get; init; }
-
-        [JsonPropertyName("carbohydrate")]
-        public decimal Carbs { get; init; }
-
-        [JsonPropertyName("protein")]
-        public decimal Protein { get; init; }
-
-        [JsonPropertyName("fat")]
-        public decimal Fat { get; init; }
-    }
-
-    private sealed class ErrorResponse
-    {
-        [JsonPropertyName("error")]
-        public ErrorDto? Error { get; init; }
-    }
-
-    private sealed class ErrorDto
-    {
-        [JsonPropertyName("code")]
-        public string Code { get; init; } = "";
-
-        [JsonPropertyName("message")]
-        public string Message { get; init; } = "";
-    }
 }

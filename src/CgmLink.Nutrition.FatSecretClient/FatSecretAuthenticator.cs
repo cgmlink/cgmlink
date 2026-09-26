@@ -1,3 +1,4 @@
+using CgmLink.Nutrition.FatSecretClient.Models;
 using Microsoft.Extensions.Options;
 using System;
 using System.Collections.Generic;
@@ -5,7 +6,6 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -80,17 +80,28 @@ internal sealed class FatSecretAuthenticator : IFatSecretAuthenticator, IDisposa
         }
     }
 
+    public async Task InvalidateAccessTokenAsync(
+        string accessToken,
+        CancellationToken cancellationToken = default)
+    {
+        await _tokenLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            if (string.Equals(_accessToken, accessToken, StringComparison.Ordinal))
+            {
+                _accessToken = null;
+                _expiresAt = default;
+            }
+        }
+        finally
+        {
+            _tokenLock.Release();
+        }
+    }
+
     public void Dispose() => _tokenLock.Dispose();
 
     private bool TokenIsValid() =>
         !string.IsNullOrWhiteSpace(_accessToken) && DateTimeOffset.UtcNow < _expiresAt - RefreshBuffer;
 
-    private sealed class TokenResponse
-    {
-        [JsonPropertyName("access_token")]
-        public string? AccessToken { get; init; }
-
-        [JsonPropertyName("expires_in")]
-        public int ExpiresIn { get; init; }
-    }
 }
