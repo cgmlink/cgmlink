@@ -14,9 +14,9 @@ internal static class NutritionEndpoints
         var group = endpoints.NewVersionedApi().MapGroup("api/v{version:apiVersion}/nutrition")
             .WithTags("Nutrition");
 
-        group.MapGet("/search", SearchNutrition.Endpoint.HandleAsync)
+        group.MapGet("/search", SearchFood.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
-            .WithName("SearchNutrition")
+            .WithName("SearchFood")
             .RequireAuthorization();
 
         group.MapGet("/foods/barcode/{barcode}", GetFoodByBarcode.Endpoint.HandleAsync)

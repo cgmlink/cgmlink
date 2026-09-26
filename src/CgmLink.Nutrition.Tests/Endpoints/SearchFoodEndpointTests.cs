@@ -1,4 +1,4 @@
-using CgmLink.Nutrition.Endpoints.SearchNutrition;
+using CgmLink.Nutrition.Endpoints.SearchFood;
 using CgmLink.Nutrition.Source;
 using FluentValidation;
 using FluentValidation.Results;
@@ -8,22 +8,22 @@ using Moq;
 namespace CgmLink.Nutrition.Tests.Endpoints;
 
 [TestFixture]
-public class SearchNutritionEndpointTests
+public class SearchFoodEndpointTests
 {
     private Mock<INutritionSourceClient> _nutritionSourceMock;
-    private Mock<IValidator<SearchNutritionRequest>> _validatorMock;
+    private Mock<IValidator<SearchFoodRequest>> _validatorMock;
 
     [SetUp]
     public void SetUp()
     {
         _nutritionSourceMock = new Mock<INutritionSourceClient>();
-        _validatorMock = new Mock<IValidator<SearchNutritionRequest>>();
+        _validatorMock = new Mock<IValidator<SearchFoodRequest>>();
     }
 
     [Test]
     public async Task HandleAsync_Should_Return_Mapped_Foods_And_Use_Paging()
     {
-        var request = new SearchNutritionRequest { Query = "apple", Page = 2, PageSize = 10 };
+        var request = new SearchFoodRequest { Query = "apple", Page = 2, PageSize = 10 };
         _validatorMock.Setup(validator => validator.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult());
         _nutritionSourceMock.Setup(client => client.SearchAsync(
@@ -37,7 +37,7 @@ public class SearchNutritionEndpointTests
         var result = await Endpoint.HandleAsync(
             request, _validatorMock.Object, _nutritionSourceMock.Object, CancellationToken.None);
 
-        var response = (result.Result as Ok<SearchNutritionResponse>)!.Value;
+        var response = (result.Result as Ok<SearchFoodResponse>)!.Value;
         Assert.That(response.Foods.Select(food => food.Name),
             Is.EqualTo(new[] { "Apple", "Apple Pie" }));
     }
@@ -45,7 +45,7 @@ public class SearchNutritionEndpointTests
     [Test]
     public async Task HandleAsync_Should_Return_ValidationProblem_When_Request_Is_Invalid()
     {
-        var request = new SearchNutritionRequest { Query = "", Page = 0, PageSize = 20 };
+        var request = new SearchFoodRequest { Query = "", Page = 0, PageSize = 20 };
         _validatorMock.Setup(validator => validator.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult
             {

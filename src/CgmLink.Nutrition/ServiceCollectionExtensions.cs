@@ -1,7 +1,7 @@
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
 using CgmLink.Nutrition.Endpoints;
-using CgmLink.Nutrition.Endpoints.SearchNutrition;
+using CgmLink.Nutrition.Endpoints.SearchFood;
 using CgmLink.Nutrition.FatSecretClient;
 using FluentValidation;
 using Microsoft.AspNetCore.Builder;
@@ -18,7 +18,7 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddNutrition(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddValidatorsFromAssemblyContaining<SearchNutritionRequest>();
+        services.AddValidatorsFromAssemblyContaining<SearchFoodRequest>();
         services.AddFatSecretClient(configuration);
 
         var nutritionSection = configuration.GetSection("Nutrition");

@@ -1,9 +1,9 @@
 using FluentValidation;
 using System.ComponentModel.DataAnnotations;
 
-namespace CgmLink.Nutrition.Endpoints.SearchNutrition;
+namespace CgmLink.Nutrition.Endpoints.SearchFood;
 
-public sealed record SearchNutritionRequest
+public sealed record SearchFoodRequest
 {
     [Required]
     public required string Query { get; set; }
@@ -12,7 +12,7 @@ public sealed record SearchNutritionRequest
 
     public int PageSize { get; set; } = 20;
 
-    public sealed class Validator : AbstractValidator<SearchNutritionRequest>
+    public sealed class Validator : AbstractValidator<SearchFoodRequest>
     {
         public Validator()
         {
