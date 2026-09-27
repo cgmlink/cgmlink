@@ -1,5 +1,4 @@
 using CgmLink.Nutrition.Endpoints.GetFood;
-using CgmLink.Nutrition.Source;
 using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -12,7 +11,7 @@ internal static class Endpoint
     internal static async Task<Results<Ok<SearchNutritionResponse>, ValidationProblem, UnauthorizedHttpResult>> HandleAsync(
         [AsParameters] SearchNutritionRequest request,
         [FromServices] IValidator<SearchNutritionRequest> validator,
-        [FromServices] INutritionSourceClient nutritionSource,
+        [FromServices] INutritionCatalog catalog,
         CancellationToken cancellationToken)
     {
         var validation = await validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
@@ -21,7 +20,7 @@ internal static class Endpoint
             return TypedResults.ValidationProblem(validation.ToDictionary());
         }
 
-        var products = await nutritionSource.SearchAsync(
+        var products = await catalog.SearchAsync(
             request.Query, request.Page, request.PageSize, cancellationToken).ConfigureAwait(false);
 
         return TypedResults.Ok(new SearchNutritionResponse

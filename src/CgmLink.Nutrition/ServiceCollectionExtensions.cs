@@ -20,18 +20,16 @@ public static class ServiceCollectionExtensions
     {
         services.AddValidatorsFromAssemblyContaining<SearchNutritionRequest>();
         services.AddFatSecretClient(configuration);
+        services.AddScoped<INutritionCatalog, NutritionCatalog>();
 
         var nutritionSection = configuration.GetSection("Nutrition");
         var nutritionOptions = nutritionSection.Get<NutritionOptions>();
         if (string.IsNullOrWhiteSpace(nutritionOptions?.CacheConnectionString))
         {
+            services.Configure<NutritionOptions>(nutritionSection.Bind);
+            services.AddScoped<INutritionCache, NullNutritionCache>();
             return services;
         }
-
-        services.AddOptions<NutritionOptions>()
-            .Configure(nutritionSection.Bind)
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
 
         switch (nutritionOptions.CacheProvider)
         {

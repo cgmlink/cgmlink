@@ -69,13 +69,25 @@ internal sealed class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public void AddNutrition_DoesNotRegisterNutritionCache_WhenCacheNotConfigured()
+    public void AddNutrition_RegistersNullNutritionCache_WhenCacheNotConfigured()
     {
         var services = new ServiceCollection();
 
         services.AddNutrition(Configuration(null));
 
-        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionCache)), Is.False);
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionCache)
+            && d.ImplementationType == typeof(NullNutritionCache)), Is.True);
+    }
+
+    [Test]
+    public void AddNutrition_RegistersCatalog()
+    {
+        var services = new ServiceCollection();
+
+        services.AddNutrition(Configuration(null));
+
+        Assert.That(services.Any(d => d.ServiceType == typeof(INutritionCatalog)
+            && d.ImplementationType == typeof(NutritionCatalog)), Is.True);
     }
 
     [Test]
