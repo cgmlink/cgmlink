@@ -106,11 +106,19 @@ internal sealed class SqlServerNutritionCacheTests
 
         await cache.SetAsync(new NutritionProduct
         {
-            Source = "test", ProductId = "1", Name = "Old", Barcode = "123", ExpiresAt = expiresAt,
+            Source = "test",
+            ProductId = "1",
+            Name = "Old",
+            Barcode = "123",
+            ExpiresAt = expiresAt,
         });
         await cache.SetAsync(new NutritionProduct
         {
-            Source = "test", ProductId = "2", Name = "New", Barcode = "123", ExpiresAt = expiresAt,
+            Source = "test",
+            ProductId = "2",
+            Name = "New",
+            Barcode = "123",
+            ExpiresAt = expiresAt,
         });
         db.ChangeTracker.Clear();
 
