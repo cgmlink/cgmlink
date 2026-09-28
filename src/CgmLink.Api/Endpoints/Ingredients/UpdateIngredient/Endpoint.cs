@@ -36,7 +36,7 @@ internal static class Endpoint
 
         var ingredient = await ingredientsRepository.GetAll()
             .Include(i => i.Servings)
-            .FirstOrDefaultAsync(i => i.Id == id && i.Users.Any(u => u.UserId == userId) && i.Deleted == null, cancellationToken)
+            .FirstOrDefaultAsync(i => i.Id == id && i.OwnerUserId == userId && i.Deleted == null, cancellationToken)
             .ConfigureAwait(false);
 
         if (ingredient is null)
@@ -52,10 +52,6 @@ internal static class Endpoint
         if (request.Name is not null)
         {
             ingredient.Name = request.Name;
-        }
-        if (request.Barcode is not null)
-        {
-            ingredient.Barcode = request.Barcode;
         }
         if (request.ImageUrl is not null)
         {

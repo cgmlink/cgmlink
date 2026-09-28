@@ -26,14 +26,6 @@ class UpdateIngredientRequestValidatorTests
     }
 
     [Test]
-    public void Should_Not_Have_Error_When_Barcode_Is_Provided()
-    {
-        var request = new UpdateIngredientRequest { Barcode = "123" };
-        var result = _validator.TestValidate(request);
-        result.ShouldNotHaveValidationErrorFor(x => x);
-    }
-
-    [Test]
     public void Should_Not_Have_Error_When_ImageUrl_Is_Provided()
     {
         var request = new UpdateIngredientRequest { ImageUrl = "https://example.com/image.jpg" };

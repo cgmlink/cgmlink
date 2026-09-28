@@ -39,9 +39,8 @@ public class GetIngredientTests
         {
             Id = ingredientId,
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = ingredientId, Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = _userId,
         };
 
         _ingredientsRepositoryMock
@@ -59,7 +58,6 @@ public class GetIngredientTests
         {
             Assert.That(okResult!.Value.Id, Is.EqualTo(ingredientId));
             Assert.That(okResult.Value.Name, Is.EqualTo("Milk"));
-            Assert.That(okResult.Value.Barcode, Is.EqualTo("123"));
         });
     }
 
@@ -72,7 +70,7 @@ public class GetIngredientTests
             Id = ingredientId,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = ingredientId, Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = _userId,
             Servings =
             {
                 new IngredientServing
@@ -121,7 +119,7 @@ public class GetIngredientTests
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Not_Linked_To_User()
+    public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Is_Not_Owned_By_User()
     {
         var ingredientId = Guid.NewGuid();
         var ingredient = new Ingredient
@@ -129,7 +127,7 @@ public class GetIngredientTests
             Id = ingredientId,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = Guid.NewGuid(), IngredientId = ingredientId, Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = Guid.NewGuid(),
         };
 
         _ingredientsRepositoryMock
@@ -151,7 +149,7 @@ public class GetIngredientTests
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
             Deleted = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = ingredientId, Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = _userId,
         };
 
         _ingredientsRepositoryMock

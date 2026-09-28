@@ -37,7 +37,6 @@ public class ListMealIngredientsTests
         {
             Id = ingredientId,
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
         };
 
@@ -182,7 +181,6 @@ public class ListMealIngredientsTests
             {
                 Id = ingredientId,
                 Name = "Milk",
-                Barcode = "123",
                 Created = DateTimeOffset.UtcNow,
             },
             ServingId = Guid.NewGuid(),

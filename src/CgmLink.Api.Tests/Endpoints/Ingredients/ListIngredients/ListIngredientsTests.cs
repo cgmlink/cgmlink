@@ -76,9 +76,8 @@ public class ListIngredientsTests
             {
                 Id = Guid.NewGuid(),
                 Name = "Milk",
-                Barcode = "123",
                 Created = DateTimeOffset.UtcNow,
-                Users = { new UserIngredient { UserId = _userId, IngredientId = Guid.NewGuid(), Created = DateTimeOffset.UtcNow } },
+                OwnerUserId = _userId,
             }
         };
 
@@ -140,7 +139,7 @@ public class ListIngredientsTests
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
             Deleted = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = Guid.NewGuid(), Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = _userId,
         };
 
         Expression<Func<Ingredient, bool>> predicate = null;
@@ -162,6 +161,37 @@ public class ListIngredientsTests
         Assert.That(predicate, Is.Not.Null);
         Assert.That(predicate.Compile()(deleted), Is.False);
         Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Exclude_Ingredients_Owned_By_Another_User()
+    {
+        var otherUsersIngredient = new Ingredient
+        {
+            Id = Guid.NewGuid(),
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            OwnerUserId = Guid.NewGuid(),
+        };
+
+        Expression<Func<Ingredient, bool>> predicate = null;
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((expression, _) => predicate = expression)
+            .Returns(Array.Empty<Ingredient>().AsQueryable());
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
+
+        await Endpoint.HandleAsync(request, _validatorMock.Object,
+            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+
+        Assert.That(predicate, Is.Not.Null);
+        Assert.That(predicate.Compile()(otherUsersIngredient), Is.False);
     }
 
     [Test]

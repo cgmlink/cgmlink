@@ -91,7 +91,6 @@ public sealed record GetTreatmentIngredientResponse
 {
     public required Guid IngredientId { get; init; }
     public required string IngredientName { get; init; }
-    public string? Barcode { get; init; }
     public string? ProductId { get; init; }
     public string? ImageUrl { get; init; }
     public string? ThumbnailUrl { get; init; }
@@ -111,7 +110,6 @@ public sealed record GetTreatmentIngredientResponse
         {
             IngredientId = treatmentIngredient.IngredientId,
             IngredientName = ingredient?.Name ?? string.Empty,
-            Barcode = ingredient?.Barcode,
             ProductId = ingredient?.ProductId,
             ImageUrl = ingredient?.ImageUrl,
             ThumbnailUrl = ingredient?.ThumbnailUrl,

@@ -8,12 +8,10 @@ using Microsoft.EntityFrameworkCore;
 namespace CgmLink.Data.Entities;
 
 /// <summary>
-/// An ingredient is a food item that can form part of a meal. Ingredients are shared between users
-/// and linked by barcode, so each scanned product resolves to a single row.
+/// A user-owned ingredient that can form part of a meal.
 /// </summary>
 [ExcludeFromCodeCoverage]
 [Table("ingredients")]
-[Index(nameof(Barcode), IsUnique = true)]
 public class Ingredient : ISoftDeletable
 {
     /// <summary>
@@ -30,9 +28,15 @@ public class Ingredient : ISoftDeletable
     public required string Name { get; set; }
 
     /// <summary>
-    /// The barcode of the ingredient, unique across all users, when scanned.
+    /// The id of the user who owns the ingredient.
     /// </summary>
-    public string? Barcode { get; set; }
+    public Guid OwnerUserId { get; set; }
+
+    /// <summary>
+    /// The user who owns the ingredient.
+    /// </summary>
+    [DeleteBehavior(DeleteBehavior.NoAction)]
+    public virtual User? OwnerUser { get; set; }
 
     /// <summary>
     /// The id of the linked external product, when created from a barcode scan.
@@ -71,8 +75,4 @@ public class Ingredient : ISoftDeletable
     /// </summary>
     public virtual ICollection<IngredientServing> Servings { get; set; } = [];
 
-    /// <summary>
-    /// The users linked to this ingredient.
-    /// </summary>
-    public virtual ICollection<UserIngredient> Users { get; set; } = [];
 }

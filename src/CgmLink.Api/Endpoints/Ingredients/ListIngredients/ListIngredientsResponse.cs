@@ -13,7 +13,6 @@ public sealed record GetIngredientResponse
 {
     public required Guid Id { get; init; }
     public required string Name { get; init; }
-    public string? Barcode { get; init; }
     public string? ProductId { get; init; }
     public string? ImageUrl { get; init; }
     public string? ThumbnailUrl { get; init; }
