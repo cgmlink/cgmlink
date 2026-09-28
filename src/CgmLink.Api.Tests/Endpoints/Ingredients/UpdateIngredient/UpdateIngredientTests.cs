@@ -56,11 +56,10 @@ public class UpdateIngredientTests
         {
             Id = id,
             Name = "Milk",
-            Barcode = "123",
             ImageUrl = "https://example.com/image.jpg",
             ThumbnailUrl = "https://example.com/thumb.jpg",
             Created = DateTimeOffset.UtcNow.AddDays(-1),
-            Users = { new UserIngredient { UserId = _userId, IngredientId = id, Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = _userId,
         };
     }
 
@@ -103,7 +102,6 @@ public class UpdateIngredientTests
 
         _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Ingredient>(i =>
             i.Name == "Updated Milk" &&
-            i.Barcode == "123" &&
             i.ImageUrl == "https://example.com/image.jpg" &&
             i.ThumbnailUrl == "https://example.com/thumb.jpg" &&
             i.Updated != null
@@ -114,7 +112,6 @@ public class UpdateIngredientTests
         {
             Assert.That(okResult, Is.TypeOf<Ok<UpdateIngredientResponse>>());
             Assert.That(okResult!.Value.Name, Is.EqualTo("Updated Milk"));
-            Assert.That(okResult.Value.Barcode, Is.EqualTo("123"));
             Assert.That(okResult.Value.ImageUrl, Is.EqualTo("https://example.com/image.jpg"));
             Assert.That(okResult.Value.ThumbnailUrl, Is.EqualTo("https://example.com/thumb.jpg"));
         });
@@ -134,7 +131,6 @@ public class UpdateIngredientTests
 
         _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Ingredient>(i =>
             i.Name == "Milk" &&
-            i.Barcode == "123" &&
             i.ImageUrl == "https://example.com/image.jpg" &&
             i.ThumbnailUrl == "https://example.com/thumb.jpg" &&
             i.Updated != null
@@ -154,7 +150,6 @@ public class UpdateIngredientTests
         var request = new UpdateIngredientRequest
         {
             Name = "Almond Milk",
-            Barcode = "456",
             ImageUrl = "https://example.com/new-image.jpg",
             ThumbnailUrl = "https://example.com/new-thumb.jpg",
         };
@@ -164,7 +159,6 @@ public class UpdateIngredientTests
 
         _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Ingredient>(i =>
             i.Name == "Almond Milk" &&
-            i.Barcode == "456" &&
             i.ImageUrl == "https://example.com/new-image.jpg" &&
             i.ThumbnailUrl == "https://example.com/new-thumb.jpg"
         ), It.IsAny<CancellationToken>()), Times.Once);
@@ -380,6 +374,23 @@ public class UpdateIngredientTests
         Assert.That(async () => await Endpoint.HandleAsync(id, request, _validatorMock.Object,
                 _currentUserMock.Object, _ingredientsRepositoryMock.Object, _mealServiceMock.Object, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
+    }
+
+    [Test]
+    public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Is_Not_Owned_By_User()
+    {
+        var id = Guid.NewGuid();
+        var ingredient = CreateIngredient(id);
+        ingredient.OwnerUserId = Guid.NewGuid();
+        SetupIngredient(ingredient);
+
+        var request = new UpdateIngredientRequest { Name = "Updated Milk" };
+
+        Assert.That(async () => await Endpoint.HandleAsync(id, request, _validatorMock.Object,
+                _currentUserMock.Object, _ingredientsRepositoryMock.Object, _mealServiceMock.Object, CancellationToken.None),
+            Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
+
+        _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Ingredient>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

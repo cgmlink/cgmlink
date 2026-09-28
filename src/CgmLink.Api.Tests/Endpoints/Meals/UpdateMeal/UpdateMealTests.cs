@@ -71,9 +71,8 @@ public class UpdateMealTests
         {
             Id = id,
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = id, Created = DateTimeOffset.UtcNow } },
+            OwnerUserId = _userId,
         };
     }
 

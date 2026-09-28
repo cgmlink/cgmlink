@@ -92,81 +92,16 @@ public class NewIngredientTests
     }
 
     [Test]
-    public async Task HandleAsync_Should_Return_Created_With_Existing_Ingredient_When_Barcode_Matched_And_Already_Linked()
-    {
-        var existing = new Ingredient
-        {
-            Id = Guid.NewGuid(),
-            Name = "Milk",
-            Barcode = "123",
-            Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = Guid.NewGuid(), Created = DateTimeOffset.UtcNow } },
-        };
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.GetAll())
-            .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { existing }));
-
-        var request = new NewIngredientRequest { Name = "Milk", Barcode = "123" };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _ingredientsRepositoryMock.Object, _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None);
-
-        _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Ingredient>(), It.IsAny<CancellationToken>()), Times.Never);
-
-        Assert.That(result.Result, Is.TypeOf<Created<NewIngredientResponse>>());
-        var created = result.Result as Created<NewIngredientResponse>;
-        Assert.Multiple(() =>
-        {
-            Assert.That(created!.Value.Id, Is.EqualTo(existing.Id));
-            Assert.That(created.Value.Name, Is.EqualTo(existing.Name));
-            Assert.That(created.Value.Barcode, Is.EqualTo(existing.Barcode));
-        });
-    }
-
-    [Test]
-    public async Task HandleAsync_Should_Link_User_To_Existing_Ingredient_When_Barcode_Matched_And_Not_Linked()
-    {
-        var existing = new Ingredient
-        {
-            Id = Guid.NewGuid(),
-            Name = "Milk",
-            Barcode = "123",
-            Created = DateTimeOffset.UtcNow,
-        };
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.GetAll())
-            .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { existing }));
-
-        var request = new NewIngredientRequest { Name = "Milk", Barcode = "123" };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _ingredientsRepositoryMock.Object, _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None);
-
-        _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.Is<Ingredient>(i => i.Users.Any(u => u.UserId == _userId)), It.IsAny<CancellationToken>()), Times.Once);
-
-        Assert.That(result.Result, Is.TypeOf<Created<NewIngredientResponse>>());
-        var created = result.Result as Created<NewIngredientResponse>;
-        Assert.Multiple(() =>
-        {
-            Assert.That(created!.Value.Id, Is.EqualTo(existing.Id));
-            Assert.That(created.Value.Name, Is.EqualTo(existing.Name));
-        });
-    }
-
-    [Test]
     public async Task HandleAsync_Should_Return_Created_When_Request_Is_Valid()
     {
-        var request = new NewIngredientRequest { Name = "Test Ingredient", Barcode = "456" };
+        var request = new NewIngredientRequest { Name = "Test Ingredient" };
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
             _ingredientsRepositoryMock.Object, _usersRepositoryMock.Object, _currentUserMock.Object, CancellationToken.None);
 
         _ingredientsRepositoryMock.Verify(r => r.AddAsync(It.Is<Ingredient>(i =>
             i.Name == request.Name &&
-            i.Barcode == request.Barcode &&
-            i.Users.Any(u => u.UserId == _userId)
+            i.OwnerUserId == _userId
         ), It.IsAny<CancellationToken>()), Times.Once);
 
         Assert.That(result.Result, Is.TypeOf<Created<NewIngredientResponse>>());
@@ -174,7 +109,6 @@ public class NewIngredientTests
         Assert.Multiple(() =>
         {
             Assert.That(created!.Value.Name, Is.EqualTo(request.Name));
-            Assert.That(created.Value.Barcode, Is.EqualTo(request.Barcode));
             Assert.That(created.Value.Created, Is.EqualTo(DateTimeOffset.UtcNow).Within(TimeSpan.FromSeconds(1)));
             Assert.That(created.Value.Id, Is.Not.EqualTo(Guid.Empty));
         });

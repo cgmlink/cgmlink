@@ -33,7 +33,7 @@ internal static class Endpoint
         var sortBy = string.IsNullOrWhiteSpace(request.SortBy) ? nameof(Ingredient.Created) : request.SortBy;
         var descending = (request.SortDirection ?? SortDirection.Desc) == SortDirection.Desc;
 
-        var ingredients = ingredientsRepository.Find(i => i.Users.Any(u => u.UserId == userId) && i.Deleted == null, new FindOptions { IsAsNoTracking = true })
+        var ingredients = ingredientsRepository.Find(i => i.OwnerUserId == userId && i.Deleted == null, new FindOptions { IsAsNoTracking = true })
             .OrderByProperty(sortBy, descending)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
@@ -41,7 +41,6 @@ internal static class Endpoint
             {
                 Id = i.Id,
                 Name = i.Name,
-                Barcode = i.Barcode,
                 ProductId = i.ProductId,
                 ImageUrl = i.ImageUrl,
                 ThumbnailUrl = i.ThumbnailUrl,
@@ -50,7 +49,7 @@ internal static class Endpoint
             })
             .ToList();
 
-        var totalIngredients = await ingredientsRepository.CountAsync(i => i.Users.Any(u => u.UserId == userId) && i.Deleted == null, cancellationToken).ConfigureAwait(false);
+        var totalIngredients = await ingredientsRepository.CountAsync(i => i.OwnerUserId == userId && i.Deleted == null, cancellationToken).ConfigureAwait(false);
         var numberOfPages = (int)Math.Ceiling(totalIngredients / (double)request.PageSize);
 
         var response = new ListIngredientsResponse

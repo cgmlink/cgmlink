@@ -6,7 +6,6 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System;
 using System.Linq;
 using System.Threading;
@@ -37,37 +36,10 @@ internal static class Endpoint
             throw new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
         }
 
-        Ingredient? ingredient;
-
-        if (!string.IsNullOrEmpty(request.Barcode))
-        {
-            ingredient = await ingredientsRepository.GetAll()
-                .Include(i => i.Users)
-                .FirstOrDefaultAsync(i => i.Barcode == request.Barcode, cancellationToken)
-                .ConfigureAwait(false);
-
-            if (ingredient is not null)
-            {
-                if (!ingredient.Users.Any(u => u.UserId == userId))
-                {
-                    ingredient.Users.Add(new UserIngredient
-                    {
-                        UserId = userId,
-                        IngredientId = ingredient.Id,
-                        Created = DateTimeOffset.UtcNow,
-                    });
-                    await ingredientsRepository.UpdateAsync(ingredient, cancellationToken).ConfigureAwait(false);
-                }
-
-                return TypedResults.Created($"/api/v1/ingredients/{ingredient.Id}", NewIngredientResponse.ToResponse(ingredient));
-            }
-        }
-
-        ingredient = new Ingredient
+        var ingredient = new Ingredient
         {
             Name = request.Name,
-            Barcode = request.Barcode,
-            ProductId = request.ProductId,
+            OwnerUserId = userId,
             ImageUrl = request.ImageUrl,
             ThumbnailUrl = request.ThumbnailUrl,
             Created = DateTimeOffset.UtcNow,
@@ -88,13 +60,6 @@ internal static class Endpoint
                 Created = DateTimeOffset.UtcNow,
             });
         }
-
-        ingredient.Users.Add(new UserIngredient
-        {
-            UserId = userId,
-            IngredientId = ingredient.Id,
-            Created = DateTimeOffset.UtcNow,
-        });
 
         await ingredientsRepository.AddAsync(ingredient, cancellationToken).ConfigureAwait(false);
 

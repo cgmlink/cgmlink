@@ -7,8 +7,6 @@ namespace CgmLink.Api.Endpoints.Ingredients.NewIngredient;
 public sealed record NewIngredientRequest
 {
     public required string Name { get; init; }
-    public string? Barcode { get; init; }
-    public string? ProductId { get; init; }
     public string? ImageUrl { get; init; }
     public string? ThumbnailUrl { get; init; }
     public ICollection<NewIngredientServingRequest> Servings { get; init; } = [];

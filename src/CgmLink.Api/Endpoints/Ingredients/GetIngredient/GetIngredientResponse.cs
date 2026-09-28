@@ -9,7 +9,6 @@ public sealed record GetIngredientResponse
 {
     public required Guid Id { get; init; }
     public required string Name { get; init; }
-    public string? Barcode { get; init; }
     public string? ProductId { get; init; }
     public string? ImageUrl { get; init; }
     public string? ThumbnailUrl { get; init; }
@@ -35,7 +34,6 @@ public sealed record GetIngredientResponse
         {
             Id = ingredient.Id,
             Name = ingredient.Name,
-            Barcode = ingredient.Barcode,
             ProductId = ingredient.ProductId,
             ImageUrl = ingredient.ImageUrl,
             ThumbnailUrl = ingredient.ThumbnailUrl,

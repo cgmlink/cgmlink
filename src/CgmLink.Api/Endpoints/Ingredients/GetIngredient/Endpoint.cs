@@ -25,7 +25,7 @@ internal static class Endpoint
 
         var ingredient = await ingredientsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
             .Include(i => i.Servings.Where(s => s.Deleted == null))
-            .FirstOrDefaultAsync(i => i.Id == id && i.Users.Any(u => u.UserId == userId) && i.Deleted == null, cancellationToken)
+            .FirstOrDefaultAsync(i => i.Id == id && i.OwnerUserId == userId && i.Deleted == null, cancellationToken)
             .ConfigureAwait(false);
 
         if (ingredient is null)
