@@ -10,13 +10,13 @@ namespace CgmLink.Nutrition.Tests.Endpoints;
 [TestFixture]
 public class SearchNutritionEndpointTests
 {
-    private Mock<INutritionSourceClient> _nutritionSourceMock;
+    private Mock<INutritionCatalog> _catalogMock;
     private Mock<IValidator<SearchNutritionRequest>> _validatorMock;
 
     [SetUp]
     public void SetUp()
     {
-        _nutritionSourceMock = new Mock<INutritionSourceClient>();
+        _catalogMock = new Mock<INutritionCatalog>();
         _validatorMock = new Mock<IValidator<SearchNutritionRequest>>();
     }
 
@@ -26,7 +26,7 @@ public class SearchNutritionEndpointTests
         var request = new SearchNutritionRequest { Query = "apple", Page = 2, PageSize = 10 };
         _validatorMock.Setup(validator => validator.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult());
-        _nutritionSourceMock.Setup(client => client.SearchAsync(
+        _catalogMock.Setup(client => client.SearchAsync(
                 "apple", 2, 10, It.IsAny<CancellationToken>()))
             .ReturnsAsync(
             [
@@ -35,7 +35,7 @@ public class SearchNutritionEndpointTests
             ]);
 
         var result = await Endpoint.HandleAsync(
-            request, _validatorMock.Object, _nutritionSourceMock.Object, CancellationToken.None);
+            request, _validatorMock.Object, _catalogMock.Object, CancellationToken.None);
 
         var response = (result.Result as Ok<SearchNutritionResponse>)!.Value;
         Assert.That(response.Foods.Select(food => food.Name),
@@ -53,10 +53,10 @@ public class SearchNutritionEndpointTests
             });
 
         var result = await Endpoint.HandleAsync(
-            request, _validatorMock.Object, _nutritionSourceMock.Object, CancellationToken.None);
+            request, _validatorMock.Object, _catalogMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
-        _nutritionSourceMock.Verify(client => client.SearchAsync(
+        _catalogMock.Verify(client => client.SearchAsync(
             It.IsAny<string>(), It.IsAny<int>(), It.IsAny<int>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

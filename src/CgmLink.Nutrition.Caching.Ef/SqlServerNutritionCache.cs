@@ -23,16 +23,50 @@ internal sealed class SqlServerNutritionCache : INutritionCache
             throw new ArgumentException("Product id must not be empty.", nameof(productId));
         }
 
-        return await _db.NutritionProducts
-            .FirstOrDefaultAsync(p => p.Source == source && p.ProductId == productId && p.ExpiresAt > DateTimeOffset.UtcNow, cancellationToken)
+        var product = await _db.NutritionProducts
+            .Include(p => p.Servings)
+            .FirstOrDefaultAsync(p => p.Source == source && p.ProductId == productId, cancellationToken)
             .ConfigureAwait(false);
+
+        return product?.ExpiresAt > DateTimeOffset.UtcNow ? product : null;
+    }
+
+    public async ValueTask<NutritionProduct?> GetByBarcodeAsync(
+        string source,
+        string barcode,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(source);
+        ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
+
+        var product = await _db.NutritionProducts
+            .Include(p => p.Servings)
+            .FirstOrDefaultAsync(p => p.Source == source && p.Barcode == barcode, cancellationToken)
+            .ConfigureAwait(false);
+
+        return product?.ExpiresAt > DateTimeOffset.UtcNow ? product : null;
     }
 
     public async ValueTask SetAsync(NutritionProduct product, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(product);
 
+        if (!string.IsNullOrWhiteSpace(product.Barcode))
+        {
+            var previousMatches = await _db.NutritionProducts
+                .Where(p => p.Source == product.Source
+                    && p.Barcode == product.Barcode
+                    && p.ProductId != product.ProductId)
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
+            foreach (var previousMatch in previousMatches)
+            {
+                previousMatch.Barcode = null;
+            }
+        }
+
         var existing = await _db.NutritionProducts
+            .Include(p => p.Servings)
             .FirstOrDefaultAsync(p => p.Source == product.Source && p.ProductId == product.ProductId, cancellationToken)
             .ConfigureAwait(false);
 
@@ -42,13 +76,29 @@ internal sealed class SqlServerNutritionCache : INutritionCache
         }
         else
         {
-            existing.Barcode = product.Barcode;
             existing.Name = product.Name;
-            existing.Calories = product.Calories;
-            existing.Carbs = product.Carbs;
-            existing.Protein = product.Protein;
-            existing.Fat = product.Fat;
+            existing.Barcode = product.Barcode;
             existing.ExpiresAt = product.ExpiresAt;
+
+            var servings = product.Servings.ToDictionary(serving => serving.ServingId);
+            _db.NutritionServings.RemoveRange(existing.Servings.Where(serving => !servings.ContainsKey(serving.ServingId)));
+            foreach (var serving in product.Servings)
+            {
+                var cachedServing = existing.Servings.FirstOrDefault(item => item.ServingId == serving.ServingId);
+                if (cachedServing is null)
+                {
+                    existing.Servings.Add(serving);
+                    continue;
+                }
+
+                cachedServing.Description = serving.Description;
+                cachedServing.ServingAmount = serving.ServingAmount;
+                cachedServing.ServingUnit = serving.ServingUnit;
+                cachedServing.Calories = serving.Calories;
+                cachedServing.Carbs = serving.Carbs;
+                cachedServing.Protein = serving.Protein;
+                cachedServing.Fat = serving.Fat;
+            }
         }
 
         await _db.SaveChangesAsync(cancellationToken).ConfigureAwait(false);

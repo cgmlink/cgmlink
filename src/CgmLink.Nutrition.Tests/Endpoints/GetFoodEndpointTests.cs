@@ -9,18 +9,18 @@ namespace CgmLink.Nutrition.Tests.Endpoints;
 [TestFixture]
 public class GetFoodEndpointTests
 {
-    private Mock<INutritionSourceClient> _nutritionSourceMock;
+    private Mock<INutritionCatalog> _catalogMock;
 
     [SetUp]
     public void SetUp()
     {
-        _nutritionSourceMock = new Mock<INutritionSourceClient>();
+        _catalogMock = new Mock<INutritionCatalog>();
     }
 
     [Test]
     public async Task HandleAsync_Should_Return_Mapped_Food()
     {
-        _nutritionSourceMock.Setup(client => client.GetAsync("50953", It.IsAny<CancellationToken>()))
+        _catalogMock.Setup(client => client.GetAsync("50953", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new NutritionProduct
             {
                 ProductId = "50953",
@@ -40,7 +40,7 @@ public class GetFoodEndpointTests
             });
 
         var result = await Endpoint.HandleAsync(
-            "50953", _nutritionSourceMock.Object, CancellationToken.None);
+            "50953", _catalogMock.Object, CancellationToken.None);
 
         var response = (result.Result as Ok<GetFoodResponse>)!.Value;
         Assert.Multiple(() =>
@@ -54,12 +54,12 @@ public class GetFoodEndpointTests
     [Test]
     public void HandleAsync_Should_Throw_NotFoundException_When_Food_Does_Not_Exist()
     {
-        _nutritionSourceMock.Setup(client => client.GetAsync("missing", It.IsAny<CancellationToken>()))
+        _catalogMock.Setup(client => client.GetAsync("missing", It.IsAny<CancellationToken>()))
             .ReturnsAsync((NutritionProduct)null);
 
         Assert.That(
             async () => await Endpoint.HandleAsync(
-                "missing", _nutritionSourceMock.Object, CancellationToken.None),
+                "missing", _catalogMock.Object, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("FOOD_NOT_FOUND"));
     }
 }

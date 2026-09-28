@@ -9,6 +9,8 @@ public class NutritionCacheDbContext : DbContext
 {
     public DbSet<NutritionProduct> NutritionProducts { get; set; }
 
+    public DbSet<NutritionServing> NutritionServings { get; set; }
+
     public NutritionCacheDbContext(DbContextOptions<NutritionCacheDbContext> options) : base(options)
     {
     }
@@ -19,5 +21,14 @@ public class NutritionCacheDbContext : DbContext
 
         modelBuilder.Entity<NutritionProduct>()
             .HasKey(p => new { p.Source, p.ProductId });
+
+        modelBuilder.Entity<NutritionServing>()
+            .HasKey(s => new { s.Source, s.ProductId, s.ServingId });
+        modelBuilder.Entity<NutritionServing>()
+            .HasOne(s => s.Product)
+            .WithMany(p => p.Servings)
+            .HasForeignKey(s => new { s.Source, s.ProductId })
+            .OnDelete(DeleteBehavior.Cascade);
+
     }
 }

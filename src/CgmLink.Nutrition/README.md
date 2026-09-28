@@ -13,9 +13,9 @@ into CGM Link.
 
 | What | Stored |
 |------|--------|
-| `Ingredient.Id`, `Ingredient.ProductId`, `Ingredient.Barcode`, `IngredientServing.ExternalId` | Permanently |
+| Provider product and serving IDs | Permanently in the primary database (in later integration slices) |
 | Aggregated nutrition on `Meal` / `Treatment` | Permanently |
-| Cached product records (product id, barcode, name, nutrition values) | Temporarily, max 24h |
+| Provider names, barcodes, serving descriptions, measurements, and nutrition values | Temporarily in the nutrition cache, max 24h |
 
 The provider-specific product data is cached in a **separate** database (see `Nutrition:CacheConnectionString`)
 so it never touches the user data database. The cache is provider-agnostic: it stores only the values the
@@ -36,9 +36,9 @@ until shortly before expiry and used as bearer tokens for API requests.
 
 ## Configuration
 
-Options live in `appsettings.json` / user secrets. Nutrition services are only registered when
-`Nutrition:CacheConnectionString` is set; the fatsecret options are registered only when its credentials
-are provided:
+Options live in `appsettings.json` / user secrets. The catalog and FatSecret client are always registered;
+the EF cache is enabled when `Nutrition:CacheConnectionString` is set. Without it, catalog reads go directly
+to the provider and are not cached:
 
 ```json
 {

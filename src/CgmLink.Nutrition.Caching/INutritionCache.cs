@@ -8,5 +8,7 @@ public interface INutritionCache
 {
     ValueTask<NutritionProduct?> GetAsync(string source, string productId, CancellationToken cancellationToken = default);
 
+    ValueTask<NutritionProduct?> GetByBarcodeAsync(string source, string barcode, CancellationToken cancellationToken = default);
+
     ValueTask SetAsync(NutritionProduct product, CancellationToken cancellationToken = default);
 }
