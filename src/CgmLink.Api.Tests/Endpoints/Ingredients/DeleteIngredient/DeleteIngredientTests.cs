@@ -44,7 +44,7 @@ public class DeleteIngredientTests
             ImageUrl = "https://example.com/image.jpg",
             ThumbnailUrl = "https://example.com/thumb.jpg",
             Created = DateTimeOffset.UtcNow.AddDays(-1),
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
     }
 
@@ -95,7 +95,7 @@ public class DeleteIngredientTests
             Id = id,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
         };
         SetupIngredient(ingredient);
 

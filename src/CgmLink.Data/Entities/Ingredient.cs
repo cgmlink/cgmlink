@@ -30,13 +30,13 @@ public class Ingredient : ISoftDeletable
     /// <summary>
     /// The id of the user who owns the ingredient.
     /// </summary>
-    public Guid OwnerUserId { get; set; }
+    public Guid UserId { get; set; }
 
     /// <summary>
     /// The user who owns the ingredient.
     /// </summary>
     [DeleteBehavior(DeleteBehavior.NoAction)]
-    public virtual User? OwnerUser { get; set; }
+    public virtual User? User { get; set; }
 
     /// <summary>
     /// The id of the linked external product, when created from a barcode scan.

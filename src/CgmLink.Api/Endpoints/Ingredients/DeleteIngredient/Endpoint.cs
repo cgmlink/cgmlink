@@ -24,7 +24,7 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
 
         var ingredient = await ingredientsRepository.GetAll()
-            .FirstOrDefaultAsync(i => i.Id == id && i.OwnerUserId == userId, cancellationToken)
+            .FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId, cancellationToken)
             .ConfigureAwait(false);
 
         if (ingredient is null)

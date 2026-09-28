@@ -59,7 +59,7 @@ public class UpdateIngredientTests
             ImageUrl = "https://example.com/image.jpg",
             ThumbnailUrl = "https://example.com/thumb.jpg",
             Created = DateTimeOffset.UtcNow.AddDays(-1),
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
     }
 
@@ -381,7 +381,7 @@ public class UpdateIngredientTests
     {
         var id = Guid.NewGuid();
         var ingredient = CreateIngredient(id);
-        ingredient.OwnerUserId = Guid.NewGuid();
+        ingredient.UserId = Guid.NewGuid();
         SetupIngredient(ingredient);
 
         var request = new UpdateIngredientRequest { Name = "Updated Milk" };

@@ -73,7 +73,7 @@ public class NewMealTests
             Id = id,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
     }
 
@@ -274,7 +274,7 @@ public class NewMealTests
             Id = ingredientId,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
         };
         SetupIngredients(new List<Ingredient> { ingredient });
 

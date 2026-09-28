@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -12,7 +12,7 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.AddColumn<Guid>(
-                name: "OwnerUserId",
+                name: "UserId",
                 table: "ingredients",
                 type: "uniqueidentifier",
                 nullable: true);
@@ -44,13 +44,13 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                 FROM RankedOwners;
 
                 UPDATE i
-                SET OwnerUserId = ownership.UserId
+                SET UserId = ownership.UserId
                 FROM ingredients i
                 INNER JOIN #IngredientOwnership ownership
                     ON ownership.OldIngredientId = i.Id AND ownership.OwnerRank = 1;
 
                 INSERT INTO ingredients
-                    (Id, Name, ProductId, ImageUrl, ThumbnailUrl, Created, Updated, Deleted, OwnerUserId)
+                    (Id, Name, ProductId, ImageUrl, ThumbnailUrl, Created, Updated, Deleted, UserId)
                 SELECT ownership.NewIngredientId, i.Name, i.ProductId, i.ImageUrl, i.ThumbnailUrl,
                     i.Created, i.Updated, i.Deleted, ownership.UserId
                 FROM #IngredientOwnership ownership
@@ -124,7 +124,7 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                 table: "ingredients");
 
             migrationBuilder.AlterColumn<Guid>(
-                name: "OwnerUserId",
+                name: "UserId",
                 table: "ingredients",
                 type: "uniqueidentifier",
                 nullable: false,
@@ -133,14 +133,14 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                 oldNullable: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_ingredients_OwnerUserId",
+                name: "IX_ingredients_UserId",
                 table: "ingredients",
-                column: "OwnerUserId");
+                column: "UserId");
 
             migrationBuilder.AddForeignKey(
-                name: "FK_ingredients_users_OwnerUserId",
+                name: "FK_ingredients_users_UserId",
                 table: "ingredients",
-                column: "OwnerUserId",
+                column: "UserId",
                 principalTable: "users",
                 principalColumn: "Id");
         }
@@ -149,11 +149,11 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropForeignKey(
-                name: "FK_ingredients_users_OwnerUserId",
+                name: "FK_ingredients_users_UserId",
                 table: "ingredients");
 
             migrationBuilder.DropIndex(
-                name: "IX_ingredients_OwnerUserId",
+                name: "IX_ingredients_UserId",
                 table: "ingredients");
 
             migrationBuilder.AddColumn<string>(
@@ -209,12 +209,12 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
             migrationBuilder.Sql(
                 """
                 INSERT INTO user_ingredients (Id, UserId, IngredientId, Created)
-                SELECT NEWID(), OwnerUserId, Id, Created
+                SELECT NEWID(), UserId, Id, Created
                 FROM ingredients;
                 """);
 
             migrationBuilder.DropColumn(
-                name: "OwnerUserId",
+                name: "UserId",
                 table: "ingredients");
         }
     }

@@ -101,7 +101,7 @@ public class NewIngredientTests
 
         _ingredientsRepositoryMock.Verify(r => r.AddAsync(It.Is<Ingredient>(i =>
             i.Name == request.Name &&
-            i.OwnerUserId == _userId
+            i.UserId == _userId
         ), It.IsAny<CancellationToken>()), Times.Once);
 
         Assert.That(result.Result, Is.TypeOf<Created<NewIngredientResponse>>());

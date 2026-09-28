@@ -39,7 +39,7 @@ internal static class Endpoint
         var ingredient = new Ingredient
         {
             Name = request.Name,
-            OwnerUserId = userId,
+            UserId = userId,
             ImageUrl = request.ImageUrl,
             ThumbnailUrl = request.ThumbnailUrl,
             Created = DateTimeOffset.UtcNow,

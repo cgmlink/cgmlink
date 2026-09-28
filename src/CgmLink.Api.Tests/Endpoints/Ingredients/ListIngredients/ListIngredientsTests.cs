@@ -77,7 +77,7 @@ public class ListIngredientsTests
                 Id = Guid.NewGuid(),
                 Name = "Milk",
                 Created = DateTimeOffset.UtcNow,
-                OwnerUserId = _userId,
+                UserId = _userId,
             }
         };
 
@@ -139,7 +139,7 @@ public class ListIngredientsTests
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
             Deleted = DateTimeOffset.UtcNow,
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
 
         Expression<Func<Ingredient, bool>> predicate = null;
@@ -171,7 +171,7 @@ public class ListIngredientsTests
             Id = Guid.NewGuid(),
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
         };
 
         Expression<Func<Ingredient, bool>> predicate = null;

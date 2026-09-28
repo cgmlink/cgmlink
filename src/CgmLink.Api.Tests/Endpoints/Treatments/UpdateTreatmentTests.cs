@@ -126,7 +126,7 @@ public class UpdateTreatmentTests
             Id = id,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
     }
 

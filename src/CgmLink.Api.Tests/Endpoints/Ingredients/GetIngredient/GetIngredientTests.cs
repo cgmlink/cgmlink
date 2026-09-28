@@ -40,7 +40,7 @@ public class GetIngredientTests
             Id = ingredientId,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
 
         _ingredientsRepositoryMock
@@ -70,7 +70,7 @@ public class GetIngredientTests
             Id = ingredientId,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = _userId,
+            UserId = _userId,
             Servings =
             {
                 new IngredientServing
@@ -127,7 +127,7 @@ public class GetIngredientTests
             Id = ingredientId,
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
-            OwnerUserId = Guid.NewGuid(),
+            UserId = Guid.NewGuid(),
         };
 
         _ingredientsRepositoryMock
@@ -149,7 +149,7 @@ public class GetIngredientTests
             Name = "Milk",
             Created = DateTimeOffset.UtcNow,
             Deleted = DateTimeOffset.UtcNow,
-            OwnerUserId = _userId,
+            UserId = _userId,
         };
 
         _ingredientsRepositoryMock
