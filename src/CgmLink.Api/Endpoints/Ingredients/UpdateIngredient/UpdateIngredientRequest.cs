@@ -8,7 +8,6 @@ namespace CgmLink.Api.Endpoints.Ingredients.UpdateIngredient;
 public sealed record UpdateIngredientRequest
 {
     public string? Name { get; init; }
-    public string? Barcode { get; init; }
     public string? ImageUrl { get; init; }
     public string? ThumbnailUrl { get; init; }
     public ICollection<UpdateIngredientServingRequest>? Servings { get; init; }
@@ -31,7 +30,6 @@ public sealed record UpdateIngredientRequest
         {
             RuleFor(x => x)
                 .Must(x => x.Name is not null ||
-                    x.Barcode is not null ||
                     x.ImageUrl is not null ||
                     x.ThumbnailUrl is not null ||
                     x.Servings is not null)

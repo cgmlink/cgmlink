@@ -72,9 +72,8 @@ public class NewMealTests
         {
             Id = id,
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = _userId, IngredientId = id, Created = DateTimeOffset.UtcNow } },
+            UserId = _userId,
         };
     }
 
@@ -274,9 +273,8 @@ public class NewMealTests
         {
             Id = ingredientId,
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = Guid.NewGuid(), IngredientId = ingredientId, Created = DateTimeOffset.UtcNow } },
+            UserId = Guid.NewGuid(),
         };
         SetupIngredients(new List<Ingredient> { ingredient });
 

@@ -41,11 +41,10 @@ public class DeleteIngredientTests
         {
             Id = id,
             Name = "Milk",
-            Barcode = "123",
             ImageUrl = "https://example.com/image.jpg",
             ThumbnailUrl = "https://example.com/thumb.jpg",
             Created = DateTimeOffset.UtcNow.AddDays(-1),
-            Users = { new UserIngredient { UserId = _userId, IngredientId = id, Created = DateTimeOffset.UtcNow } },
+            UserId = _userId,
         };
     }
 
@@ -88,16 +87,15 @@ public class DeleteIngredientTests
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Not_Linked_To_User()
+    public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Is_Not_Owned_By_User()
     {
         var id = Guid.NewGuid();
         var ingredient = new Ingredient
         {
             Id = id,
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
-            Users = { new UserIngredient { UserId = Guid.NewGuid(), IngredientId = id, Created = DateTimeOffset.UtcNow } },
+            UserId = Guid.NewGuid(),
         };
         SetupIngredient(ingredient);
 

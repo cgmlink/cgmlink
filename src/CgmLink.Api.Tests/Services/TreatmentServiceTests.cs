@@ -243,7 +243,6 @@ public class TreatmentServiceTests
         {
             Id = Guid.NewGuid(),
             Name = "Milk",
-            Barcode = "123",
             Created = DateTimeOffset.UtcNow,
             Servings = { serving },
         };

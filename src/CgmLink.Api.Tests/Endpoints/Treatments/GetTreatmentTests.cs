@@ -112,7 +112,6 @@ public class GetTreatmentTests
             {
                 Id = ingredientId,
                 Name = "Milk",
-                Barcode = "123",
                 Created = DateTimeOffset.UtcNow,
             },
             ServingId = servingId,
@@ -217,7 +216,6 @@ public class GetTreatmentTests
             var ingredientResponse = okResult.Value.Ingredients.Single();
             Assert.That(ingredientResponse.IngredientId, Is.EqualTo(ingredientId));
             Assert.That(ingredientResponse.IngredientName, Is.EqualTo("Milk"));
-            Assert.That(ingredientResponse.Barcode, Is.EqualTo("123"));
             Assert.That(ingredientResponse.Serving, Is.Not.Null);
             Assert.That(ingredientResponse.Serving!.Description, Is.EqualTo("1 cup"));
             Assert.That(ingredientResponse.Serving.ServingAmount, Is.EqualTo(250));
@@ -306,7 +304,6 @@ public class GetTreatmentTests
             {
                 Id = ingredientId,
                 Name = "Milk",
-                Barcode = "123",
                 Created = DateTimeOffset.UtcNow,
             },
             ServingId = Guid.NewGuid(),
