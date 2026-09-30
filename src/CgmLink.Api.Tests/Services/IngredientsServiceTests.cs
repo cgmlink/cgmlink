@@ -61,6 +61,40 @@ public class IngredientsServiceTests
     }
 
     [Test]
+    public async Task ResolveIngredientsAsync_Should_Return_Local_Ingredient_Nutrition()
+    {
+        var ingredientId = Guid.NewGuid();
+        var servingId = Guid.NewGuid();
+        var ingredient = CreateIngredient(ingredientId);
+        ingredient.Servings.Add(CreateServing(servingId, ingredientId));
+        SetupIngredients([ingredient]);
+
+        var result = await _service.ResolveIngredientsAsync(
+            [new IngredientReference(ingredientId, null, servingId.ToString(), 2m)],
+            _userId,
+            CancellationToken.None);
+
+        Assert.That(result.Single(), Is.EqualTo(new ResolvedIngredient(
+            ingredientId,
+            servingId,
+            2m,
+            100m,
+            10m,
+            5m,
+            2m)));
+    }
+
+    [Test]
+    public void ResolveIngredientsAsync_Should_Reject_Invalid_Local_Serving_Id()
+    {
+        Assert.That(async () => await _service.ResolveIngredientsAsync(
+                [new IngredientReference(Guid.NewGuid(), null, "not-a-guid", 1m)],
+                _userId,
+                CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+    }
+
+    [Test]
     public async Task GetValidatedIngredientsAsync_Should_Return_Lookup_When_Ingredients_Are_Valid()
     {
         var ingredientId = Guid.NewGuid();
