@@ -16,6 +16,8 @@ public class CgmLinkDbContext : DbContext
     public DbSet<Pen> Pens { get; set; }
     public DbSet<Ingredient> Ingredients { get; set; }
     public DbSet<IngredientServing> IngredientServings { get; set; }
+    public DbSet<NutritionIngredient> NutritionIngredients { get; set; }
+    public DbSet<NutritionServing> NutritionServings { get; set; }
     public DbSet<Meal> Meals { get; set; }
     public DbSet<MealIngredient> MealIngredients { get; set; }
     public DbSet<Injection> Injections { get; set; }
@@ -25,5 +27,19 @@ public class CgmLinkDbContext : DbContext
 
     public CgmLinkDbContext(DbContextOptions<CgmLinkDbContext> options) : base(options)
     {
+    }
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        var nutritionServing = modelBuilder.Entity<NutritionServing>();
+        var nutritionIngredientIndex = nutritionServing.Metadata.FindIndex(
+            [nutritionServing.Property(serving => serving.NutritionIngredientId).Metadata]);
+
+        if (nutritionIngredientIndex is not null)
+        {
+            nutritionServing.Metadata.RemoveIndex(nutritionIngredientIndex);
+        }
     }
 }
