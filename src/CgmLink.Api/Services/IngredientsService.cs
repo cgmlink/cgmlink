@@ -20,14 +20,62 @@ public sealed class IngredientsService : IIngredientsService
         _ingredientsRepository = ingredientsRepository;
     }
 
+    public async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+        IEnumerable<IngredientReference> references,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var ingredients = references.Select(reference =>
+        {
+            if (reference.IngredientId is not Guid ingredientId ||
+                reference.ProductId is not null ||
+                !Guid.TryParse(reference.ServingId, out var servingId))
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+
+            return (IngredientId: ingredientId, ServingId: servingId, reference.Quantity);
+        }).ToList();
+
+        var ingredientLookup = await GetIngredientLookupAsync(
+                ingredients.Select(ingredient => (ingredient.IngredientId, ingredient.ServingId)).ToList(),
+                userId,
+                cancellationToken)
+            .ConfigureAwait(false);
+
+        return ingredients.Select(reference =>
+        {
+            var serving = ingredientLookup[reference.IngredientId].Servings
+                .Single(candidate => candidate.Id == reference.ServingId);
+
+            return new ResolvedIngredient(
+                reference.IngredientId,
+                reference.ServingId,
+                reference.Quantity,
+                serving.Calories,
+                serving.Carbs,
+                serving.Protein,
+                serving.Fat);
+        }).ToList();
+    }
+
     public async Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(
         IEnumerable<IMealIngredientRequest> ingredients,
         Guid userId,
         CancellationToken cancellationToken = default)
     {
-        var requestIngredients = ingredients.ToList();
-        var ingredientIds = requestIngredients.Select(i => i.IngredientId).Distinct().ToList();
-        var servingIds = requestIngredients.Select(i => i.ServingId).Distinct().ToList();
+        var references = ingredients.Select(ingredient => (ingredient.IngredientId, ingredient.ServingId)).ToList();
+
+        return await GetIngredientLookupAsync(references, userId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<Dictionary<Guid, Ingredient>> GetIngredientLookupAsync(
+        IReadOnlyCollection<(Guid IngredientId, Guid ServingId)> references,
+        Guid userId,
+        CancellationToken cancellationToken)
+    {
+        var ingredientIds = references.Select(reference => reference.IngredientId).Distinct().ToList();
+        var servingIds = references.Select(reference => reference.ServingId).Distinct().ToList();
 
         var ingredientLookup = await _ingredientsRepository.GetAll()
             .Where(i => ingredientIds.Contains(i.Id) && i.UserId == userId && i.Deleted == null)
@@ -35,10 +83,10 @@ public sealed class IngredientsService : IIngredientsService
             .ToDictionaryAsync(i => i.Id, cancellationToken)
             .ConfigureAwait(false);
 
-        foreach (var mealIngredient in requestIngredients)
+        foreach (var reference in references)
         {
-            if (!ingredientLookup.TryGetValue(mealIngredient.IngredientId, out var ingredient) ||
-                !ingredient.Servings.Any(s => s.Id == mealIngredient.ServingId))
+            if (!ingredientLookup.TryGetValue(reference.IngredientId, out var ingredient) ||
+                !ingredient.Servings.Any(serving => serving.Id == reference.ServingId))
             {
                 throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
             }
