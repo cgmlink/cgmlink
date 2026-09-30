@@ -314,6 +314,8 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("NutritionIngredientId");
+
                     b.ToTable("nutrition_servings");
                 });
 

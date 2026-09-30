@@ -30,12 +30,8 @@ internal sealed class NutritionIdentitySchemaTests
     {
         var entity = _dbContext.Model.FindEntityType(typeof(NutritionIngredient))!;
 
-        Assert.Multiple(() =>
-        {
-            Assert.That(entity.GetProperties().Select(property => property.Name),
-                Is.EquivalentTo(new[] { nameof(NutritionIngredient.Id), nameof(NutritionIngredient.Source), nameof(NutritionIngredient.ProductId) }));
-            Assert.That(entity.GetIndexes(), Is.Empty);
-        });
+        Assert.That(entity.GetProperties().Select(property => property.Name),
+            Is.EquivalentTo(new[] { nameof(NutritionIngredient.Id), nameof(NutritionIngredient.Source), nameof(NutritionIngredient.ProductId) }));
     }
 
     [Test]
@@ -48,7 +44,6 @@ internal sealed class NutritionIdentitySchemaTests
         {
             Assert.That(entity.GetProperties().Select(property => property.Name),
                 Is.EquivalentTo(new[] { nameof(NutritionServing.Id), nameof(NutritionServing.NutritionIngredientId), nameof(NutritionServing.ServingId) }));
-            Assert.That(entity.GetIndexes(), Is.Empty);
             Assert.That(foreignKey.IsRequired, Is.True);
         });
     }

@@ -28,18 +28,4 @@ public class CgmLinkDbContext : DbContext
     public CgmLinkDbContext(DbContextOptions<CgmLinkDbContext> options) : base(options)
     {
     }
-
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        base.OnModelCreating(modelBuilder);
-
-        var nutritionServing = modelBuilder.Entity<NutritionServing>();
-        var nutritionIngredientIndex = nutritionServing.Metadata.FindIndex(
-            [nutritionServing.Property(serving => serving.NutritionIngredientId).Metadata]);
-
-        if (nutritionIngredientIndex is not null)
-        {
-            nutritionServing.Metadata.RemoveIndex(nutritionIngredientIndex);
-        }
-    }
 }
