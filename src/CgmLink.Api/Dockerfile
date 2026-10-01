@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS base
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
@@ -6,7 +6,7 @@ EXPOSE 8081
 RUN groupadd -r appgroup && useradd -r -g appgroup appuser
 RUN chown -R appuser:appgroup /app
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 ARG BuildConfiguration=Release
 WORKDIR /src
 COPY ["CgmLink.Api/CgmLink.Api.csproj", "CgmLink.Api/"]

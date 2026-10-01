@@ -92,7 +92,7 @@ internal sealed class EndpointTests
     }
 
     [Test]
-    public void HandleAsync_WithMissingUser_ThrowsUnauthorizedException()
+    public async Task HandleAsync_WithMissingUser_ThrowsUnauthorizedException()
     {
         _currentUser.Setup(currentUser => currentUser.GetUserId()).Returns(Guid.NewGuid());
         _userRepository
@@ -100,7 +100,7 @@ internal sealed class EndpointTests
                 It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((User)null);
 
-        var exception = Assert.ThrowsAsync<UnauthorizedException>(() => Endpoint.HandleAsync(_currentUser.Object,
+        var exception = await Assert.ThrowsAsync<UnauthorizedException>(() => Endpoint.HandleAsync(_currentUser.Object,
             _userRepository.Object, Options.Create(new IdentityOptions()), new DefaultHttpContext(),
             CancellationToken.None));
 
