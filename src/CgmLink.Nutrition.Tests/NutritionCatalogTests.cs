@@ -59,19 +59,6 @@ internal sealed class NutritionCatalogTests
     }
 
     [Test]
-    public async Task RefreshAsync_Bypasses_Unexpired_Cache()
-    {
-        _source.Setup(source => source.GetAsync("1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(SourceProduct("fresh"));
-
-        var product = await _catalog.RefreshAsync("1");
-
-        Assert.That(product!.Name, Is.EqualTo("fresh"));
-        _cache.Verify(cache => cache.GetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
-        _cache.Verify(cache => cache.SetAsync(It.IsAny<CachedProduct>(), It.IsAny<CancellationToken>()), Times.Once);
-    }
-
-    [Test]
     public async Task GetByBarcodeAsync_Uses_Cache_Before_Provider()
     {
         _cache.Setup(cache => cache.GetByBarcodeAsync("test", "123", It.IsAny<CancellationToken>()))

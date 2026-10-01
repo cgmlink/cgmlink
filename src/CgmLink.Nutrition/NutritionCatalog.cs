@@ -13,6 +13,8 @@ internal sealed class NutritionCatalog : INutritionCatalog
     private readonly INutritionCache _cache;
     private readonly TimeSpan _cacheLifetime;
 
+    public string Source => _source.Source;
+
     public NutritionCatalog(
         INutritionSourceClient source,
         INutritionCache cache,
@@ -65,14 +67,6 @@ internal sealed class NutritionCatalog : INutritionCatalog
         }
 
         return product;
-    }
-
-    public Task<NutritionProduct?> RefreshAsync(
-        string productId,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(productId);
-        return FetchAndCacheAsync(productId, cancellationToken);
     }
 
     private async Task<NutritionProduct?> FetchAndCacheAsync(

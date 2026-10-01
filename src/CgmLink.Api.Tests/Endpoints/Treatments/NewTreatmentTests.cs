@@ -50,7 +50,10 @@ public class NewTreatmentTests
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _mealService = new MealService(_mealsRepositoryMock.Object);
-        _ingredientsService = new IngredientsService(_ingredientsRepositoryMock.Object);
+        _ingredientsService = new IngredientsService(
+            _ingredientsRepositoryMock.Object,
+            Mock.Of<CgmLink.Nutrition.INutritionCatalog>(),
+            Mock.Of<IRepository<NutritionIngredient>>());
         _treatmentService = new TreatmentService();
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);

@@ -3,6 +3,8 @@ using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Data.Tests;
+using CgmLink.Nutrition;
+using CgmLink.Nutrition.Source;
 using Moq;
 using NUnit.Framework;
 using System;
@@ -18,13 +20,49 @@ public class IngredientsServiceTests
 {
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IRepository<Ingredient>> _ingredientsRepositoryMock;
+    private Mock<IRepository<NutritionIngredient>> _nutritionIngredientsRepositoryMock;
+    private Mock<INutritionCatalog> _nutritionCatalogMock;
+    private List<NutritionIngredient> _nutritionIdentities;
     private IngredientsService _service;
 
     [SetUp]
     public void SetUp()
     {
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
-        _service = new IngredientsService(_ingredientsRepositoryMock.Object);
+        _nutritionIngredientsRepositoryMock = new Mock<IRepository<NutritionIngredient>>();
+        _nutritionCatalogMock = new Mock<INutritionCatalog>();
+        _nutritionIdentities = [];
+        _nutritionCatalogMock.SetupGet(catalog => catalog.Source).Returns("fatsecret");
+        _nutritionIngredientsRepositoryMock.Setup(repository => repository.GetAll(null))
+            .Returns(() => new TestAsyncEnumerable<NutritionIngredient>(_nutritionIdentities));
+        _nutritionIngredientsRepositoryMock
+            .Setup(repository => repository.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<NutritionIngredient>, CancellationToken>((identities, _) => _nutritionIdentities.AddRange(identities))
+            .Returns(Task.CompletedTask);
+        _nutritionIngredientsRepositoryMock
+            .Setup(repository => repository.UpdateAsync(It.IsAny<NutritionIngredient>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        _service = new IngredientsService(
+            _ingredientsRepositoryMock.Object,
+            _nutritionCatalogMock.Object,
+            _nutritionIngredientsRepositoryMock.Object);
+    }
+
+    [Test]
+    public void Constructor_Should_Reject_Null_Dependencies()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(
+                () => new IngredientsService(null, _nutritionCatalogMock.Object, _nutritionIngredientsRepositoryMock.Object),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("ingredientsRepository"));
+            Assert.That(
+                () => new IngredientsService(_ingredientsRepositoryMock.Object, null, _nutritionIngredientsRepositoryMock.Object),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("nutritionCatalog"));
+            Assert.That(
+                () => new IngredientsService(_ingredientsRepositoryMock.Object, _nutritionCatalogMock.Object, null),
+                Throws.ArgumentNullException.With.Property("ParamName").EqualTo("nutritionIngredientsRepository"));
+        });
     }
 
     private Ingredient CreateIngredient(Guid id)
@@ -95,6 +133,154 @@ public class IngredientsServiceTests
     }
 
     [Test]
+    public async Task ResolveIngredientsAsync_Should_Resolve_External_Product()
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("serving-1")));
+
+        var result = await _service.ResolveIngredientsAsync(
+            [new IngredientReference(null, "product-1", "serving-1", 2m)],
+            _userId,
+            CancellationToken.None);
+
+        var identity = _nutritionIdentities.Single();
+        var servingIdentity = identity.Servings.Single();
+        Assert.That(result.Single(), Is.EqualTo(new ResolvedIngredient(
+            identity.Id,
+            servingIdentity.Id,
+            2m,
+            100m,
+            10m,
+            5m,
+            2m)));
+        _nutritionCatalogMock.Verify(
+            catalog => catalog.GetAsync("product-1", It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public void ResolveIngredientsAsync_Should_Reject_Missing_External_Product()
+    {
+        _nutritionCatalogMock
+            .Setup(catalog => catalog.GetAsync("missing", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((NutritionProduct)null);
+
+        Assert.That(async () => await _service.ResolveIngredientsAsync(
+                [new IngredientReference(null, "missing", "serving-1", 1m)],
+                _userId,
+                CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+    }
+
+    [Test]
+    public void ResolveIngredientsAsync_Should_Reject_Missing_External_Serving()
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("other-serving")));
+
+        Assert.That(async () => await _service.ResolveIngredientsAsync(
+                [new IngredientReference(null, "product-1", "missing", 1m)],
+                _userId,
+                CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+    }
+
+    [Test]
+    public void ResolveIngredientsAsync_Should_Require_Exactly_One_Identifier()
+    {
+        Assert.Multiple(() =>
+        {
+            Assert.That(async () => await _service.ResolveIngredientsAsync(
+                    [new IngredientReference(null, null, "serving-1", 1m)],
+                    _userId,
+                    CancellationToken.None),
+                Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+            Assert.That(async () => await _service.ResolveIngredientsAsync(
+                    [new IngredientReference(Guid.NewGuid(), "product-1", "serving-1", 1m)],
+                    _userId,
+                    CancellationToken.None),
+                Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+        });
+    }
+
+    [Test]
+    public async Task ResolveIngredientsAsync_Should_Reuse_Existing_Identities_Across_Sequential_Requests()
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("serving-1")));
+        var reference = new IngredientReference(null, "product-1", "serving-1", 1m);
+
+        var first = (await _service.ResolveIngredientsAsync([reference], _userId, CancellationToken.None)).Single();
+        var second = (await _service.ResolveIngredientsAsync([reference], _userId, CancellationToken.None)).Single();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(second.IngredientId, Is.EqualTo(first.IngredientId));
+            Assert.That(second.ServingId, Is.EqualTo(first.ServingId));
+        });
+        _nutritionIngredientsRepositoryMock.Verify(
+            repository => repository.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task ResolveIngredientsAsync_Should_Preserve_Input_Order()
+    {
+        SetupProduct(
+            CreateProduct("product-1", CreateNutritionServing("serving-1")),
+            CreateProduct("product-2", CreateNutritionServing("serving-2")));
+
+        var result = await _service.ResolveIngredientsAsync(
+            [
+                new IngredientReference(null, "product-2", "serving-2", 2m),
+                new IngredientReference(null, "product-1", "serving-1", 1m),
+            ],
+            _userId,
+            CancellationToken.None);
+
+        Assert.That(result.Select(ingredient => ingredient.Quantity), Is.EqualTo(new[] { 2m, 1m }));
+    }
+
+    [Test]
+    public async Task ResolveIngredientsAsync_Should_Create_Only_Identity_Data()
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("serving-1")));
+
+        await _service.ResolveIngredientsAsync(
+            [new IngredientReference(null, "product-1", "serving-1", 1m)],
+            _userId,
+            CancellationToken.None);
+
+        var identity = _nutritionIdentities.Single();
+        Assert.Multiple(() =>
+        {
+            Assert.That(identity.Source, Is.EqualTo("fatsecret"));
+            Assert.That(identity.ProductId, Is.EqualTo("product-1"));
+            Assert.That(identity.Servings.Single().ServingId, Is.EqualTo("serving-1"));
+        });
+    }
+
+    [Test]
+    public void ResolveIngredientsAsync_Should_Not_Write_Identities_When_Any_Reference_Is_Invalid()
+    {
+        SetupProduct(
+            CreateProduct("product-1", CreateNutritionServing("serving-1")),
+            CreateProduct("product-2", CreateNutritionServing("other-serving")));
+
+        Assert.That(async () => await _service.ResolveIngredientsAsync(
+                [
+                    new IngredientReference(null, "product-1", "serving-1", 1m),
+                    new IngredientReference(null, "product-2", "missing", 1m),
+                ],
+                _userId,
+                CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>());
+        _nutritionIngredientsRepositoryMock.Verify(
+            repository => repository.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        _nutritionIngredientsRepositoryMock.Verify(
+            repository => repository.UpdateAsync(It.IsAny<NutritionIngredient>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task GetValidatedIngredientsAsync_Should_Return_Lookup_When_Ingredients_Are_Valid()
     {
         var ingredientId = Guid.NewGuid();
@@ -153,6 +339,32 @@ public class IngredientsServiceTests
         Assert.That(async () => await _service.GetValidatedIngredientsAsync(
                 [new RequestIngredient(ingredientId, Guid.NewGuid(), 1m)], _userId, CancellationToken.None),
             Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+    }
+
+    private static NutritionProduct CreateProduct(string productId, params CgmLink.Nutrition.Source.NutritionServing[] servings) => new()
+    {
+        ProductId = productId,
+        Name = "Product",
+        Servings = servings,
+    };
+
+    private static CgmLink.Nutrition.Source.NutritionServing CreateNutritionServing(string servingId) => new()
+    {
+        ExternalId = servingId,
+        Calories = 100m,
+        Carbs = 10m,
+        Protein = 5m,
+        Fat = 2m,
+    };
+
+    private void SetupProduct(params NutritionProduct[] products)
+    {
+        foreach (var product in products)
+        {
+            _nutritionCatalogMock
+                .Setup(catalog => catalog.GetAsync(product.ProductId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(product);
+        }
     }
 
     private sealed record RequestIngredient(Guid IngredientId, Guid ServingId, decimal Quantity) : IMealIngredientRequest;
