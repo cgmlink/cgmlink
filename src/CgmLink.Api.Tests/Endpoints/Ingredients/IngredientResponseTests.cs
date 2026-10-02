@@ -18,14 +18,24 @@ public class IngredientResponseTests
         var timestamp = DateTimeOffset.Parse("2026-10-01T12:00:00Z");
         var serving = new IngredientServing
         {
-            Created = timestamp, Calories = 10, Carbs = 2, Protein = 3, Fat = 4,
-            Description = "one cup", ServingAmount = 100, ServingUnit = "g",
+            Created = timestamp,
+            Calories = 10,
+            Carbs = 2,
+            Protein = 3,
+            Fat = 4,
+            Description = "one cup",
+            ServingAmount = 100,
+            ServingUnit = "g",
             ExternalId = "legacy-serving",
         };
         var ingredient = new Ingredient
         {
-            Name = "Milk", Created = timestamp.AddDays(-1), Updated = timestamp,
-            ProductId = "legacy-product", ImageUrl = "image", ThumbnailUrl = "thumbnail",
+            Name = "Milk",
+            Created = timestamp.AddDays(-1),
+            Updated = timestamp,
+            ProductId = "legacy-product",
+            ImageUrl = "image",
+            ThumbnailUrl = "thumbnail",
             Servings = [serving, new IngredientServing
             {
                 Created = timestamp, Deleted = timestamp, Calories = 0, Carbs = 0, Protein = 0, Fat = 0,
@@ -54,7 +64,9 @@ public class IngredientResponseTests
         var attribution = "<a href=\"https://platform.fatsecret.com\">Powered by fatsecret Platform API</a>";
         var product = new NutritionProduct
         {
-            ProductId = "123", Name = "Milk", Barcode = "temporary-barcode",
+            ProductId = "123",
+            Name = "Milk",
+            Barcode = "temporary-barcode",
             Servings = [new NutritionServing
             {
                 ExternalId = "456", Description = "one cup", ServingAmount = 100, ServingUnit = "g",
