@@ -1,3 +1,4 @@
+﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
@@ -5,24 +6,24 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL.Migrations
 {
     /// <inheritdoc />
-    public partial class RenameNutritionCachedAt : Migration
+    public partial class AddNutritionCachedAt : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.RenameColumn(
-                name: "DataAsOf",
+            migrationBuilder.AddColumn<DateTimeOffset>(
+                name: "CachedAt",
                 table: "nutrition_products",
-                newName: "CachedAt");
+                type: "datetimeoffset",
+                nullable: true);
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.RenameColumn(
+            migrationBuilder.DropColumn(
                 name: "CachedAt",
-                table: "nutrition_products",
-                newName: "DataAsOf");
+                table: "nutrition_products");
         }
     }
 }

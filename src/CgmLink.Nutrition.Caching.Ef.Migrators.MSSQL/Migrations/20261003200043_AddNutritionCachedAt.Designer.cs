@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL.Migrations
 {
     [DbContext(typeof(NutritionCacheDbContext))]
-    [Migration("20261003115004_NutritionRetrievalTimestamp")]
-    partial class NutritionRetrievalTimestamp
+    [Migration("20261003200043_AddNutritionCachedAt")]
+    partial class AddNutritionCachedAt
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -39,7 +39,7 @@ namespace CgmLink.Nutrition.Caching.Ef.Migrators.MSSQL.Migrations
                         .HasMaxLength(64)
                         .HasColumnType("nvarchar(64)");
 
-                    b.Property<DateTimeOffset?>("DataAsOf")
+                    b.Property<DateTimeOffset?>("CachedAt")
                         .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset>("ExpiresAt")
