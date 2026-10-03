@@ -13,7 +13,7 @@ public sealed record IngredientResponse
     public string Name { get; private init; } = string.Empty;
     public string? ImageUrl { get; private init; }
     public string? ThumbnailUrl { get; private init; }
-    public DateTimeOffset DataAsOf { get; private init; }
+    public DateTimeOffset? CachedAt { get; private init; }
     public string? Attribution { get; private init; }
     public IReadOnlyCollection<IngredientServingResponse> Servings { get; private init; } = [];
 
@@ -25,7 +25,7 @@ public sealed record IngredientResponse
         Name = ingredient.Name,
         ImageUrl = ingredient.ImageUrl,
         ThumbnailUrl = ingredient.ThumbnailUrl,
-        DataAsOf = ingredient.Updated ?? ingredient.Created,
+        CachedAt = ingredient.Updated ?? ingredient.Created,
         Servings = ingredient.Servings.Where(serving => serving.Deleted == null)
             .Select(serving => new IngredientServingResponse(
                 serving.Id.ToString(), serving.Description, serving.ServingAmount, serving.ServingUnit,
@@ -33,7 +33,7 @@ public sealed record IngredientResponse
     };
 
     public static IngredientResponse FromProduct(
-        NutritionProduct product, DateTimeOffset dataAsOf, string attribution)
+        NutritionProduct product, DateTimeOffset? cachedAt, string attribution)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(product.ProductId);
         ArgumentException.ThrowIfNullOrWhiteSpace(attribution);
@@ -41,7 +41,7 @@ public sealed record IngredientResponse
         {
             ProductId = product.ProductId,
             Name = product.Name,
-            DataAsOf = dataAsOf,
+            CachedAt = cachedAt,
             Attribution = attribution,
             Servings = product.Servings.Select(serving => new IngredientServingResponse(
                 serving.ExternalId, serving.Description, serving.ServingAmount, serving.ServingUnit,

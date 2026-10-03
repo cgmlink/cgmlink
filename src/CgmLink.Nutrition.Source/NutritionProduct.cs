@@ -10,5 +10,9 @@ public sealed class NutritionProduct
 
     public string? Barcode { get; init; }
 
+    public System.DateTimeOffset? CachedAt { get; set; }
+
+    public string Attribution { get; init; } = string.Empty;
+
     public IReadOnlyCollection<NutritionServing> Servings { get; init; } = [];
 }

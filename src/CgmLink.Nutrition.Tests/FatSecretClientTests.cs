@@ -44,6 +44,8 @@ internal sealed class FatSecretClientTests
             Assert.That(result, Is.Not.Null);
             Assert.That(result!.ProductId, Is.EqualTo("50953"));
             Assert.That(result.Name, Is.EqualTo("Whole Grain Cheerios"));
+            Assert.That(result.Attribution, Is.EqualTo(sut.Attribution));
+            Assert.That(result.Attribution, Does.Contain("https://platform.fatsecret.com"));
             Assert.That(result.Servings, Has.Count.EqualTo(1));
             Assert.That(result.Servings.Single().ExternalId, Is.EqualTo("100675"));
             Assert.That(result.Servings.Single().ServingAmount, Is.EqualTo(30m));
@@ -76,6 +78,7 @@ internal sealed class FatSecretClientTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Select(food => food.ProductId), Is.EqualTo(new[] { "1", "2" }));
+            Assert.That(result.All(food => food.Attribution == sut.Attribution), Is.True);
             Assert.That(handler.LastRequest!.Method, Is.EqualTo(HttpMethod.Post));
             Assert.That(handler.LastRequest.RequestUri!.PathAndQuery, Is.EqualTo("/rest/server.api"));
             Assert.That(handler.LastContent, Does.Contain("method=foods.search"));

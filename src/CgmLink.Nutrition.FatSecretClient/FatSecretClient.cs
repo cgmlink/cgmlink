@@ -32,6 +32,8 @@ internal sealed class FatSecretClient : INutritionSourceClient
 
     public string Source => "fatsecret";
 
+    public string Attribution => "<a href=\"https://platform.fatsecret.com\">Powered by fatsecret Platform API</a>";
+
     public async Task<IReadOnlyCollection<NutritionProduct>> SearchAsync(
         string searchExpression,
         int pageNumber = 0,
@@ -165,7 +167,7 @@ internal sealed class FatSecretClient : INutritionSourceClient
             $"{Uri.EscapeDataString(pair.Key)}={Uri.EscapeDataString(pair.Value)}"))}";
     }
 
-    private static IReadOnlyCollection<NutritionProduct> MapSearchResults(JsonElement food)
+    private IReadOnlyCollection<NutritionProduct> MapSearchResults(JsonElement food)
     {
         if (food.ValueKind == JsonValueKind.Array)
         {
@@ -179,9 +181,10 @@ internal sealed class FatSecretClient : INutritionSourceClient
             : [];
     }
 
-    private static NutritionProduct Map(Food food, string? barcode = null) => new()
+    private NutritionProduct Map(Food food, string? barcode = null) => new()
     {
         ProductId = food.ProductId,
+        Attribution = Attribution,
         Name = food.Name,
         Barcode = barcode,
         Servings = food.Servings?.Items.Select(serving => new NutritionServing

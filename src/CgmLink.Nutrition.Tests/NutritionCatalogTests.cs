@@ -18,6 +18,7 @@ internal sealed class NutritionCatalogTests
     {
         _source = new Mock<INutritionSourceClient>();
         _source.SetupGet(source => source.Source).Returns("test");
+        _source.SetupGet(source => source.Attribution).Returns("Current provider attribution");
         _cache = new Mock<INutritionCache>();
         _catalog = new NutritionCatalog(
             _source.Object,
@@ -28,12 +29,17 @@ internal sealed class NutritionCatalogTests
     [Test]
     public async Task GetAsync_Returns_Unexpired_Cached_Product_With_All_Servings()
     {
+        var timestamp = DateTimeOffset.UtcNow.AddHours(-1);
+        var cached = CachedProduct(expiresAt: DateTimeOffset.UtcNow.AddMinutes(1));
+        cached.CachedAt = timestamp;
         _cache.Setup(cache => cache.GetAsync("test", "1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CachedProduct(expiresAt: DateTimeOffset.UtcNow.AddMinutes(1)));
+            .ReturnsAsync(cached);
 
         var product = await _catalog.GetAsync("1");
 
         Assert.That(product!.Servings.Select(serving => serving.ExternalId), Is.EqualTo(new[] { "a", "b" }));
+        Assert.That(product.CachedAt, Is.EqualTo(timestamp));
+        Assert.That(product.Attribution, Is.EqualTo("Current provider attribution"));
         _source.Verify(source => source.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -55,6 +61,8 @@ internal sealed class NutritionCatalogTests
         {
             Assert.That(product!.Name, Is.EqualTo("fresh"));
             Assert.That(stored!.ExpiresAt, Is.InRange(before.AddHours(24), DateTimeOffset.UtcNow.AddHours(24)));
+            Assert.That(product.CachedAt, Is.InRange(before, DateTimeOffset.UtcNow));
+            Assert.That(stored.CachedAt, Is.EqualTo(product.CachedAt));
         });
     }
 

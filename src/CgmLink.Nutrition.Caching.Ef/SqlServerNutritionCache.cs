@@ -79,6 +79,7 @@ internal sealed class SqlServerNutritionCache : INutritionCache
             existing.Name = product.Name;
             existing.Barcode = product.Barcode;
             existing.ExpiresAt = product.ExpiresAt;
+            existing.CachedAt = product.CachedAt;
 
             var servings = product.Servings.ToDictionary(serving => serving.ServingId);
             _db.NutritionServings.RemoveRange(existing.Servings.Where(serving => !servings.ContainsKey(serving.ServingId)));
