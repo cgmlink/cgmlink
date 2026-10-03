@@ -391,7 +391,9 @@ public class IngredientsServiceTests
         var timestamp = DateTimeOffset.UtcNow.AddHours(-1);
         SetupProduct(new NutritionProduct
         {
-            ProductId = identifier, Name = "Provider milk", CachedAt = timestamp,
+            ProductId = identifier,
+            Name = "Provider milk",
+            CachedAt = timestamp,
             Attribution = "Provider attribution can change",
             Servings = [CreateNutritionServing("456")],
         });
