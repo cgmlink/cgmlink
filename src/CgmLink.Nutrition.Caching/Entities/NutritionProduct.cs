@@ -35,5 +35,7 @@ public class NutritionProduct
     /// </summary>
     public required DateTimeOffset ExpiresAt { get; set; }
 
+    public DateTimeOffset? DataAsOf { get; set; }
+
     public ICollection<NutritionServing> Servings { get; set; } = [];
 }

@@ -8,6 +8,8 @@ public interface INutritionSourceClient
 {
     string Source { get; }
 
+    string Attribution { get; }
+
     Task<IReadOnlyCollection<NutritionProduct>> SearchAsync(
         string searchExpression,
         int pageNumber = 0,

@@ -4,6 +4,9 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Ingredients.GetIngredient;
+using CgmLink.Api.Endpoints.Ingredients;
+using CgmLink.Api.Services;
+using CgmLink.Nutrition;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
@@ -21,12 +24,14 @@ public class GetIngredientTests
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IRepository<Ingredient>> _ingredientsRepositoryMock;
     private Mock<ICurrentUser> _currentUserMock;
+    private IngredientsService _service;
 
     [SetUp]
     public void SetUp()
     {
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _currentUserMock = new Mock<ICurrentUser>();
+        _service = new IngredientsService(_ingredientsRepositoryMock.Object, new Mock<INutritionCatalog>().Object, new Mock<IRepository<NutritionIngredient>>().Object);
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
     }
@@ -47,16 +52,16 @@ public class GetIngredientTests
             .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { ingredient }));
 
-        var result = await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
-            _ingredientsRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
+            _service, CancellationToken.None);
 
         _ingredientsRepositoryMock.Verify(r => r.GetAll(It.Is<FindOptions>(o => o.IsAsNoTracking)), Times.Once);
 
-        Assert.That(result.Result, Is.TypeOf<Ok<GetIngredientResponse>>());
-        var okResult = result.Result as Ok<GetIngredientResponse>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IngredientResponse>>());
+        var okResult = result.Result as Ok<IngredientResponse>;
         Assert.Multiple(() =>
         {
-            Assert.That(okResult!.Value.Id, Is.EqualTo(ingredientId));
+            Assert.That(okResult!.Value.IngredientId, Is.EqualTo(ingredientId));
             Assert.That(okResult.Value.Name, Is.EqualTo("Milk"));
         });
     }
@@ -91,11 +96,11 @@ public class GetIngredientTests
             .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { ingredient }));
 
-        var result = await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
-            _ingredientsRepositoryMock.Object, CancellationToken.None);
+        var result = await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
+            _service, CancellationToken.None);
 
-        Assert.That(result.Result, Is.TypeOf<Ok<GetIngredientResponse>>());
-        var okResult = result.Result as Ok<GetIngredientResponse>;
+        Assert.That(result.Result, Is.TypeOf<Ok<IngredientResponse>>());
+        var okResult = result.Result as Ok<IngredientResponse>;
         Assert.Multiple(() =>
         {
             Assert.That(okResult!.Value.Servings, Has.Count.EqualTo(1));
@@ -113,8 +118,8 @@ public class GetIngredientTests
             .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient>()));
 
-        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
-                _ingredientsRepositoryMock.Object, CancellationToken.None),
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
+                _service, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
     }
 
@@ -134,8 +139,8 @@ public class GetIngredientTests
             .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { ingredient }));
 
-        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
-                _ingredientsRepositoryMock.Object, CancellationToken.None),
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
+                _service, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
     }
 
@@ -156,8 +161,8 @@ public class GetIngredientTests
             .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Ingredient>(new List<Ingredient> { ingredient }));
 
-        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
-                _ingredientsRepositoryMock.Object, CancellationToken.None),
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
+                _service, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("INGREDIENT_NOT_FOUND"));
     }
 
@@ -170,8 +175,8 @@ public class GetIngredientTests
             .Setup(c => c.GetUserId())
             .Throws<UnauthorizedAccessException>();
 
-        Assert.That(async () => await Endpoint.HandleAsync(ingredientId, _currentUserMock.Object,
-                _ingredientsRepositoryMock.Object, CancellationToken.None),
+        Assert.That(async () => await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
+                _service, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedAccessException>());
     }
 }

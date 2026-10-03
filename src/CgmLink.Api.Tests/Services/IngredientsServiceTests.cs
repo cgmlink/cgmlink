@@ -367,5 +367,72 @@ public class IngredientsServiceTests
         }
     }
 
+    [Test]
+    public async Task DetailLookup_OwnedIngredient_DoesNotCallProvider()
+    {
+        var ingredient = CreateIngredient(Guid.NewGuid());
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(new[] { ingredient }));
+        _nutritionCatalogMock.Setup(catalog => catalog.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new System.Net.Http.HttpRequestException());
+
+        var response = await _service.GetIngredientAsync(ingredient.Id.ToString(), _userId);
+
+        Assert.That(response.IngredientId, Is.EqualTo(ingredient.Id));
+        _nutritionCatalogMock.Verify(catalog => catalog.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestCase("123")]
+    [TestCase("ccda0e86-48bb-47c1-ad0a-6c857bd77549")]
+    public async Task DetailLookup_ProductIdentifier_ReturnsHydratedProductWithoutCreatingIdentities(string identifier)
+    {
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+        var timestamp = DateTimeOffset.UtcNow.AddHours(-1);
+        SetupProduct(new NutritionProduct
+        {
+            ProductId = identifier, Name = "Provider milk", DataAsOf = timestamp,
+            Attribution = "Provider attribution can change",
+            Servings = [CreateNutritionServing("456")],
+        });
+
+        var response = await _service.GetIngredientAsync(identifier, _userId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.IngredientId, Is.Null);
+            Assert.That(response.ProductId, Is.EqualTo(identifier));
+            Assert.That(response.Name, Is.EqualTo("Provider milk"));
+            Assert.That(response.Servings.Single().ServingId, Is.EqualTo("456"));
+            Assert.That(response.DataAsOf, Is.EqualTo(timestamp));
+            Assert.That(response.Attribution, Is.EqualTo("Provider attribution can change"));
+            Assert.That(_nutritionIdentities, Is.Empty);
+        });
+        _nutritionIngredientsRepositoryMock.Verify(repository => repository.GetAll(It.IsAny<FindOptions>()), Times.Never);
+    }
+
+    [Test]
+    public void DetailLookup_ProviderFailure_IsMappedToServiceUnavailable()
+    {
+        _nutritionCatalogMock.Setup(catalog => catalog.GetAsync("123", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new System.Net.Http.HttpRequestException("private provider detail"));
+
+        Assert.That(async () => await _service.GetIngredientAsync("123", _userId),
+            Throws.TypeOf<ApiException>().With.Property("StatusCode").EqualTo(System.Net.HttpStatusCode.ServiceUnavailable)
+                .And.Message.EqualTo("NUTRITION_UNAVAILABLE"));
+    }
+
+    [Test]
+    public void DetailLookup_RequestCancellation_IsPreserved()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        _nutritionCatalogMock.Setup(catalog => catalog.GetAsync("123", cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+
+        Assert.That(async () => await _service.GetIngredientAsync("123", _userId, cancellation.Token),
+            Throws.InstanceOf<OperationCanceledException>());
+    }
+
     private sealed record RequestIngredient(Guid IngredientId, Guid ServingId, decimal Quantity) : IMealIngredientRequest;
 }

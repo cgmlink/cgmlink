@@ -13,7 +13,7 @@ public sealed record IngredientResponse
     public string Name { get; private init; } = string.Empty;
     public string? ImageUrl { get; private init; }
     public string? ThumbnailUrl { get; private init; }
-    public DateTimeOffset DataAsOf { get; private init; }
+    public DateTimeOffset? DataAsOf { get; private init; }
     public string? Attribution { get; private init; }
     public IReadOnlyCollection<IngredientServingResponse> Servings { get; private init; } = [];
 
@@ -33,7 +33,7 @@ public sealed record IngredientResponse
     };
 
     public static IngredientResponse FromProduct(
-        NutritionProduct product, DateTimeOffset dataAsOf, string attribution)
+        NutritionProduct product, DateTimeOffset? dataAsOf, string attribution)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(product.ProductId);
         ArgumentException.ThrowIfNullOrWhiteSpace(attribution);

@@ -1,4 +1,7 @@
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Api.Endpoints.Ingredients;
+using System.Net;
+using System.Net.Http;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Nutrition;
@@ -28,6 +31,39 @@ public sealed class IngredientsService : IIngredientsService
         _nutritionCatalog = nutritionCatalog ?? throw new ArgumentNullException(nameof(nutritionCatalog));
         _nutritionIngredientsRepository = nutritionIngredientsRepository ??
             throw new ArgumentNullException(nameof(nutritionIngredientsRepository));
+    }
+
+    public async Task<IngredientResponse> GetIngredientAsync(
+        string identifier, Guid userId, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
+        if (Guid.TryParse(identifier, out var ingredientId))
+        {
+            var ingredient = await _ingredientsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
+                .Include(item => item.Servings.Where(serving => serving.Deleted == null))
+                .FirstOrDefaultAsync(item => item.Id == ingredientId && item.UserId == userId && item.Deleted == null,
+                    cancellationToken).ConfigureAwait(false);
+            if (ingredient is not null)
+            {
+                return IngredientResponse.FromIngredient(ingredient);
+            }
+        }
+
+        Nutrition.Source.NutritionProduct? product;
+        try
+        {
+            product = await _nutritionCatalog.GetAsync(identifier, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is HttpRequestException ||
+            exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable);
+        }
+        if (product is null)
+        {
+            throw new NotFoundException("INGREDIENT_NOT_FOUND");
+        }
+        return IngredientResponse.FromProduct(product, product.DataAsOf, product.Attribution);
     }
 
     public async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
