@@ -27,7 +27,7 @@ internal sealed class SqlServerNutritionCacheTests
             Source = "test",
             ProductId = "1",
             Name = "Product",
-            DataAsOf = retrievedAt,
+            CachedAt = retrievedAt,
             Barcode = "123",
             ExpiresAt = expiresAt,
             Servings =
@@ -40,7 +40,7 @@ internal sealed class SqlServerNutritionCacheTests
 
         var initialByBarcode = await cache.GetByBarcodeAsync("test", "123");
         Assert.That(initialByBarcode!.ProductId, Is.EqualTo("1"));
-        Assert.That(initialByBarcode.DataAsOf, Is.EqualTo(retrievedAt));
+        Assert.That(initialByBarcode.CachedAt, Is.EqualTo(retrievedAt));
         db.ChangeTracker.Clear();
 
         await cache.SetAsync(new NutritionProduct
@@ -48,7 +48,7 @@ internal sealed class SqlServerNutritionCacheTests
             Source = "test",
             ProductId = "1",
             Name = "Refreshed Product",
-            DataAsOf = retrievedAt.AddMinutes(5),
+            CachedAt = retrievedAt.AddMinutes(5),
             ExpiresAt = expiresAt,
             Servings =
             [
@@ -67,7 +67,7 @@ internal sealed class SqlServerNutritionCacheTests
             Assert.That(byProduct!.Servings.Select(serving => serving.ServingId), Is.EquivalentTo(new[] { "a", "c" }));
             Assert.That(byProduct.Servings.Single(serving => serving.ServingId == "a").Calories, Is.EqualTo(42));
             Assert.That(byBarcode, Is.Null);
-            Assert.That(byProduct.DataAsOf, Is.EqualTo(retrievedAt.AddMinutes(5)));
+            Assert.That(byProduct.CachedAt, Is.EqualTo(retrievedAt.AddMinutes(5)));
         });
     }
 

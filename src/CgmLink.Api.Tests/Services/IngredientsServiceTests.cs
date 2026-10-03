@@ -391,7 +391,7 @@ public class IngredientsServiceTests
         var timestamp = DateTimeOffset.UtcNow.AddHours(-1);
         SetupProduct(new NutritionProduct
         {
-            ProductId = identifier, Name = "Provider milk", DataAsOf = timestamp,
+            ProductId = identifier, Name = "Provider milk", CachedAt = timestamp,
             Attribution = "Provider attribution can change",
             Servings = [CreateNutritionServing("456")],
         });
@@ -404,7 +404,7 @@ public class IngredientsServiceTests
             Assert.That(response.ProductId, Is.EqualTo(identifier));
             Assert.That(response.Name, Is.EqualTo("Provider milk"));
             Assert.That(response.Servings.Single().ServingId, Is.EqualTo("456"));
-            Assert.That(response.DataAsOf, Is.EqualTo(timestamp));
+            Assert.That(response.CachedAt, Is.EqualTo(timestamp));
             Assert.That(response.Attribution, Is.EqualTo("Provider attribution can change"));
             Assert.That(_nutritionIdentities, Is.Empty);
         });

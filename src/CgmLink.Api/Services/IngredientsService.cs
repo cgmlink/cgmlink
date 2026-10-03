@@ -63,7 +63,7 @@ public sealed class IngredientsService : IIngredientsService
         {
             throw new NotFoundException("INGREDIENT_NOT_FOUND");
         }
-        return IngredientResponse.FromProduct(product, product.DataAsOf, product.Attribution);
+        return IngredientResponse.FromProduct(product, product.CachedAt, product.Attribution);
     }
 
     public async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(

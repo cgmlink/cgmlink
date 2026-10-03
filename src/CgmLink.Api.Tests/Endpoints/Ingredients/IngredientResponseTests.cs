@@ -47,7 +47,7 @@ public class IngredientResponseTests
             Assert.That(response.IngredientId, Is.EqualTo(ingredient.Id));
             Assert.That(response.ProductId, Is.Null);
             Assert.That(response.Attribution, Is.Null);
-            Assert.That(response.DataAsOf, Is.EqualTo(timestamp));
+            Assert.That(response.CachedAt, Is.EqualTo(timestamp));
             Assert.That(response.ImageUrl, Is.EqualTo("image"));
             Assert.That(response.ThumbnailUrl, Is.EqualTo("thumbnail"));
             Assert.That(response.Servings.Single(), Is.EqualTo(new IngredientServingResponse(

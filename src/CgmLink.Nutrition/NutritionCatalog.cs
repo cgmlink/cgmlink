@@ -87,8 +87,8 @@ internal sealed class NutritionCatalog : INutritionCatalog
         string? barcode,
         CancellationToken cancellationToken)
     {
-        product.DataAsOf = DateTimeOffset.UtcNow;
-        var expiresAt = product.DataAsOf.Value.Add(_cacheLifetime);
+        product.CachedAt = DateTimeOffset.UtcNow;
+        var expiresAt = product.CachedAt.Value.Add(_cacheLifetime);
         return _cache.SetAsync(new CachedProduct
         {
             Source = _source.Source,
@@ -96,7 +96,7 @@ internal sealed class NutritionCatalog : INutritionCatalog
             Name = product.Name,
             Barcode = barcode,
             ExpiresAt = expiresAt,
-            DataAsOf = product.DataAsOf,
+            CachedAt = product.CachedAt,
             Servings = product.Servings.Select(serving => new CachedServing
             {
                 Source = _source.Source,
@@ -117,7 +117,7 @@ internal sealed class NutritionCatalog : INutritionCatalog
     {
         ProductId = product.ProductId,
         Attribution = _source.Attribution,
-        DataAsOf = product.DataAsOf,
+        CachedAt = product.CachedAt,
         Name = product.Name,
         Barcode = barcode ?? product.Barcode,
         Servings = product.Servings.Select(serving => new NutritionServing

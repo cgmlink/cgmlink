@@ -31,14 +31,14 @@ internal sealed class NutritionCatalogTests
     {
         var timestamp = DateTimeOffset.UtcNow.AddHours(-1);
         var cached = CachedProduct(expiresAt: DateTimeOffset.UtcNow.AddMinutes(1));
-        cached.DataAsOf = timestamp;
+        cached.CachedAt = timestamp;
         _cache.Setup(cache => cache.GetAsync("test", "1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(cached);
 
         var product = await _catalog.GetAsync("1");
 
         Assert.That(product!.Servings.Select(serving => serving.ExternalId), Is.EqualTo(new[] { "a", "b" }));
-        Assert.That(product.DataAsOf, Is.EqualTo(timestamp));
+        Assert.That(product.CachedAt, Is.EqualTo(timestamp));
         Assert.That(product.Attribution, Is.EqualTo("Current provider attribution"));
         _source.Verify(source => source.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -61,8 +61,8 @@ internal sealed class NutritionCatalogTests
         {
             Assert.That(product!.Name, Is.EqualTo("fresh"));
             Assert.That(stored!.ExpiresAt, Is.InRange(before.AddHours(24), DateTimeOffset.UtcNow.AddHours(24)));
-            Assert.That(product.DataAsOf, Is.InRange(before, DateTimeOffset.UtcNow));
-            Assert.That(stored.DataAsOf, Is.EqualTo(product.DataAsOf));
+            Assert.That(product.CachedAt, Is.InRange(before, DateTimeOffset.UtcNow));
+            Assert.That(stored.CachedAt, Is.EqualTo(product.CachedAt));
         });
     }
 
