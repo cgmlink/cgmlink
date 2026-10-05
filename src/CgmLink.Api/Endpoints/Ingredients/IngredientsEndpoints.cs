@@ -18,6 +18,11 @@ public static class IngredientsEndpoints
             .WithName("ListIngredients")
             .RequireAuthorization();
 
+        group.MapGet("/search", SearchIngredients.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("SearchIngredients")
+            .RequireAuthorization();
+
         group.MapGet("/{identifier}", GetIngredient.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("GetIngredient")

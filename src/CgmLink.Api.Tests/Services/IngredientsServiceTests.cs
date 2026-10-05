@@ -436,5 +436,122 @@ public class IngredientsServiceTests
             Throws.InstanceOf<OperationCanceledException>());
     }
 
+    [Test]
+    public async Task Search_ReturnsSeparatelyPagedOwnedAndProviderIngredientsWithoutDetailLookups()
+    {
+        var first = CreateIngredient(Guid.NewGuid());
+        first.Name = "Milk A";
+        var second = CreateIngredient(Guid.NewGuid());
+        second.Name = "Milk B";
+        var otherUser = CreateIngredient(Guid.NewGuid());
+        otherUser.UserId = Guid.NewGuid();
+        var deleted = CreateIngredient(Guid.NewGuid());
+        deleted.Deleted = DateTimeOffset.UtcNow;
+        var unrelated = CreateIngredient(Guid.NewGuid());
+        unrelated.Name = "Apple";
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(new[] { second, otherUser, first, deleted, unrelated }));
+        var product = new NutritionProduct
+        {
+            ProductId = "123",
+            Name = "External milk",
+            Attribution = "Provider attribution",
+            Servings = [CreateNutritionServing("456")],
+        };
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 1, 1, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new[] { product });
+
+        var response = await _service.SearchIngredientsAsync(" Milk ", _userId, 1, 1);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Personal.Ingredients.Single().IngredientId, Is.EqualTo(second.Id));
+            Assert.That(response.Personal.NumberOfPages, Is.EqualTo(2));
+            Assert.That(response.Personal.Page, Is.EqualTo(1));
+            Assert.That(response.External.Ingredients.Single().ProductId, Is.EqualTo("123"));
+            Assert.That(response.External.Ingredients.Single().Servings.Single().Calories, Is.EqualTo(100));
+            Assert.That(response.External.Ingredients.Single().Attribution, Is.EqualTo(product.Attribution));
+            Assert.That(response.External.Ingredients.Single().CachedAt, Is.Null);
+            Assert.That(response.External.Available, Is.True);
+            Assert.That(response.External.NumberOfPages, Is.Null);
+            Assert.That(response.External.Page, Is.EqualTo(1));
+        });
+        _nutritionIngredientsRepositoryMock.Verify(repository => repository.AddManyAsync(
+            It.IsAny<IEnumerable<NutritionIngredient>>(), It.IsAny<CancellationToken>()), Times.Never);
+        _nutritionCatalogMock.Verify(catalog => catalog.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Search_ProviderFailure_PreservesPersonalResults()
+    {
+        var ingredient = CreateIngredient(Guid.NewGuid());
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(new[] { ingredient }));
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 0, 20, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new System.Net.Http.HttpRequestException());
+
+        var response = await _service.SearchIngredientsAsync("Milk", _userId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Personal.Ingredients.Single().IngredientId, Is.EqualTo(ingredient.Id));
+            Assert.That(response.Personal.Available, Is.True);
+            Assert.That(response.External.Available, Is.False);
+            Assert.That(response.External.Ingredients, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Search_EmptyResults_AreAvailable()
+    {
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 0, 20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Array.Empty<NutritionProduct>());
+
+        var response = await _service.SearchIngredientsAsync("Milk", _userId);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Personal.Ingredients, Is.Empty);
+            Assert.That(response.Personal.NumberOfPages, Is.Zero);
+            Assert.That(response.External.Ingredients, Is.Empty);
+            Assert.That(response.External.Available, Is.True);
+        });
+    }
+
+    [Test]
+    public void Search_RequestCancellation_IsPreserved()
+    {
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 0, 20, cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+
+        Assert.That(async () => await _service.SearchIngredientsAsync("Milk", _userId, cancellationToken: cancellation.Token),
+            Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    [Test]
+    public async Task Search_ExternalExcluded_DoesNotCallCatalog()
+    {
+        var ingredient = CreateIngredient(Guid.NewGuid());
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(new[] { ingredient }));
+
+        var response = await _service.SearchIngredientsAsync("Milk", _userId, includeExternal: false);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Personal.Ingredients.Single().IngredientId, Is.EqualTo(ingredient.Id));
+            Assert.That(response.External.Ingredients, Is.Empty);
+            Assert.That(response.External.Available, Is.True);
+            Assert.That(response.External.NumberOfPages, Is.Zero);
+        });
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
     private sealed record RequestIngredient(Guid IngredientId, Guid ServingId, decimal Quantity) : IMealIngredientRequest;
 }

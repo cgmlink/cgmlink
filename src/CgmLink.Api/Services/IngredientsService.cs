@@ -1,5 +1,6 @@
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Api.Endpoints.Ingredients;
+using CgmLink.Api.Endpoints.Ingredients.SearchIngredients;
 using System.Net;
 using System.Net.Http;
 using CgmLink.Data.Entities;
@@ -31,6 +32,54 @@ public sealed class IngredientsService : IIngredientsService
         _nutritionCatalog = nutritionCatalog ?? throw new ArgumentNullException(nameof(nutritionCatalog));
         _nutritionIngredientsRepository = nutritionIngredientsRepository ??
             throw new ArgumentNullException(nameof(nutritionIngredientsRepository));
+    }
+
+    public async Task<SearchIngredientsResponse> SearchIngredientsAsync(
+        string name, Guid userId, int page = 0, int pageSize = 20, bool includeExternal = true,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan((long)page * pageSize, int.MaxValue);
+        name = name.Trim();
+
+        var personal = await SearchUserIngredientsAsync(name, userId, page, pageSize, cancellationToken).ConfigureAwait(false);
+        var external = includeExternal
+            ? await SearchExternalIngredientsAsync(name, page, pageSize, cancellationToken).ConfigureAwait(false)
+            : new IngredientSearchGroup([], page, pageSize, 0);
+        return new SearchIngredientsResponse(personal, external);
+    }
+
+    private async Task<IngredientSearchGroup> SearchUserIngredientsAsync(
+        string name, Guid userId, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        var personalQuery = _ingredientsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
+            .Where(ingredient => ingredient.UserId == userId && ingredient.Deleted == null && ingredient.Name.Contains(name));
+        var total = await personalQuery.CountAsync(cancellationToken).ConfigureAwait(false);
+        var personalIngredients = await personalQuery.OrderBy(ingredient => ingredient.Name).ThenBy(ingredient => ingredient.Id)
+            .Skip(page * pageSize).Take(pageSize)
+            .Include(ingredient => ingredient.Servings.Where(serving => serving.Deleted == null))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+        return new IngredientSearchGroup(personalIngredients.Select(IngredientResponse.FromIngredient).ToArray(),
+            page, pageSize, (int)Math.Ceiling(total / (double)pageSize));
+    }
+
+    private async Task<IngredientSearchGroup> SearchExternalIngredientsAsync(
+        string name, int page, int pageSize, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var products = await _nutritionCatalog.SearchAsync(name, page, pageSize, cancellationToken).ConfigureAwait(false);
+            var external = products.Select(product => IngredientResponse.FromProduct(product, null, product.Attribution)).ToArray();
+
+            return new IngredientSearchGroup(external, page, pageSize, null);
+        }
+        catch (Exception exception) when (exception is HttpRequestException ||
+            exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            return new IngredientSearchGroup([], page, pageSize, null, false);
+        }
     }
 
     public async Task<IngredientResponse> GetIngredientAsync(

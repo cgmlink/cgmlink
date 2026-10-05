@@ -78,6 +78,20 @@ internal sealed class NutritionCatalogTests
         _source.Verify(source => source.GetByBarcodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Test]
+    public async Task SearchAsync_ReturnsProviderResultsWithoutAccessingCache()
+    {
+        var products = new[] { SourceProduct("Search result") };
+        _source.Setup(source => source.SearchAsync("Milk", 1, 20, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(products);
+
+        var results = await _catalog.SearchAsync("Milk", 1, 20);
+
+        Assert.That(results, Is.SameAs(products));
+        _cache.VerifyNoOtherCalls();
+        _source.Verify(source => source.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     private static CachedProduct CachedProduct(DateTimeOffset expiresAt) => new()
     {
         Source = "test",
