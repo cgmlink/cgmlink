@@ -453,7 +453,9 @@ public class IngredientsServiceTests
             .Returns(new TestAsyncEnumerable<Ingredient>(new[] { second, otherUser, first, deleted, unrelated }));
         var product = new NutritionProduct
         {
-            ProductId = "123", Name = "External milk", Attribution = "Provider attribution",
+            ProductId = "123",
+            Name = "External milk",
+            Attribution = "Provider attribution",
             Servings = [CreateNutritionServing("456")],
         };
         _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 1, 1, It.IsAny<CancellationToken>()))
