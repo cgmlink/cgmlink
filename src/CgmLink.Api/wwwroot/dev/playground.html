@@ -139,6 +139,17 @@
       </div>
 
       <div id="tab-ingredients">
+        <div class="row">
+          <input id="ingredientQuery" type="text" placeholder="Search personal and external ingredients..." aria-label="Ingredient search query" />
+          <button id="searchIngredientsBtn" style="flex:0 0 auto;">Search</button>
+        </div>
+        <label><input id="includeExternalIngredients" type="checkbox" checked style="width:auto;" /> Include external ingredients</label>
+        <div id="ingredientSearchResults"></div>
+        <div class="row">
+          <input id="ingredientIdentifier" type="text" placeholder="Ingredient GUID or product ID..." aria-label="Ingredient identifier" />
+          <button id="getIngredientBtn" style="flex:0 0 auto;">Get ingredient</button>
+        </div>
+        <div id="ingredientLookupDetail"></div>
         <div class="toolbar">
           <button id="refreshBtn" class="secondary">Refresh list</button>
           <button id="newIngredientBtn" class="secondary">New ingredient</button>
@@ -152,7 +163,6 @@
           <h3 id="ingredientFormTitle">New ingredient</h3>
           <div class="form-grid">
             <div><label>Name *</label><input id="igName" type="text" placeholder="e.g. Milk" /></div>
-            <div><label>Barcode (optional)</label><input id="igBarcode" type="text" placeholder="leave blank" /></div>
           </div>
           <label>Servings *</label>
           <div id="servingRows"></div>
@@ -332,11 +342,14 @@
   const authStatus = $("authStatus"), tokenBox = $("tokenBox"), tokenText = $("tokenText");
   const responsePre = $("response");
   const formEl = $("ingredientForm"), formTitle = $("ingredientFormTitle");
-  const igName = $("igName"), igBarcode = $("igBarcode"), igImageUrl = $("igImageUrl"), igThumbnailUrl = $("igThumbnailUrl"), servingRowsEl = $("servingRows");
+  const igName = $("igName"), igImageUrl = $("igImageUrl"), igThumbnailUrl = $("igThumbnailUrl"), servingRowsEl = $("servingRows");
 
   let token = null;
   let ingredientsCache = [];
   let editingIngredientId = null;
+  let ingredientSearchPage = 0;
+  let ingredientSearchQuery = "";
+  let ingredientSearchIncludeExternal = true;
   let ingState = { page: 0, pageSize: 25, sortBy: "Created", sortDir: "Desc", totalPages: 1 };
 
   /* ---------- helpers ---------- */
@@ -358,6 +371,8 @@
     $("logoutBtn").style.display = on ? "inline-block" : "none";
     $("refreshBtn").disabled = !on;
     $("newIngredientBtn").disabled = !on;
+    $("searchIngredientsBtn").disabled = !on;
+    $("getIngredientBtn").disabled = !on;
     $("getMealBtn").disabled = !on;
     $("addMealIngredientBtn").disabled = !on;
     $("mealCreateBtn").disabled = !on;
@@ -548,6 +563,60 @@
 
   /* ---------- ingredients ---------- */
 
+  async function searchIngredients(resetPage) {
+    if (!token) return;
+    if (resetPage) {
+      ingredientSearchQuery = $("ingredientQuery").value.trim();
+      ingredientSearchPage = 0;
+      ingredientSearchIncludeExternal = $("includeExternalIngredients").checked;
+    }
+    if (!ingredientSearchQuery) {
+      showResponse({ status: "form", text: "Enter an ingredient search query." });
+      return;
+    }
+    const pageSize = 20;
+    const params = new URLSearchParams({ name: ingredientSearchQuery, page: ingredientSearchPage, pageSize,
+      includeExternal: ingredientSearchIncludeExternal });
+    const out = await run("search ingredients", () => requestJson("api/v1/ingredients/search?" + params, "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const box = $("ingredientSearchResults");
+    const groups = [["Personal", out.data.personal]];
+    if (ingredientSearchIncludeExternal) groups.push(["External", out.data.external]);
+    box.innerHTML = groups.map(([title, group]) => {
+      let h = '<div class="card"><h3>' + title + '</h3>';
+      if (group.available === false) return h + '<p class="muted">External search is unavailable. Personal results are still available.</p></div>';
+      if (!group.ingredients.length) return h + '<p class="muted">No matches on this page.</p></div>';
+      h += '<table><thead><tr><th>Name</th><th>Identifier</th><th>Actions</th></tr></thead><tbody>';
+      h += group.ingredients.map((i) => {
+        const identifier = i.ingredientId || i.productId;
+        return '<tr><td>' + esc(i.name) + '</td><td class="muted">' + esc(identifier) +
+          '</td><td><button class="small secondary" data-search-view="' + esc(identifier) + '">View</button></td></tr>';
+      }).join("");
+      return h + '</tbody></table></div>';
+    }).join("");
+    const personalHasNext = ingredientSearchPage + 1 < (out.data.personal.numberOfPages || 0);
+    const externalHasNext = ingredientSearchIncludeExternal && out.data.external.available && out.data.external.ingredients.length === pageSize;
+    box.innerHTML += '<div class="row"><button class="small secondary" data-search-prev' +
+      (ingredientSearchPage === 0 ? ' disabled' : '') + '>Previous</button><span class="muted">Page ' +
+      (ingredientSearchPage + 1) + '</span><button class="small secondary" data-search-next' +
+      (!personalHasNext && !externalHasNext ? ' disabled' : '') + '>Next</button></div>';
+    box.querySelectorAll("[data-search-view]").forEach((button) => button.addEventListener("click", () => getIngredient(button.dataset.searchView)));
+    box.querySelector("[data-search-prev]").addEventListener("click", () => { ingredientSearchPage--; searchIngredients(false); });
+    box.querySelector("[data-search-next]").addEventListener("click", () => { ingredientSearchPage++; searchIngredients(false); });
+  }
+
+  async function getIngredient(identifier) {
+    if (!token) return;
+    identifier = identifier || $("ingredientIdentifier").value.trim();
+    if (!identifier) { showResponse({ status: "form", text: "Enter an ingredient GUID or product ID." }); return; }
+    $("ingredientIdentifier").value = identifier;
+    const out = await run("get ingredient", () => requestJson("api/v1/ingredients/" + encodeURIComponent(identifier), "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const box = $("ingredientLookupDetail");
+    box.innerHTML = ingredientDetailHtml(out.data, false);
+    box.querySelector("[data-close]").addEventListener("click", () => { box.innerHTML = ""; });
+  }
+
   async function refreshIngredients(resetPage) {
     if (!token) return;
     if (resetPage) ingState.page = 0;
@@ -571,7 +640,7 @@
     const rows = ingredientsCache.map((i) =>
       "<tr id='ing-" + i.id + "' data-id='" + i.id + "'>" +
         "<td>" + esc(i.name) + "</td>" +
-        "<td class='muted'>" + esc(i.barcode || "-") + "</td>" +
+        "<td class='muted'>" + esc(i.id) + "</td>" +
         "<td class='muted'>" + fmtDate(i.created) + "</td>" +
         "<td style='text-align:right;'>" +
           "<button class='small secondary' data-view>View</button> " +
@@ -582,7 +651,7 @@
     box.innerHTML =
       "<table><thead><tr>" +
         sortLabel(ingState, "Name", "Name") +
-        sortLabel(ingState, "Barcode", "Barcode") +
+        "<th>Identifier</th>" +
         sortLabel(ingState, "Created", "Created") +
         "<th style='text-align:right;'>Actions</th>" +
       "</tr></thead>" +
@@ -623,15 +692,15 @@
     return td;
   }
 
-  function ingredientDetailHtml(d) {
+  function ingredientDetailHtml(d, allowEdit = true) {
     const metaBits = [];
-    if (d.barcode) metaBits.push("Barcode: " + esc(d.barcode));
+    metaBits.push((d.ingredientId ? "Ingredient ID: " : "Product ID: ") + esc(d.ingredientId || d.productId));
     if (d.imageUrl) metaBits.push('<a href="' + esc(d.imageUrl) + '" target="_blank" rel="noopener">Image</a>');
     if (d.thumbnailUrl) metaBits.push('<a href="' + esc(d.thumbnailUrl) + '" target="_blank" rel="noopener">Thumbnail</a>');
-    metaBits.push("Created " + fmtDate(d.created));
+    metaBits.push("Cached at " + fmtDate(d.cachedAt));
     let h = '<div class="card">';
     h += '<div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
-      "<button class='small secondary' data-edit2>Edit</button>" +
+      (allowEdit && d.ingredientId ? "<button class='small secondary' data-edit2>Edit</button>" : "") +
       "<button class='small secondary' data-close>Close</button></div></div>";
     h += '<div class="meta-line">' + metaBits.join(" &middot; ") + '</div>';
     if (d.servings && d.servings.length) {
@@ -646,39 +715,39 @@
     } else {
       h += '<div class="muted">No servings.</div>';
     }
+    if (d.attribution) {
+      const parsed = new DOMParser().parseFromString(d.attribution, "text/html");
+      const link = parsed.querySelector("a[href]");
+      const href = link?.getAttribute("href") || "";
+      h += '<div class="muted">' + (href.startsWith("https://")
+        ? '<a href="' + esc(href) + '" target="_blank" rel="noopener">' + esc(link.textContent) + '</a>'
+        : esc(parsed.body.textContent)) + '</div>';
+    }
     h += "</div>";
     return h;
   }
 
   async function showView(id) {
-    const existing = ingredientsCache.find((i) => i.id === id);
-    let data = existing;
-    if (!data || !data.servings) {
-      const out = await run("get ingredient", () => requestJson("api/v1/ingredients/" + id, "GET"));
-      if (!out || !out.ok || !out.data) return;
-      data = out.data;
-    }
+    const out = await run("get ingredient", () => requestJson("api/v1/ingredients/" + encodeURIComponent(id), "GET"));
+    if (!out || !out.ok || !out.data) return;
+    const data = out.data;
     const cell = expandUnder(id);
     if (!cell) return;
     cell.innerHTML = ingredientDetailHtml(data);
-    cell.querySelector("[data-edit2]").addEventListener("click", () => showEdit(id));
+    cell.querySelector("[data-edit2]")?.addEventListener("click", () => showEdit(id));
     cell.querySelector("[data-close]").addEventListener("click", clearExpansions);
   }
 
   async function showEdit(id) {
-    const existing = ingredientsCache.find((i) => i.id === id);
-    let data = existing;
-    if (!data || !data.servings) {
-      const out = await run("load ingredient", () => requestJson("api/v1/ingredients/" + id, "GET"));
-      if (out && out.ok && out.data) data = out.data;
-    }
-    if (data) openIngredientForm("edit", data, id);
+    const out = await run("load ingredient", () => requestJson("api/v1/ingredients/" + encodeURIComponent(id), "GET"));
+    if (!out || !out.ok || !out.data || !out.data.ingredientId) return;
+    openIngredientForm("edit", out.data, id);
   }
 
   function addServingRow(data) {
     const row = document.createElement("div");
     row.className = "serving-row";
-    row.dataset.servingId = (data && data.id) || "";
+    row.dataset.servingId = (data && (data.servingId || data.id)) || "";
     row.innerHTML =
       '<input class="s-desc" type="text" placeholder="Description" value="' + esc(data?.description || "1 serving") + '" />' +
       '<input class="s-amount" type="number" placeholder="Amount" value="' + (data?.servingAmount ?? "") + '" />' +
@@ -712,10 +781,9 @@
   }
 
   function openIngredientForm(mode, ingredient, anchorId) {
-    editingIngredientId = mode === "edit" ? ingredient.id : null;
+    editingIngredientId = mode === "edit" ? (ingredient.ingredientId || ingredient.id) : null;
     formTitle.textContent = mode === "edit" ? "Edit ingredient" : "New ingredient";
     igName.value = mode === "edit" ? ingredient.name : "";
-    igBarcode.value = mode === "edit" ? (ingredient.barcode || "") : "";
     igImageUrl.value = mode === "edit" ? (ingredient.imageUrl || "") : "";
     igThumbnailUrl.value = mode === "edit" ? (ingredient.thumbnailUrl || "") : "";
     servingRowsEl.innerHTML = "";
@@ -755,10 +823,9 @@
     if (editingIngredientId === null && !name) { showResponse({ status: "form", text: "Name is required." }); return; }
     if (!servings.length) { showResponse({ status: "form", text: "Add at least one serving." }); return; }
 
-    const barcode = igBarcode.value.trim() || null;
     const payload = editingIngredientId === null
-      ? { name, barcode, imageUrl: igImageUrl.value || null, thumbnailUrl: igThumbnailUrl.value || null, servings }
-      : { name: name || null, barcode, imageUrl: igImageUrl.value || null, thumbnailUrl: igThumbnailUrl.value || null, servings };
+      ? { name, imageUrl: igImageUrl.value || null, thumbnailUrl: igThumbnailUrl.value || null, servings }
+      : { name: name || null, imageUrl: igImageUrl.value || null, thumbnailUrl: igThumbnailUrl.value || null, servings };
 
     const out = await run(editingIngredientId === null ? "create ingredient" : "update ingredient", () =>
       requestJson(
@@ -973,7 +1040,7 @@
     }
     const servings = (detail && detail.servings) || [];
     servingSel.innerHTML = '<option value="">Select a serving</option>' + servings.map((s) =>
-      '<option value="' + s.id + '">' +
+      '<option value="' + esc(s.servingId) + '">' +
         esc((s.description || "Serving") + (s.servingAmount != null ? " - " + s.servingAmount + (s.servingUnit ? " " + s.servingUnit : "") : "")) +
       '</option>').join("");
     servingSel.disabled = false;
@@ -1773,6 +1840,10 @@
   $("registerBtn").addEventListener("click", register);
   $("logoutBtn").addEventListener("click", () => { setToken(null); authMessage(""); });
   $("refreshBtn").addEventListener("click", () => refreshIngredients(false));
+  $("searchIngredientsBtn").addEventListener("click", () => searchIngredients(true));
+  $("ingredientQuery").addEventListener("keydown", (e) => { if (e.key === "Enter") searchIngredients(true); });
+  $("getIngredientBtn").addEventListener("click", () => getIngredient());
+  $("ingredientIdentifier").addEventListener("keydown", (e) => { if (e.key === "Enter") getIngredient(); });
   $("newIngredientBtn").addEventListener("click", () => openIngredientForm("new", {}));
   $("addServingBtn").addEventListener("click", () => addServingRow(undefined));
   $("igCancelBtn").addEventListener("click", closeIngredientForm);
