@@ -40,9 +40,8 @@ public sealed class IngredientsService : IIngredientsService
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentOutOfRangeException.ThrowIfNegative(page);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(page, int.MaxValue / 50);
         ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
-        ArgumentOutOfRangeException.ThrowIfGreaterThan(pageSize, 50);
+        ArgumentOutOfRangeException.ThrowIfGreaterThan((long)page * pageSize, int.MaxValue);
         name = name.Trim();
 
         var personal = await SearchUserIngredientsAsync(name, userId, page, pageSize, cancellationToken).ConfigureAwait(false);

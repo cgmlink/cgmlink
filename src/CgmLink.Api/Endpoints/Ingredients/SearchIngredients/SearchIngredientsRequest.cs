@@ -1,4 +1,6 @@
 using FluentValidation;
+using CgmLink.Api.Models;
+using Microsoft.Extensions.Options;
 
 namespace CgmLink.Api.Endpoints.Ingredients.SearchIngredients;
 
@@ -11,11 +13,15 @@ public sealed record SearchIngredientsRequest
 
     public sealed class Validator : AbstractValidator<SearchIngredientsRequest>
     {
-        public Validator()
+        public Validator(IOptions<ApiSettings> apiSettings)
         {
             RuleFor(request => request.Name).NotEmpty();
-            RuleFor(request => request.Page).InclusiveBetween(0, int.MaxValue / 50);
-            RuleFor(request => request.PageSize).InclusiveBetween(1, 50);
+            RuleFor(request => request.Page).GreaterThanOrEqualTo(0);
+            RuleFor(request => request.PageSize).InclusiveBetween(1, apiSettings.Value.MaxPageSize);
+            RuleFor(request => request)
+                .Must(request => (long)request.Page * request.PageSize <= int.MaxValue)
+                .WithMessage("The requested page is too large.")
+                .When(request => request.Page >= 0 && request.PageSize > 0);
         }
     }
 }
