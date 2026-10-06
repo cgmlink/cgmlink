@@ -54,10 +54,8 @@ if (swaggerSettings.Enabled)
         {
             return type.FullName.Replace("CgmLink.Api.Endpoints.", "")
                 .Replace("CgmLink.Identity.Endpoints.", "")
-                .Replace("CgmLink.Nutrition.Endpoints.", "")
                 .Replace("CgmLink.Api.Models.", "")
                 .Replace("CgmLink.Identity.Models.", "")
-                .Replace("CgmLink.Nutrition.Models.", "")
                 .Replace(".", "_");
         });
         opt.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
@@ -147,7 +145,6 @@ app.UseHealthChecks("/health");
 
 app.MapIdentityEndpoints();
 app.MapCgmLinkEndpoints();
-app.MapNutritionEndpoints();
 
 using (var scope = app.Services.CreateScope())
 {
