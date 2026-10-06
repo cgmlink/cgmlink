@@ -1,11 +1,6 @@
 using CgmLink.Nutrition.Caching;
 using CgmLink.Nutrition.Caching.Ef;
-using CgmLink.Nutrition.Endpoints;
-using CgmLink.Nutrition.Endpoints.SearchNutrition;
 using CgmLink.Nutrition.FatSecretClient;
-using FluentValidation;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
@@ -18,7 +13,6 @@ public static class ServiceCollectionExtensions
 {
     public static IServiceCollection AddNutrition(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddValidatorsFromAssemblyContaining<SearchNutritionRequest>();
         services.AddFatSecretClient(configuration);
         services.AddScoped<INutritionCatalog, NutritionCatalog>();
 
@@ -40,10 +34,5 @@ public static class ServiceCollectionExtensions
                 throw new NotSupportedException($"Nutrition cache provider '{nutritionOptions.CacheProvider}' is not supported yet.");
         }
         return services;
-    }
-
-    public static IEndpointRouteBuilder MapNutritionEndpoints(this IEndpointRouteBuilder endpoints)
-    {
-        return endpoints.MapNutritionEndpointsInternal();
     }
 }
