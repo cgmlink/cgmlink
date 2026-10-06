@@ -46,7 +46,11 @@ class ListIngredientsRequestValidatorTests
     {
         var result = _validator.TestValidate(new ListIngredientsRequest
         {
-            Type = IngredientType.External, Name = "Milk", PageSize = 20, SortBy = "Name", SortDirection = SortDirection.Asc,
+            Type = IngredientType.External,
+            Name = "Milk",
+            PageSize = 20,
+            SortBy = "Name",
+            SortDirection = SortDirection.Asc,
         });
         result.ShouldHaveValidationErrorFor(request => request.SortBy);
         result.ShouldHaveValidationErrorFor(request => request.SortDirection);
