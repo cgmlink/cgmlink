@@ -1,5 +1,8 @@
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Api.Endpoints.Ingredients;
+using CgmLink.Api.Endpoints.Ingredients.ListIngredients;
+using CgmLink.Api.Models;
+using CgmLink.Data.Extensions;
 using System.Net;
 using System.Net.Http;
 using CgmLink.Data.Entities;
@@ -33,12 +36,65 @@ public sealed class IngredientsService : IIngredientsService
             throw new ArgumentNullException(nameof(nutritionIngredientsRepository));
     }
 
+    public async Task<ListIngredientsResponse> ListPersonalIngredientsAsync(
+        Guid userId, int page = 0, int pageSize = 20, string? name = null,
+        string? sortBy = null, SortDirection? sortDirection = null, CancellationToken cancellationToken = default)
+    {
+        name = name?.Trim();
+        sortBy = string.IsNullOrWhiteSpace(sortBy) ? nameof(Ingredient.Created) : sortBy;
+        var descending = (sortDirection ?? SortDirection.Desc) == SortDirection.Desc;
+
+        var ingredients = await _ingredientsRepository.Find(i => i.UserId == userId && i.Deleted == null &&
+                (name == null || i.Name.Contains(name)), new FindOptions { IsAsNoTracking = true })
+            .OrderByProperty(sortBy, descending)
+            .Skip(page * pageSize)
+            .Take(pageSize)
+            .Include(i => i.Servings.Where(s => s.Deleted == null))
+            .ToListAsync(cancellationToken).ConfigureAwait(false);
+
+        var totalIngredients = await _ingredientsRepository.CountAsync(i => i.UserId == userId && i.Deleted == null &&
+            (name == null || i.Name.Contains(name)), cancellationToken).ConfigureAwait(false);
+
+        return new ListIngredientsResponse
+        {
+            Ingredients = ingredients.Select(IngredientResponse.FromIngredient).ToArray(),
+            NumberOfPages = (int)Math.Ceiling(totalIngredients / (double)pageSize),
+        };
+    }
+
+    public async Task<IReadOnlyCollection<IngredientResponse>> SearchExternalIngredientsAsync(
+        string name, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(name);
+        ArgumentOutOfRangeException.ThrowIfNegative(page);
+        ArgumentOutOfRangeException.ThrowIfLessThan(pageSize, 1);
+        try
+        {
+            var products = await _nutritionCatalog.SearchAsync(name.Trim(), page, pageSize, cancellationToken).ConfigureAwait(false);
+            return products.Select(product => IngredientResponse.FromProduct(product, null, product.Attribution)).ToArray();
+        }
+        catch (Exception exception) when (exception is HttpRequestException ||
+            exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable);
+        }
+    }
+
     public async Task<IngredientResponse> GetIngredientAsync(
-        string identifier, Guid userId, CancellationToken cancellationToken = default)
+        string identifier, Guid userId, CancellationToken cancellationToken = default,
+        IngredientType type = IngredientType.Personal)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(identifier);
-        if (Guid.TryParse(identifier, out var ingredientId))
+        if (!Enum.IsDefined(type))
         {
+            throw new BadRequestException("INGREDIENT_TYPE_INVALID");
+        }
+        if (type == IngredientType.Personal)
+        {
+            if (!Guid.TryParse(identifier, out var ingredientId))
+            {
+                throw new NotFoundException("INGREDIENT_NOT_FOUND");
+            }
             var ingredient = await _ingredientsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
                 .Include(item => item.Servings.Where(serving => serving.Deleted == null))
                 .FirstOrDefaultAsync(item => item.Id == ingredientId && item.UserId == userId && item.Deleted == null,
@@ -47,6 +103,7 @@ public sealed class IngredientsService : IIngredientsService
             {
                 return IngredientResponse.FromIngredient(ingredient);
             }
+            throw new NotFoundException("INGREDIENT_NOT_FOUND");
         }
 
         Nutrition.Source.NutritionProduct? product;

@@ -16,6 +16,7 @@ public static class IngredientsEndpoints
         group.MapGet("/", ListIngredients.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("ListIngredients")
+            .Produces(StatusCodes.Status503ServiceUnavailable)
             .RequireAuthorization();
 
         group.MapGet("/{identifier}", GetIngredient.Endpoint.HandleAsync)

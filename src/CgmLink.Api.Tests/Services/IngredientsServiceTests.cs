@@ -1,4 +1,7 @@
 using CgmLink.Api.Services;
+using CgmLink.Api.Endpoints.Ingredients;
+using CgmLink.Api.Models;
+using System.Linq.Expressions;
 using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
@@ -398,7 +401,7 @@ public class IngredientsServiceTests
             Servings = [CreateNutritionServing("456")],
         });
 
-        var response = await _service.GetIngredientAsync(identifier, _userId);
+        var response = await _service.GetIngredientAsync(identifier, _userId, type: CgmLink.Api.Endpoints.Ingredients.IngredientType.External);
 
         Assert.Multiple(() =>
         {
@@ -419,7 +422,7 @@ public class IngredientsServiceTests
         _nutritionCatalogMock.Setup(catalog => catalog.GetAsync("123", It.IsAny<CancellationToken>()))
             .ThrowsAsync(new System.Net.Http.HttpRequestException("private provider detail"));
 
-        Assert.That(async () => await _service.GetIngredientAsync("123", _userId),
+        Assert.That(async () => await _service.GetIngredientAsync("123", _userId, type: CgmLink.Api.Endpoints.Ingredients.IngredientType.External),
             Throws.TypeOf<ApiException>().With.Property("StatusCode").EqualTo(System.Net.HttpStatusCode.ServiceUnavailable)
                 .And.Message.EqualTo("NUTRITION_UNAVAILABLE"));
     }
@@ -432,8 +435,294 @@ public class IngredientsServiceTests
         _nutritionCatalogMock.Setup(catalog => catalog.GetAsync("123", cancellation.Token))
             .ThrowsAsync(new OperationCanceledException(cancellation.Token));
 
-        Assert.That(async () => await _service.GetIngredientAsync("123", _userId, cancellation.Token),
+        Assert.That(async () => await _service.GetIngredientAsync("123", _userId, cancellation.Token, CgmLink.Api.Endpoints.Ingredients.IngredientType.External),
             Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    [TestCase("123")]
+    [TestCase("ccda0e86-48bb-47c1-ad0a-6c857bd77549")]
+    public void DetailLookup_PersonalMiss_DoesNotFallBackToCatalog(string identifier)
+    {
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+
+        Assert.That(async () => await _service.GetIngredientAsync(identifier, _userId),
+            Throws.TypeOf<NotFoundException>());
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task DetailLookup_ExternalSelection_DoesNotReadPersonalIngredientsEvenForOwnedGuid()
+    {
+        var ingredient = CreateIngredient(Guid.NewGuid());
+        _ingredientsRepositoryMock.Setup(repository => repository.GetAll(It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(new[] { ingredient }));
+        SetupProduct(new NutritionProduct { ProductId = ingredient.Id.ToString(), Name = "External", Attribution = "Provider attribution", Servings = [] });
+
+        var response = await _service.GetIngredientAsync(ingredient.Id.ToString(), _userId,
+            type: CgmLink.Api.Endpoints.Ingredients.IngredientType.External);
+
+        Assert.That(response.ProductId, Is.EqualTo(ingredient.Id.ToString()));
+        _ingredientsRepositoryMock.Verify(repository => repository.GetAll(It.IsAny<FindOptions>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ExternalSearch_PagesCatalogWithoutReadingOrWritingUserData()
+    {
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 2, 10, CancellationToken.None))
+            .ReturnsAsync(new[] { new NutritionProduct
+            {
+                ProductId = "123", Name = "Milk", Attribution = "Provider attribution",
+                Servings = [CreateNutritionServing("456")],
+            } });
+
+        var response = await _service.SearchExternalIngredientsAsync(" Milk ", 2, 10);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Single().ProductId, Is.EqualTo("123"));
+            Assert.That(response.Single().IngredientId, Is.Null);
+            Assert.That(response.Single().Servings.Single().ServingId, Is.EqualTo("456"));
+            Assert.That(response.Single().Attribution, Is.EqualTo("Provider attribution"));
+        });
+        _ingredientsRepositoryMock.VerifyNoOtherCalls();
+        _nutritionIngredientsRepositoryMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public void ExternalSearch_ProviderFailure_IsMappedToServiceUnavailable()
+    {
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 0, 20, CancellationToken.None))
+            .ThrowsAsync(new System.Net.Http.HttpRequestException("private detail"));
+        Assert.That(async () => await _service.SearchExternalIngredientsAsync("Milk", 0, 20),
+            Throws.TypeOf<ApiException>().With.Message.EqualTo("NUTRITION_UNAVAILABLE"));
+    }
+
+    [Test]
+    public void ExternalSearch_RequestCancellation_IsPreserved()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 0, 20, cancellation.Token))
+            .ThrowsAsync(new OperationCanceledException(cancellation.Token));
+        Assert.That(async () => await _service.SearchExternalIngredientsAsync("Milk", 0, 20, cancellation.Token),
+            Throws.InstanceOf<OperationCanceledException>());
+    }
+
+    [Test]
+    public async Task PersonalSearch_AppliesNameFilterToRowsAndCount()
+    {
+        Expression<Func<Ingredient, bool>> rows = null;
+        Expression<Func<Ingredient, bool>> count = null;
+        _ingredientsRepositoryMock.Setup(repository => repository.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((predicate, _) => rows = predicate)
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+        _ingredientsRepositoryMock.Setup(repository => repository.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), CancellationToken.None))
+            .Callback<Expression<Func<Ingredient, bool>>, CancellationToken>((predicate, _) => count = predicate)
+            .ReturnsAsync(0);
+
+        await _service.ListPersonalIngredientsAsync(_userId, name: " Milk ", pageSize: 10);
+
+        var matching = new Ingredient { Name = "Milk", UserId = _userId, Created = DateTimeOffset.UtcNow };
+        var unrelated = new Ingredient { Name = "Apple", UserId = _userId, Created = DateTimeOffset.UtcNow };
+        Assert.Multiple(() =>
+        {
+            Assert.That(rows.Compile()(matching), Is.True);
+            Assert.That(count.Compile()(matching), Is.True);
+            Assert.That(rows.Compile()(unrelated), Is.False);
+            Assert.That(count.Compile()(unrelated), Is.False);
+        });
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Return_Ok_With_Ingredients_When_Request_Is_Valid()
+    {
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient
+            {
+                Id = Guid.NewGuid(),
+                Name = "Milk",
+                Created = DateTimeOffset.UtcNow,
+                UserId = _userId,
+            }
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredients.Count);
+
+
+        var result = await _service.ListPersonalIngredientsAsync(_userId, page: 0, pageSize: 10);
+
+        _ingredientsRepositoryMock.Verify(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.Is<FindOptions>(o => o.IsAsNoTracking)), Times.Once);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Ingredients.Count, Is.EqualTo(1));
+            Assert.That(result.NumberOfPages, Is.EqualTo(1));
+        });
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Return_Empty_Ingredients_When_No_Ingredients_Linked()
+    {
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+
+        var result = await _service.ListPersonalIngredientsAsync(_userId, page: 0, pageSize: 10);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Ingredients, Is.Empty);
+            Assert.That(result.NumberOfPages, Is.EqualTo(0));
+        });
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Exclude_Soft_Deleted_Ingredients_When_Request_Is_Valid()
+    {
+        var deleted = new Ingredient
+        {
+            Id = Guid.NewGuid(),
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            Deleted = DateTimeOffset.UtcNow,
+            UserId = _userId,
+        };
+
+        Expression<Func<Ingredient, bool>> predicate = null;
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((expression, _) => predicate = expression)
+            .Returns(new TestAsyncEnumerable<Ingredient>(new[] { deleted }));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+
+        var result = await _service.ListPersonalIngredientsAsync(_userId, page: 0, pageSize: 10);
+
+        Assert.That(predicate, Is.Not.Null);
+        Assert.That(predicate.Compile()(deleted), Is.False);
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Exclude_Ingredients_Owned_By_Another_User()
+    {
+        var otherUsersIngredient = new Ingredient
+        {
+            Id = Guid.NewGuid(),
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            UserId = Guid.NewGuid(),
+        };
+
+        Expression<Func<Ingredient, bool>> predicate = null;
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((expression, _) => predicate = expression)
+            .Returns(new TestAsyncEnumerable<Ingredient>(Array.Empty<Ingredient>()));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(0);
+
+
+        await _service.ListPersonalIngredientsAsync(_userId, page: 0, pageSize: 10);
+
+        Assert.That(predicate, Is.Not.Null);
+        Assert.That(predicate.Compile()(otherUsersIngredient), Is.False);
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Paginate_Ingredients()
+    {
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient { Id = Guid.NewGuid(), Name = "Milk", Created = DateTimeOffset.UtcNow.AddHours(-2) },
+            new Ingredient { Id = Guid.NewGuid(), Name = "Eggs", Created = DateTimeOffset.UtcNow.AddHours(-1) },
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredients.Count);
+
+
+        var result = await _service.ListPersonalIngredientsAsync(_userId, page: 1, pageSize: 1, sortDirection: SortDirection.Desc);
+        Assert.Multiple(() =>
+        {
+            Assert.That(result.Ingredients.Count, Is.EqualTo(1));
+            Assert.That(result.Ingredients.First().Name, Is.EqualTo("Milk"));
+            Assert.That(result.NumberOfPages, Is.EqualTo(2));
+        });
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Sort_By_Requested_Field_Ascending()
+    {
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient { Id = Guid.NewGuid(), Name = "Zebra", Created = DateTimeOffset.UtcNow },
+            new Ingredient { Id = Guid.NewGuid(), Name = "Apple", Created = DateTimeOffset.UtcNow },
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredients.Count);
+
+
+        var result = await _service.ListPersonalIngredientsAsync(_userId, page: 0, pageSize: 10, sortBy: nameof(Ingredient.Name), sortDirection: SortDirection.Asc);
+        Assert.That(result.Ingredients.Select(i => i.Name), Is.EqualTo(new[] { "Apple", "Zebra" }));
+        _nutritionCatalogMock.VerifyNoOtherCalls();
+    }
+
+    [Test]
+    public async Task ListPersonalIngredientsAsync_Should_Sort_By_Requested_Field_Descending()
+    {
+        var ingredients = new List<Ingredient>
+        {
+            new Ingredient { Id = Guid.NewGuid(), Name = "Apple", Created = DateTimeOffset.UtcNow },
+            new Ingredient { Id = Guid.NewGuid(), Name = "Zebra", Created = DateTimeOffset.UtcNow },
+        };
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
+            .Returns(new TestAsyncEnumerable<Ingredient>(ingredients));
+
+        _ingredientsRepositoryMock
+            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(ingredients.Count);
+
+
+        var result = await _service.ListPersonalIngredientsAsync(_userId, page: 0, pageSize: 10, sortBy: nameof(Ingredient.Name), sortDirection: SortDirection.Desc);
+        Assert.That(result.Ingredients.Select(i => i.Name), Is.EqualTo(new[] { "Zebra", "Apple" }));
+        _nutritionCatalogMock.VerifyNoOtherCalls();
     }
 
     private sealed record RequestIngredient(Guid IngredientId, Guid ServingId, decimal Quantity) : IMealIngredientRequest;

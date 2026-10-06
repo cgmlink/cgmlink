@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Ingredients.GetIngredient;
@@ -12,9 +13,12 @@ using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Data.Tests;
 using CgmLink.Identity.Authentication;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Endpoint = CgmLink.Api.Endpoints.Ingredients.GetIngredient.Endpoint;
 
 namespace CgmLink.Api.Tests.Endpoints.Ingredients;
 
@@ -178,5 +182,33 @@ public class GetIngredientTests
         Assert.That(async () => await Endpoint.HandleAsync(ingredientId.ToString(), _currentUserMock.Object,
                 _service, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedAccessException>());
+    }
+
+    [TestCase("0", IngredientType.Personal)]
+    [TestCase("External", IngredientType.External)]
+    [TestCase("Personal", IngredientType.Personal)]
+    [TestCase("1", IngredientType.External)]
+    [TestCase(null, IngredientType.Personal)]
+    public async Task HandleAsync_Should_Bind_Ingredient_Type_From_Query(string value, IngredientType expected)
+    {
+        var userId = Guid.NewGuid();
+        var currentUser = new Mock<ICurrentUser>();
+        currentUser.Setup(user => user.GetUserId()).Returns(userId);
+        var service = new Mock<IIngredientsService>(MockBehavior.Strict);
+        service.Setup(item => item.GetIngredientAsync("123", userId, It.IsAny<CancellationToken>(), expected))
+            .ReturnsAsync(IngredientResponse.FromIngredient(new Ingredient { Name = "Milk", Created = DateTimeOffset.UtcNow }));
+        using var services = new ServiceCollection().AddLogging()
+            .AddSingleton(currentUser.Object).AddSingleton(service.Object).BuildServiceProvider();
+        var handler = RequestDelegateFactory.Create(CgmLink.Api.Endpoints.Ingredients.GetIngredient.Endpoint.HandleAsync,
+            new RequestDelegateFactoryOptions { ServiceProvider = services, RouteParameterNames = ["identifier"] }).RequestDelegate;
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Request.RouteValues["identifier"] = "123";
+        context.Request.QueryString = new QueryString(value is null ? "" : "?type=" + value);
+        context.Response.Body = new MemoryStream();
+
+        await handler(context);
+
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        service.VerifyAll();
     }
 }
