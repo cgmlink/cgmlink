@@ -14,9 +14,10 @@ internal static class Endpoint
         [FromRoute] string identifier,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IIngredientsService ingredientsService,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        [FromQuery] IngredientType type = IngredientType.Personal)
     {
-        var response = await ingredientsService.GetIngredientAsync(identifier, currentUser.GetUserId(), cancellationToken)
+        var response = await ingredientsService.GetIngredientAsync(identifier, currentUser.GetUserId(), cancellationToken, type)
             .ConfigureAwait(false);
         return TypedResults.Ok(response);
     }

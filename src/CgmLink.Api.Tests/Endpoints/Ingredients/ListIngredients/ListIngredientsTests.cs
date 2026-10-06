@@ -1,19 +1,19 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Linq.Expressions;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using CgmLink.Api.Endpoints.Ingredients;
 using CgmLink.Api.Endpoints.Ingredients.ListIngredients;
-using CgmLink.Api.Models;
-using CgmLink.Data.Entities;
-using CgmLink.Data.Repository;
+using CgmLink.Api.Services;
 using CgmLink.Identity.Authentication;
 using FluentValidation;
 using FluentValidation.Results;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using NUnit.Framework;
+using Endpoint = CgmLink.Api.Endpoints.Ingredients.ListIngredients.Endpoint;
 
 namespace CgmLink.Api.Tests.Endpoints.Ingredients;
 
@@ -22,16 +22,15 @@ public class ListIngredientsTests
 {
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IValidator<ListIngredientsRequest>> _validatorMock;
-    private Mock<IRepository<Ingredient>> _ingredientsRepositoryMock;
+    private Mock<IIngredientsService> _ingredientsServiceMock;
     private Mock<ICurrentUser> _currentUserMock;
 
     [SetUp]
     public void SetUp()
     {
         _validatorMock = new Mock<IValidator<ListIngredientsRequest>>();
-        _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
+        _ingredientsServiceMock = new Mock<IIngredientsService>(MockBehavior.Strict);
         _currentUserMock = new Mock<ICurrentUser>();
-
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
     }
 
@@ -39,7 +38,6 @@ public class ListIngredientsTests
     public async Task HandleAsync_Should_Return_ValidationProblem_When_Request_Is_Invalid()
     {
         var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
-
         _validatorMock
             .Setup(v => v.ValidateAsync(request, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new ValidationResult
@@ -48,247 +46,70 @@ public class ListIngredientsTests
             });
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+            _currentUserMock.Object, _ingredientsServiceMock.Object, CancellationToken.None);
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
+        _ingredientsServiceMock.VerifyNoOtherCalls();
     }
 
     [Test]
     public void HandleAsync_Should_Throw_UnauthorizedException_When_User_Is_Not_Logged_In()
     {
         var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
-
-        _currentUserMock
-            .Setup(c => c.GetUserId())
-            .Throws<UnauthorizedAccessException>();
+        _currentUserMock.Setup(c => c.GetUserId()).Throws<UnauthorizedAccessException>();
 
         Assert.That(async () => await Endpoint.HandleAsync(request, _validatorMock.Object,
-                _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None),
+                _currentUserMock.Object, _ingredientsServiceMock.Object, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedAccessException>());
+        _ingredientsServiceMock.VerifyNoOtherCalls();
     }
 
-    [Test]
-    public async Task HandleAsync_Should_Return_Ok_With_Ingredients_When_Request_Is_Valid()
+    [TestCase(null)]
+    [TestCase(IngredientType.Personal)]
+    [TestCase(IngredientType.External)]
+    public async Task HandleAsync_Should_Return_Service_Response_For_Selected_Type(IngredientType? type)
     {
-        var ingredients = new List<Ingredient>
+        var request = new ListIngredientsRequest { Type = type, Name = "Milk", Page = 2, PageSize = 10 };
+        var response = new ListIngredientsResponse { Ingredients = [], NumberOfPages = null };
+        if (type == IngredientType.External)
         {
-            new Ingredient
-            {
-                Id = Guid.NewGuid(),
-                Name = "Milk",
-                Created = DateTimeOffset.UtcNow,
-                UserId = _userId,
-            }
-        };
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(ingredients.AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ingredients.Count);
-
-        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
+            _ingredientsServiceMock.Setup(service => service.SearchExternalIngredientsAsync("Milk", 2, 10, CancellationToken.None))
+                .ReturnsAsync(response.Ingredients);
+        }
+        else
+        {
+            _ingredientsServiceMock.Setup(service => service.ListPersonalIngredientsAsync(
+                    _userId, 2, 10, "Milk", null, null, CancellationToken.None))
+                .ReturnsAsync(response);
+        }
 
         var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
+            _currentUserMock.Object, _ingredientsServiceMock.Object, CancellationToken.None);
 
-        _ingredientsRepositoryMock.Verify(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.Is<FindOptions>(o => o.IsAsNoTracking)), Times.Once);
-
-        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
-        var okResult = result.Result as Ok<ListIngredientsResponse>;
-        Assert.Multiple(() =>
-        {
-            Assert.That(okResult!.Value.Ingredients.Count, Is.EqualTo(1));
-            Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(1));
-        });
+        Assert.That(((Ok<ListIngredientsResponse>)result.Result).Value, Is.EqualTo(response));
+        _ingredientsServiceMock.VerifyAll();
     }
 
-    [Test]
-    public async Task HandleAsync_Should_Return_Empty_Ingredients_When_No_Ingredients_Linked()
+    [TestCase("0", IngredientType.Personal)]
+    [TestCase("External", IngredientType.External)]
+    [TestCase("Personal", IngredientType.Personal)]
+    [TestCase("1", IngredientType.External)]
+    [TestCase(null, IngredientType.Personal)]
+    public async Task HandleAsync_Should_Bind_Ingredient_Type_From_Query(string value, IngredientType expected)
     {
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(Enumerable.Empty<Ingredient>().AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
-
-        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
-
-        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
-        var okResult = result.Result as Ok<ListIngredientsResponse>;
-        Assert.Multiple(() =>
+        using var services = new ServiceCollection().AddLogging().BuildServiceProvider();
+        IngredientType? selected = null;
+        var handler = RequestDelegateFactory.Create(([AsParameters] ListIngredientsRequest request) =>
         {
-            Assert.That(okResult!.Value.Ingredients, Is.Empty);
-            Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(0));
-        });
-    }
+            selected = request.Type ?? IngredientType.Personal;
+        }, new RequestDelegateFactoryOptions { ServiceProvider = services }).RequestDelegate;
+        var context = new DefaultHttpContext { RequestServices = services };
+        context.Request.QueryString = new QueryString("?page=0&pageSize=20" + (value is null ? "" : "&type=" + value));
+        context.Response.Body = new MemoryStream();
 
-    [Test]
-    public async Task HandleAsync_Should_Exclude_Soft_Deleted_Ingredients_When_Request_Is_Valid()
-    {
-        var deleted = new Ingredient
-        {
-            Id = Guid.NewGuid(),
-            Name = "Milk",
-            Created = DateTimeOffset.UtcNow,
-            Deleted = DateTimeOffset.UtcNow,
-            UserId = _userId,
-        };
+        await handler(context);
 
-        Expression<Func<Ingredient, bool>> predicate = null;
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((expression, _) => predicate = expression)
-            .Returns(new[] { deleted }.AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
-
-        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
-
-        Assert.That(predicate, Is.Not.Null);
-        Assert.That(predicate.Compile()(deleted), Is.False);
-        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
-    }
-
-    [Test]
-    public async Task HandleAsync_Should_Exclude_Ingredients_Owned_By_Another_User()
-    {
-        var otherUsersIngredient = new Ingredient
-        {
-            Id = Guid.NewGuid(),
-            Name = "Milk",
-            Created = DateTimeOffset.UtcNow,
-            UserId = Guid.NewGuid(),
-        };
-
-        Expression<Func<Ingredient, bool>> predicate = null;
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Callback<Expression<Func<Ingredient, bool>>, FindOptions>((expression, _) => predicate = expression)
-            .Returns(Array.Empty<Ingredient>().AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(0);
-
-        var request = new ListIngredientsRequest { Page = 0, PageSize = 10 };
-
-        await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
-
-        Assert.That(predicate, Is.Not.Null);
-        Assert.That(predicate.Compile()(otherUsersIngredient), Is.False);
-    }
-
-    [Test]
-    public async Task HandleAsync_Should_Paginate_Ingredients()
-    {
-        var ingredients = new List<Ingredient>
-        {
-            new Ingredient { Id = Guid.NewGuid(), Name = "Milk", Created = DateTimeOffset.UtcNow.AddHours(-2) },
-            new Ingredient { Id = Guid.NewGuid(), Name = "Eggs", Created = DateTimeOffset.UtcNow.AddHours(-1) },
-        };
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(ingredients.AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ingredients.Count);
-
-        var request = new ListIngredientsRequest { Page = 1, PageSize = 1, SortDirection = SortDirection.Desc };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
-
-        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
-        var okResult = result.Result as Ok<ListIngredientsResponse>;
-        Assert.Multiple(() =>
-        {
-            Assert.That(okResult!.Value.Ingredients.Count, Is.EqualTo(1));
-            Assert.That(okResult.Value.Ingredients.First().Name, Is.EqualTo("Milk"));
-            Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(2));
-        });
-    }
-
-    [Test]
-    public async Task HandleAsync_Should_Sort_By_Requested_Field_Ascending()
-    {
-        var ingredients = new List<Ingredient>
-        {
-            new Ingredient { Id = Guid.NewGuid(), Name = "Zebra", Created = DateTimeOffset.UtcNow },
-            new Ingredient { Id = Guid.NewGuid(), Name = "Apple", Created = DateTimeOffset.UtcNow },
-        };
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(ingredients.AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ingredients.Count);
-
-        var request = new ListIngredientsRequest
-        {
-            Page = 0,
-            PageSize = 10,
-            SortBy = nameof(Ingredient.Name),
-            SortDirection = SortDirection.Asc,
-        };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
-
-        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
-        var okResult = result.Result as Ok<ListIngredientsResponse>;
-        Assert.That(okResult!.Value.Ingredients.Select(i => i.Name), Is.EqualTo(new[] { "Apple", "Zebra" }));
-    }
-
-    [Test]
-    public async Task HandleAsync_Should_Sort_By_Requested_Field_Descending()
-    {
-        var ingredients = new List<Ingredient>
-        {
-            new Ingredient { Id = Guid.NewGuid(), Name = "Apple", Created = DateTimeOffset.UtcNow },
-            new Ingredient { Id = Guid.NewGuid(), Name = "Zebra", Created = DateTimeOffset.UtcNow },
-        };
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.Find(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<FindOptions>()))
-            .Returns(ingredients.AsQueryable());
-
-        _ingredientsRepositoryMock
-            .Setup(r => r.CountAsync(It.IsAny<Expression<Func<Ingredient, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(ingredients.Count);
-
-        var request = new ListIngredientsRequest
-        {
-            Page = 0,
-            PageSize = 10,
-            SortBy = nameof(Ingredient.Name),
-            SortDirection = SortDirection.Desc,
-        };
-
-        var result = await Endpoint.HandleAsync(request, _validatorMock.Object,
-            _currentUserMock.Object, _ingredientsRepositoryMock.Object, CancellationToken.None);
-
-        Assert.That(result.Result, Is.TypeOf<Ok<ListIngredientsResponse>>());
-        var okResult = result.Result as Ok<ListIngredientsResponse>;
-        Assert.That(okResult!.Value.Ingredients.Select(i => i.Name), Is.EqualTo(new[] { "Zebra", "Apple" }));
+        Assert.That(context.Response.StatusCode, Is.EqualTo(200));
+        Assert.That(selected, Is.EqualTo(expected));
     }
 }

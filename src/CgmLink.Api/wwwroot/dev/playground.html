@@ -140,6 +140,8 @@
 
       <div id="tab-ingredients">
         <div class="toolbar">
+          <select id="ingredientType" aria-label="Ingredient source"><option value="Personal">Personal</option><option value="External">External</option></select>
+          <input id="ingredientName" type="text" placeholder="Search by name (required for external)" aria-label="Ingredient name" />
           <button id="refreshBtn" class="secondary">Refresh list</button>
           <button id="newIngredientBtn" class="secondary">New ingredient</button>
           <span id="ingCount" class="muted" style="align-self:center;"></span>
@@ -551,11 +553,24 @@
   async function refreshIngredients(resetPage) {
     if (!token) return;
     if (resetPage) ingState.page = 0;
+    const type = $("ingredientType").value;
+    const name = $("ingredientName").value.trim();
+    if (type === "External" && !name) {
+      showResponse({ status: "form", text: "Enter a name to search external ingredients." });
+      return;
+    }
+    const params = new URLSearchParams(type === "External"
+      ? { page: ingState.page, pageSize: ingState.pageSize } : queryFor(ingState));
+    params.set("type", type);
+    if (name) params.set("name", name);
     const out = await run("list ingredients", () =>
-      requestJson("api/v1/ingredients?" + queryFor(ingState), "GET"));
+      requestJson("api/v1/ingredients?" + params, "GET"));
     if (!out || !out.ok || !out.data) return;
-    ingredientsCache = (out.data.ingredients || []);
-    ingState.totalPages = Math.max(1, Number(out.data.numberOfPages) || 1);
+    ingredientsCache = (out.data.ingredients || []).map(i => ({ ...i, id: i.ingredientId || i.productId,
+      created: i.cachedAt, servings: (i.servings || []).map(s => ({ ...s, id: s.servingId })) }));
+    ingState.totalPages = out.data.numberOfPages == null
+      ? ingState.page + (ingredientsCache.length === ingState.pageSize ? 2 : 1)
+      : Math.max(1, Number(out.data.numberOfPages) || 1);
     if (ingState.page > ingState.totalPages - 1) ingState.page = ingState.totalPages - 1;
     renderIngredientsTable();
     $("ingCount").textContent = ingredientsCache.length + " shown";
@@ -571,19 +586,19 @@
     const rows = ingredientsCache.map((i) =>
       "<tr id='ing-" + i.id + "' data-id='" + i.id + "'>" +
         "<td>" + esc(i.name) + "</td>" +
-        "<td class='muted'>" + esc(i.barcode || "-") + "</td>" +
+        "<td class='muted'>" + esc(i.id) + "</td>" +
         "<td class='muted'>" + fmtDate(i.created) + "</td>" +
         "<td style='text-align:right;'>" +
           "<button class='small secondary' data-view>View</button> " +
-          "<button class='small secondary' data-edit>Edit</button> " +
-          "<button class='small danger' data-delete>Delete</button>" +
+          (i.ingredientId ? "<button class='small secondary' data-edit>Edit</button> " +
+          "<button class='small danger' data-delete>Delete</button>" : "") +
         "</td>" +
       "</tr>").join("");
     box.innerHTML =
       "<table><thead><tr>" +
-        sortLabel(ingState, "Name", "Name") +
-        sortLabel(ingState, "Barcode", "Barcode") +
-        sortLabel(ingState, "Created", "Created") +
+        ($("ingredientType").value === "Personal" ? sortLabel(ingState, "Name", "Name") : "<th>Name</th>") +
+        "<th>Identifier</th>" +
+        ($("ingredientType").value === "Personal" ? sortLabel(ingState, "Created", "Data as of") : "<th>Data as of</th>") +
         "<th style='text-align:right;'>Actions</th>" +
       "</tr></thead>" +
       "<tbody>" + rows + "</tbody></table>" + pagerHtml(ingState);
@@ -628,10 +643,11 @@
     if (d.barcode) metaBits.push("Barcode: " + esc(d.barcode));
     if (d.imageUrl) metaBits.push('<a href="' + esc(d.imageUrl) + '" target="_blank" rel="noopener">Image</a>');
     if (d.thumbnailUrl) metaBits.push('<a href="' + esc(d.thumbnailUrl) + '" target="_blank" rel="noopener">Thumbnail</a>');
-    metaBits.push("Created " + fmtDate(d.created));
+    metaBits.push("Data as of " + fmtDate(d.cachedAt));
+    if (d.attribution) metaBits.push(esc(d.attribution));
     let h = '<div class="card">';
     h += '<div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
-      "<button class='small secondary' data-edit2>Edit</button>" +
+      (d.ingredientId ? "<button class='small secondary' data-edit2>Edit</button>" : "") +
       "<button class='small secondary' data-close>Close</button></div></div>";
     h += '<div class="meta-line">' + metaBits.join(" &middot; ") + '</div>';
     if (d.servings && d.servings.length) {
@@ -653,15 +669,16 @@
   async function showView(id) {
     const existing = ingredientsCache.find((i) => i.id === id);
     let data = existing;
-    if (!data || !data.servings) {
-      const out = await run("get ingredient", () => requestJson("api/v1/ingredients/" + id, "GET"));
+    if (!data || !data.servings || data.productId) {
+      const type = data?.productId ? "External" : "Personal";
+      const out = await run("get ingredient", () => requestJson("api/v1/ingredients/" + encodeURIComponent(id) + "?type=" + type, "GET"));
       if (!out || !out.ok || !out.data) return;
       data = out.data;
     }
     const cell = expandUnder(id);
     if (!cell) return;
     cell.innerHTML = ingredientDetailHtml(data);
-    cell.querySelector("[data-edit2]").addEventListener("click", () => showEdit(id));
+    cell.querySelector("[data-edit2]")?.addEventListener("click", () => showEdit(id));
     cell.querySelector("[data-close]").addEventListener("click", clearExpansions);
   }
 
@@ -678,7 +695,7 @@
   function addServingRow(data) {
     const row = document.createElement("div");
     row.className = "serving-row";
-    row.dataset.servingId = (data && data.id) || "";
+    row.dataset.servingId = (data && (data.servingId || data.id)) || "";
     row.innerHTML =
       '<input class="s-desc" type="text" placeholder="Description" value="' + esc(data?.description || "1 serving") + '" />' +
       '<input class="s-amount" type="number" placeholder="Amount" value="' + (data?.servingAmount ?? "") + '" />' +
@@ -1772,7 +1789,9 @@
   $("loginBtn").addEventListener("click", login);
   $("registerBtn").addEventListener("click", register);
   $("logoutBtn").addEventListener("click", () => { setToken(null); authMessage(""); });
-  $("refreshBtn").addEventListener("click", () => refreshIngredients(false));
+  $("refreshBtn").addEventListener("click", () => refreshIngredients(true));
+  $("ingredientType").addEventListener("change", () => { clearExpansions(); refreshIngredients(true); });
+  $("ingredientName").addEventListener("keydown", (event) => { if (event.key === "Enter") refreshIngredients(true); });
   $("newIngredientBtn").addEventListener("click", () => openIngredientForm("new", {}));
   $("addServingBtn").addEventListener("click", () => addServingRow(undefined));
   $("igCancelBtn").addEventListener("click", closeIngredientForm);
