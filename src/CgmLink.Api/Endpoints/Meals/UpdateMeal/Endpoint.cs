@@ -35,6 +35,7 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
 
         var meal = await mealsRepository.GetAll()
+            .AsSplitQuery()
             .Include(m => m.Ingredients)
                 .ThenInclude(mi => mi.Ingredient)
             .Include(m => m.Ingredients)

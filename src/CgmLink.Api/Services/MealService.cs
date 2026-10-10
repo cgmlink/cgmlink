@@ -79,6 +79,7 @@ public sealed class MealService : IMealService
     public async Task RecalculateMealsWithIngredientNutrition(Guid ingredientId, CancellationToken cancellationToken = default)
     {
         var meals = await _mealsRepository.GetAll()
+            .AsSplitQuery()
             .Include(m => m.Ingredients)
                 .ThenInclude(mi => mi.Serving)
             .Include(m => m.NutritionIngredients)
