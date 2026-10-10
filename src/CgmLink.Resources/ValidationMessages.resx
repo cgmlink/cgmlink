@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <root>
   <!-- 
     Microsoft ResX Schema 
@@ -164,6 +164,9 @@
   </data>
   <data name="IngredientIdInvalid" xml:space="preserve">
     <value>INGREDIENT_ID_INVALID</value>
+  </data>
+  <data name="IngredientServingIdInvalid" xml:space="preserve">
+    <value>INGREDIENT_SERVING_ID_INVALID</value>
   </data>
   <data name="DuplicateIngredientId" xml:space="preserve">
     <value>DUPLICATE_INGREDIENT_ID</value>

@@ -40,7 +40,7 @@ public class UpdateMealTests
             _ingredientsRepositoryMock.Object,
             Mock.Of<CgmLink.Nutrition.INutritionCatalog>(),
             Mock.Of<IRepository<NutritionIngredient>>());
-        _mealService = new MealService(_mealsRepositoryMock.Object);
+        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>());
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 

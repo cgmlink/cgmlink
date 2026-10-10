@@ -35,9 +35,14 @@ internal static class Endpoint
         var userId = currentUser.GetUserId();
 
         var meal = await mealsRepository.GetAll()
+            .AsSplitQuery()
             .Include(m => m.Ingredients)
                 .ThenInclude(mi => mi.Ingredient)
             .Include(m => m.Ingredients)
+                .ThenInclude(mi => mi.Serving)
+            .Include(m => m.NutritionIngredients)
+                .ThenInclude(mi => mi.NutritionIngredient)
+            .Include(m => m.NutritionIngredients)
                 .ThenInclude(mi => mi.Serving)
             .FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId && m.Deleted == null, cancellationToken)
             .ConfigureAwait(false);
@@ -67,7 +72,7 @@ internal static class Endpoint
                 .ConfigureAwait(false);
 
             mealService.UpdateMealsIngredients(meal, request.Ingredients, ingredientLookup);
-            mealService.RecalculateMealsNutrition(meal);
+            await mealService.RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
         }
 
         meal.Updated = DateTimeOffset.UtcNow;

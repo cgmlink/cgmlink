@@ -2,6 +2,7 @@ using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Resources;
+using CgmLink.Nutrition;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -14,13 +15,15 @@ namespace CgmLink.Api.Services;
 public sealed class MealService : IMealService
 {
     private readonly IRepository<Meal> _mealsRepository;
+    private readonly INutritionCatalog _nutritionCatalog;
 
-    public MealService(IRepository<Meal> mealsRepository)
+    public MealService(IRepository<Meal> mealsRepository, INutritionCatalog nutritionCatalog)
     {
         _mealsRepository = mealsRepository;
+        _nutritionCatalog = nutritionCatalog;
     }
 
-    public Meal RecalculateMealsNutrition(Meal meal)
+    public async Task<Meal> RecalculateMealsNutritionAsync(Meal meal, CancellationToken cancellationToken = default)
     {
         var calories = 0m;
         var carbs = 0m;
@@ -41,6 +44,35 @@ public sealed class MealService : IMealService
             fat += serving.Fat * mealIngredient.Quantity;
         }
 
+        var products = new Dictionary<string, Nutrition.Source.NutritionProduct>();
+        foreach (var mealIngredient in meal.NutritionIngredients)
+        {
+            var ingredient = mealIngredient.NutritionIngredient;
+            if (ingredient is null || ingredient.Source != _nutritionCatalog.Source)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+
+            if (mealIngredient.Serving is null)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            }
+
+            if (!products.TryGetValue(ingredient.ProductId, out var product))
+            {
+                product = await _nutritionCatalog.GetAsync(ingredient.ProductId, cancellationToken).ConfigureAwait(false)
+                    ?? throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+                products.Add(ingredient.ProductId, product);
+            }
+
+            var serving = product.Servings.SingleOrDefault(s => s.ExternalId == mealIngredient.Serving.ServingId)
+                ?? throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            calories += serving.Calories * mealIngredient.Quantity;
+            carbs += serving.Carbs * mealIngredient.Quantity;
+            protein += serving.Protein * mealIngredient.Quantity;
+            fat += serving.Fat * mealIngredient.Quantity;
+        }
+
         meal.Calories = calories;
         meal.Carbs = carbs;
         meal.Protein = protein;
@@ -52,7 +84,12 @@ public sealed class MealService : IMealService
     public async Task RecalculateMealsWithIngredientNutrition(Guid ingredientId, CancellationToken cancellationToken = default)
     {
         var meals = await _mealsRepository.GetAll()
+            .AsSplitQuery()
             .Include(m => m.Ingredients)
+                .ThenInclude(mi => mi.Serving)
+            .Include(m => m.NutritionIngredients)
+                .ThenInclude(mi => mi.NutritionIngredient)
+            .Include(m => m.NutritionIngredients)
                 .ThenInclude(mi => mi.Serving)
             .Where(m => m.Deleted == null && m.Ingredients.Any(mi => mi.IngredientId == ingredientId))
             .ToListAsync(cancellationToken)
@@ -60,7 +97,7 @@ public sealed class MealService : IMealService
 
         foreach (var meal in meals)
         {
-            RecalculateMealsNutrition(meal);
+            await RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
         }
     }
 
