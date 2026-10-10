@@ -1,19 +1,37 @@
 using CgmLink.Data.Entities;
+using CgmLink.Api.Endpoints.Ingredients;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace CgmLink.Api.Endpoints.Meals.ListMealIngredients;
+namespace CgmLink.Api.Endpoints.Meals.GetMeal;
 
-public sealed record ListMealIngredientsResponse
+public sealed record MealNutritionIngredientResponse
 {
-    public required ICollection<MealIngredientResponse> Ingredients { get; init; } = [];
+    public required string ProductId { get; init; }
+    public required string IngredientName { get; init; }
+    public required decimal Quantity { get; init; }
+    public required IngredientServingResponse Serving { get; init; }
+    public required decimal Calories { get; init; }
+    public required decimal Carbs { get; init; }
+    public required decimal Protein { get; init; }
+    public required decimal Fat { get; init; }
+    public DateTimeOffset? CachedAt { get; init; }
+    public string? Attribution { get; init; }
 
-    public static ListMealIngredientsResponse ToResponse(Meal meal)
+    public static MealNutritionIngredientResponse ToResponse(
+        MealNutritionIngredient mealIngredient, IngredientResponse product, IngredientServingResponse serving)
     {
-        return new ListMealIngredientsResponse
+        return new MealNutritionIngredientResponse
         {
-            Ingredients = meal.Ingredients.Select(MealIngredientResponse.ToResponse).ToList(),
+            ProductId = product.ProductId!,
+            IngredientName = product.Name,
+            Quantity = mealIngredient.Quantity,
+            Serving = serving,
+            Calories = serving.Calories * mealIngredient.Quantity,
+            Carbs = serving.Carbs * mealIngredient.Quantity,
+            Protein = serving.Protein * mealIngredient.Quantity,
+            Fat = serving.Fat * mealIngredient.Quantity,
+            CachedAt = product.CachedAt,
+            Attribution = product.Attribution,
         };
     }
 }

@@ -1,11 +1,9 @@
 using CgmLink.Data.Entities;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace CgmLink.Api.Endpoints.Meals.GetMeal;
+namespace CgmLink.Api.Endpoints.Meals.ListMeals;
 
-public sealed record GetMealResponse
+public sealed record MealSummaryResponse
 {
     public required Guid Id { get; init; }
     public required string Name { get; init; }
@@ -18,12 +16,10 @@ public sealed record GetMealResponse
     public required DateTimeOffset Created { get; init; }
     public DateTimeOffset? Updated { get; init; }
     public required int IngredientCount { get; init; }
-    public ICollection<MealIngredientResponse> Ingredients { get; init; } = [];
-    public ICollection<MealNutritionIngredientResponse> NutritionIngredients { get; init; } = [];
 
-    public static GetMealResponse ToResponse(Meal meal, int ingredientCount)
+    public static MealSummaryResponse ToResponse(Meal meal, int ingredientCount)
     {
-        return new GetMealResponse
+        return new MealSummaryResponse
         {
             Id = meal.Id,
             Name = meal.Name,
@@ -36,7 +32,6 @@ public sealed record GetMealResponse
             Created = meal.Created,
             Updated = meal.Updated,
             IngredientCount = ingredientCount,
-            Ingredients = meal.Ingredients.Select(MealIngredientResponse.ToResponse).ToList(),
         };
     }
 }
