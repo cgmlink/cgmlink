@@ -288,7 +288,9 @@ public class NewMealTests
             SetupIngredients([ingredient]);
             request.Ingredients.Add(new NewMealRequest.NewMealIngredientRequest
             {
-                IngredientId = ingredient.Id, ServingId = serving.Id, Quantity = 1,
+                IngredientId = ingredient.Id,
+                ServingId = serving.Id,
+                Quantity = 1,
             });
         }
         Meal saved = null;
@@ -323,7 +325,8 @@ public class NewMealTests
         _nutritionCatalogMock.Setup(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product-1", Name = "Milk",
+                ProductId = "product-1",
+                Name = "Milk",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving-1" }],
             });
         var request = new NewMealRequest
