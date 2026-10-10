@@ -44,11 +44,6 @@ internal static class Endpoint
             throw new NotFoundException("INGREDIENT_NOT_FOUND");
         }
 
-        if (ingredient.ProductId is not null)
-        {
-            throw new ConflictException("INGREDIENT_READ_ONLY");
-        }
-
         if (request.Name is not null)
         {
             ingredient.Name = request.Name;

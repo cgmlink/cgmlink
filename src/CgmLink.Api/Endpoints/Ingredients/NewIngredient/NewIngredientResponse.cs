@@ -33,7 +33,6 @@ public sealed record NewIngredientResponse
         {
             Id = ingredient.Id,
             Name = ingredient.Name,
-            ProductId = ingredient.ProductId,
             ImageUrl = ingredient.ImageUrl,
             ThumbnailUrl = ingredient.ThumbnailUrl,
             Created = ingredient.Created,

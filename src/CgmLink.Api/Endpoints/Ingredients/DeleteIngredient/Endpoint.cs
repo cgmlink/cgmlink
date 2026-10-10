@@ -37,11 +37,6 @@ internal static class Endpoint
             throw new NotFoundException("INGREDIENT_ALREADY_DELETED");
         }
 
-        if (ingredient.ProductId is not null)
-        {
-            throw new ConflictException("INGREDIENT_READ_ONLY");
-        }
-
         ingredient.Deleted = DateTimeOffset.UtcNow;
 
         await ingredientsRepository.UpdateAsync(ingredient, cancellationToken).ConfigureAwait(false);

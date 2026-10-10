@@ -110,7 +110,6 @@ public sealed record GetTreatmentIngredientResponse
         {
             IngredientId = treatmentIngredient.IngredientId,
             IngredientName = ingredient?.Name ?? string.Empty,
-            ProductId = ingredient?.ProductId,
             ImageUrl = ingredient?.ImageUrl,
             ThumbnailUrl = ingredient?.ThumbnailUrl,
             Serving = serving is null ? null : GetTreatmentServingResponse.ToResponse(serving),
