@@ -34,7 +34,7 @@ public sealed record UpdateMealResponse
             Fat = meal.Fat,
             Created = meal.Created,
             Updated = meal.Updated,
-            IngredientCount = meal.Ingredients.Count,
+            IngredientCount = meal.Ingredients.Count + meal.NutritionIngredients.Count,
             Ingredients = meal.Ingredients.Select(UpdateMealIngredientResponse.ToResponse).ToList(),
         };
     }

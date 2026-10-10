@@ -64,11 +64,7 @@ internal static class Endpoint
             meal.ThumbnailUrl = request.ThumbnailUrl;
         }
 
-        if (request.Ingredients is not null)
-        {
-            await mealService.UpdateMealsIngredientsAsync(meal, request.Ingredients, cancellationToken).ConfigureAwait(false);
-            await mealService.RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
-        }
+        await mealService.UpdateMealsIngredientsAsync(meal, request.Ingredients, request.NutritionIngredients, cancellationToken).ConfigureAwait(false);
 
         meal.Updated = DateTimeOffset.UtcNow;
 

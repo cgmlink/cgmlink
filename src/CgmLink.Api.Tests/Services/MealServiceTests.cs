@@ -248,6 +248,108 @@ public class MealServiceTests
         };
     }
 
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task UpdateMealsIngredientsAsync_Should_Recalculate_Nutrition(bool clear)
+    {
+        var meal = CreateMeal();
+        var local = CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 1m);
+        meal.Ingredients.Add(local);
+        meal.NutritionIngredients.Add(CreateExternalIngredient("product", "cup", 1m));
+        meal.Calories = meal.Carbs = meal.Protein = meal.Fat = 999m;
+        var ingredient = new Ingredient
+        {
+            Id = local.IngredientId, Name = "Milk", Created = DateTimeOffset.UtcNow, UserId = meal.UserId,
+            Servings = [local.Serving],
+        };
+        var requests = clear ? Array.Empty<IMealIngredientRequest>() :
+            new IMealIngredientRequest[] { new RequestIngredient(ingredient.Id, local.ServingId, 2m) };
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var ingredientsService = new Mock<IIngredientsService>();
+        ingredientsService.Setup(s => s.GetValidatedIngredientsAsync(
+            It.IsAny<IEnumerable<IMealIngredientRequest>>(), meal.UserId, token))
+            .ReturnsAsync(new Dictionary<Guid, Ingredient> { [ingredient.Id] = ingredient });
+        _nutritionCatalogMock.Setup(c => c.GetAsync("product", token)).ReturnsAsync(new NutritionProduct
+        {
+            ProductId = "product", Name = "External milk",
+            Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
+        });
+        var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
+            ingredientsService.Object, Mock.Of<IRepository<NutritionIngredient>>());
+
+        await service.UpdateMealsIngredientsAsync(meal, requests, null, token);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(clear ? 100m : 300m));
+            Assert.That(meal.Carbs, Is.EqualTo(clear ? 10m : 30m));
+            Assert.That(meal.Protein, Is.EqualTo(clear ? 5m : 15m));
+            Assert.That(meal.Fat, Is.EqualTo(clear ? 2m : 6m));
+        });
+        _nutritionCatalogMock.Verify(c => c.GetAsync("product", token), Times.Once);
+    }
+
+    [TestCase("add")]
+    [TestCase("update")]
+    [TestCase("clear")]
+    [TestCase("both")]
+    public async Task UpdateMealsIngredientsAsync_Should_Recalculate_Nutrition_Once(string operation)
+    {
+        var meal = CreateMeal();
+        var local = CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m);
+        meal.Ingredients.Add(local);
+        var external = CreateExternalIngredient("product", "cup", 1m);
+        if (operation != "add")
+        {
+            meal.NutritionIngredients.Add(external);
+        }
+        meal.Calories = meal.Carbs = meal.Protein = meal.Fat = 999m;
+        var requests = operation == "clear" ? Array.Empty<IMealNutritionIngredientRequest>() :
+            new IMealNutritionIngredientRequest[] { new RequestNutritionIngredient("product", "cup", 2m) };
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        var ingredientsService = new Mock<IIngredientsService>();
+        var ingredient = new Ingredient
+        {
+            Id = local.IngredientId, Name = "Milk", Created = DateTimeOffset.UtcNow, UserId = meal.UserId,
+            Servings = [local.Serving],
+        };
+        ingredientsService.Setup(s => s.GetValidatedIngredientsAsync(
+            It.IsAny<IEnumerable<IMealIngredientRequest>>(), meal.UserId, token))
+            .ReturnsAsync(new Dictionary<Guid, Ingredient> { [ingredient.Id] = ingredient });
+        ingredientsService.Setup(s => s.ResolveIngredientsAsync(It.IsAny<IEnumerable<IngredientReference>>(), meal.UserId, token))
+            .ReturnsAsync(new[] { new ResolvedIngredient(external.NutritionIngredientId, external.ServingId, 2m, 100m, 10m, 5m, 2m) });
+        var identities = new Mock<IRepository<NutritionIngredient>>();
+        external.NutritionIngredient.Servings.Add(external.Serving);
+        identities.Setup(r => r.GetAll(null))
+            .Returns(new TestAsyncEnumerable<NutritionIngredient>(new[] { external.NutritionIngredient }));
+        _nutritionCatalogMock.Setup(c => c.GetAsync("product", token)).ReturnsAsync(new NutritionProduct
+        {
+            ProductId = "product", Name = "External milk",
+            Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
+        });
+        var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
+            ingredientsService.Object, identities.Object);
+
+        await service.UpdateMealsIngredientsAsync(meal,
+            operation == "both" ? [new RequestIngredient(ingredient.Id, local.ServingId, 3m)] : null,
+            requests, token);
+
+        var expectedCalories = operation == "clear" ? 200m : operation == "both" ? 500m : 400m;
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(expectedCalories));
+            Assert.That(meal.Carbs, Is.EqualTo(expectedCalories / 10m));
+            Assert.That(meal.Protein, Is.EqualTo(expectedCalories / 20m));
+            Assert.That(meal.Fat, Is.EqualTo(expectedCalories / 50m));
+        });
+        _nutritionCatalogMock.Verify(c => c.GetAsync("product", token), operation == "clear" ? Times.Never() : Times.Once());
+    }
+
+    private sealed record RequestIngredient(Guid IngredientId, Guid ServingId, decimal Quantity) : IMealIngredientRequest;
+    private sealed record RequestNutritionIngredient(string ProductId, string ServingId, decimal Quantity) : IMealNutritionIngredientRequest;
+
     private static Meal CreateMeal()
     {
         return new Meal

@@ -111,6 +111,26 @@ public sealed class MealService : IMealService
 
     public async Task UpdateMealsIngredientsAsync(
         Meal meal,
+        IEnumerable<IMealIngredientRequest>? ingredients,
+        IEnumerable<IMealNutritionIngredientRequest>? nutritionIngredients,
+        CancellationToken cancellationToken = default)
+    {
+        if (ingredients is not null)
+        {
+            await UpdateMealsPersonalIngredientsAsync(meal, ingredients, cancellationToken).ConfigureAwait(false);
+        }
+        if (nutritionIngredients is not null)
+        {
+            await UpdateMealsNutritionIngredientsAsync(meal, nutritionIngredients, cancellationToken).ConfigureAwait(false);
+        }
+        if (ingredients is not null || nutritionIngredients is not null)
+        {
+            await RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private async Task UpdateMealsPersonalIngredientsAsync(
+        Meal meal,
         IEnumerable<IMealIngredientRequest> ingredients,
         CancellationToken cancellationToken = default)
     {
@@ -152,7 +172,7 @@ public sealed class MealService : IMealService
         }
     }
 
-    public async Task UpdateMealsNutritionIngredientsAsync(
+    private async Task UpdateMealsNutritionIngredientsAsync(
         Meal meal,
         IEnumerable<IMealNutritionIngredientRequest> ingredients,
         CancellationToken cancellationToken = default)
@@ -162,6 +182,7 @@ public sealed class MealService : IMealService
             .ToList();
         if (references.Count == 0)
         {
+            meal.NutritionIngredients.Clear();
             return;
         }
 
@@ -174,19 +195,38 @@ public sealed class MealService : IMealService
             .ToDictionaryAsync(i => i.Id, cancellationToken)
             .ConfigureAwait(false);
 
+        var currentIngredients = meal.NutritionIngredients.ToList();
+        var currentByIngredientId = currentIngredients.ToDictionary(i => i.NutritionIngredientId);
+        var requestedIds = ingredientIds.ToHashSet();
         foreach (var ingredient in resolved)
         {
             var identity = nutritionIngredientLookup[ingredient.IngredientId];
-            meal.NutritionIngredients.Add(new MealNutritionIngredient
+            var serving = identity.Servings.Single(s => s.Id == ingredient.ServingId);
+            if (currentByIngredientId.TryGetValue(identity.Id, out var existing))
             {
-                MealId = meal.Id,
-                NutritionIngredientId = identity.Id,
-                NutritionIngredient = identity,
-                ServingId = ingredient.ServingId,
-                Serving = identity.Servings.Single(s => s.Id == ingredient.ServingId),
-                Quantity = ingredient.Quantity,
-                Created = DateTimeOffset.UtcNow,
-            });
+                existing.NutritionIngredient = identity;
+                existing.ServingId = ingredient.ServingId;
+                existing.Serving = serving;
+                existing.Quantity = ingredient.Quantity;
+            }
+            else
+            {
+                meal.NutritionIngredients.Add(new MealNutritionIngredient
+                {
+                    MealId = meal.Id,
+                    NutritionIngredientId = identity.Id,
+                    NutritionIngredient = identity,
+                    ServingId = ingredient.ServingId,
+                    Serving = serving,
+                    Quantity = ingredient.Quantity,
+                    Created = DateTimeOffset.UtcNow,
+                });
+            }
+        }
+
+        foreach (var removed in currentIngredients.Where(i => !requestedIds.Contains(i.NutritionIngredientId)))
+        {
+            meal.NutritionIngredients.Remove(removed);
         }
     }
 

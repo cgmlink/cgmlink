@@ -28,6 +28,9 @@ public class UpdateMealTests
     private Mock<ICurrentUser> _currentUserMock;
     private IIngredientsService _ingredientsService;
     private IMealService _mealService;
+    private Mock<CgmLink.Nutrition.INutritionCatalog> _nutritionCatalogMock;
+    private Mock<IRepository<NutritionIngredient>> _nutritionIngredientsRepositoryMock;
+    private List<NutritionIngredient> _nutritionIdentities;
 
     [SetUp]
     public void SetUp()
@@ -36,11 +39,21 @@ public class UpdateMealTests
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _currentUserMock = new Mock<ICurrentUser>();
+        _nutritionCatalogMock = new Mock<CgmLink.Nutrition.INutritionCatalog>();
+        _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
+        _nutritionIngredientsRepositoryMock = new Mock<IRepository<NutritionIngredient>>();
+        _nutritionIdentities = [];
+        _nutritionIngredientsRepositoryMock.Setup(r => r.GetAll(null))
+            .Returns(() => new TestAsyncEnumerable<NutritionIngredient>(_nutritionIdentities));
+        _nutritionIngredientsRepositoryMock
+            .Setup(r => r.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(), It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<NutritionIngredient>, CancellationToken>((identities, _) => _nutritionIdentities.AddRange(identities))
+            .Returns(Task.CompletedTask);
         _ingredientsService = new IngredientsService(
             _ingredientsRepositoryMock.Object,
-            Mock.Of<CgmLink.Nutrition.INutritionCatalog>(),
-            Mock.Of<IRepository<NutritionIngredient>>());
-        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>(), _ingredientsService, Mock.Of<IRepository<NutritionIngredient>>());
+            _nutritionCatalogMock.Object,
+            _nutritionIngredientsRepositoryMock.Object);
+        _mealService = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object, _ingredientsService, _nutritionIngredientsRepositoryMock.Object);
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 
@@ -106,6 +119,132 @@ public class UpdateMealTests
         _ingredientsRepositoryMock
             .Setup(r => r.GetAll())
             .Returns(new TestAsyncEnumerable<Ingredient>(ingredients.ToList()));
+    }
+
+    [TestCase("update", 500, 2)]
+    [TestCase("replace", 300, 2)]
+    [TestCase("clear", 100, 1)]
+    [TestCase("omit", 200, 2)]
+    [TestCase("both", 700, 2)]
+    [TestCase("nutrition-only", 200, 1)]
+    public async Task HandleAsync_Should_Update_Nutrition_Ingredients(string operation, int calories, int ingredientCount)
+    {
+        foreach (var productId in new[] { "product-1", "product-2" })
+        {
+            _nutritionCatalogMock.Setup(c => c.GetAsync(productId, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
+                {
+                    ProductId = productId, Name = "External milk",
+                    Servings =
+                    [
+                        new CgmLink.Nutrition.Source.NutritionServing
+                        {
+                            ExternalId = "serving-1", Calories = 100, Carbs = 10, Protein = 5, Fat = 2,
+                        },
+                        new CgmLink.Nutrition.Source.NutritionServing
+                        {
+                            ExternalId = "serving-2", Calories = 200, Carbs = 20, Protein = 10, Fat = 4,
+                        },
+                    ],
+                });
+        }
+        var identity = new NutritionIngredient { Source = "external", ProductId = "product-1" };
+        foreach (var servingId in new[] { "serving-1", "serving-2" })
+        {
+            identity.Servings.Add(new NutritionServing
+            {
+                NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = servingId,
+            });
+        }
+        _nutritionIdentities.Add(identity);
+        var meal = CreateMeal(Guid.NewGuid());
+        var ingredient = CreateIngredient(Guid.NewGuid());
+        var serving = CreateServing(Guid.NewGuid(), ingredient.Id);
+        ingredient.Servings.Add(serving);
+        SetupIngredients([ingredient]);
+        meal.Ingredients.Add(new MealIngredient
+        {
+            MealId = meal.Id, IngredientId = ingredient.Id, Ingredient = ingredient,
+            ServingId = serving.Id, Serving = serving, Quantity = 1, Created = DateTimeOffset.UtcNow,
+        });
+        var existing = new MealNutritionIngredient
+        {
+            MealId = meal.Id, NutritionIngredientId = identity.Id, NutritionIngredient = identity,
+            ServingId = identity.Servings.First().Id, Serving = identity.Servings.First(),
+            Quantity = 1, Created = DateTimeOffset.UtcNow,
+        };
+        meal.NutritionIngredients.Add(existing);
+        meal.Calories = 200; meal.Carbs = 20; meal.Protein = 10; meal.Fat = 4;
+        SetupMeal(meal);
+        var request = new UpdateMealRequest
+        {
+            Name = "Lunch",
+            Ingredients = operation == "nutrition-only" ? [] : operation == "both" ?
+                [new UpdateMealRequest.UpdateMealIngredientRequest
+                {
+                    IngredientId = ingredient.Id, ServingId = serving.Id, Quantity = 3,
+                }] : null,
+            NutritionIngredients = operation == "omit" ? null : operation == "clear" ? [] :
+                [new UpdateMealRequest.UpdateMealNutritionIngredientRequest
+                {
+                    ProductId = operation is "replace" or "nutrition-only" ? "product-2" : "product-1",
+                    ServingId = operation is "replace" or "nutrition-only" ? "serving-1" : "serving-2",
+                    Quantity = 2,
+                }],
+        };
+
+        var result = await Endpoint.HandleAsync(meal.Id, request, new UpdateMealRequest.UpdateMealRequestValidator(),
+            _currentUserMock.Object, _mealsRepositoryMock.Object, _mealService, CancellationToken.None);
+
+        Assert.That(result.Result, Is.TypeOf<Ok<UpdateMealResponse>>());
+        var response = ((Ok<UpdateMealResponse>)result.Result).Value;
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Name, Is.EqualTo("Lunch"));
+            Assert.That(response.Calories, Is.EqualTo(calories));
+            Assert.That(response.Carbs, Is.EqualTo(calories / 10m));
+            Assert.That(response.Protein, Is.EqualTo(calories / 20m));
+            Assert.That(response.Fat, Is.EqualTo(calories / 50m));
+            Assert.That(response.IngredientCount, Is.EqualTo(ingredientCount));
+            Assert.That(meal.NutritionIngredients.Count, Is.EqualTo(operation == "clear" ? 0 : 1));
+            Assert.That(meal.NutritionIngredients.Contains(existing), Is.EqualTo(operation is "update" or "both" or "omit"));
+        });
+        if (operation is "update" or "both")
+        {
+            Assert.That(existing.Serving.ServingId, Is.EqualTo("serving-2"));
+            Assert.That(existing.Quantity, Is.EqualTo(2));
+        }
+        if (operation == "omit")
+        {
+            _nutritionCatalogMock.Verify(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(existing.Quantity, Is.EqualTo(1));
+        }
+        _mealsRepositoryMock.Verify(r => r.UpdateAsync(meal, It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestCase("missing-product", "serving-1")]
+    [TestCase("product-1", "missing-serving")]
+    public void HandleAsync_Should_Reject_Invalid_Nutrition_References(string productId, string servingId)
+    {
+        _nutritionCatalogMock.Setup(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
+            {
+                ProductId = "product-1", Name = "Milk",
+                Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving-1" }],
+            });
+        var meal = CreateMeal(Guid.NewGuid());
+        SetupMeal(meal);
+        var request = new UpdateMealRequest
+        {
+            NutritionIngredients = [new UpdateMealRequest.UpdateMealNutritionIngredientRequest
+            {
+                ProductId = productId, ServingId = servingId, Quantity = 1,
+            }],
+        };
+        Assert.That(async () => await Endpoint.HandleAsync(meal.Id, request, new UpdateMealRequest.UpdateMealRequestValidator(),
+            _currentUserMock.Object, _mealsRepositoryMock.Object, _mealService, CancellationToken.None),
+            Throws.InstanceOf<BadRequestException>());
+        _mealsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Meal>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

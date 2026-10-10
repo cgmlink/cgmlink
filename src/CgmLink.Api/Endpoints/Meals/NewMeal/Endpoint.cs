@@ -50,9 +50,7 @@ internal static class Endpoint
             Created = DateTimeOffset.UtcNow,
         };
 
-        await mealService.UpdateMealsIngredientsAsync(meal, request.Ingredients, cancellationToken).ConfigureAwait(false);
-        await mealService.UpdateMealsNutritionIngredientsAsync(meal, request.NutritionIngredients, cancellationToken).ConfigureAwait(false);
-        await mealService.RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
+        await mealService.UpdateMealsIngredientsAsync(meal, request.Ingredients, request.NutritionIngredients, cancellationToken).ConfigureAwait(false);
 
         await mealsRepository.AddAsync(meal, cancellationToken).ConfigureAwait(false);
 
