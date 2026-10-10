@@ -5,12 +5,14 @@ using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Models;
 using CgmLink.Identity.Templates;
 using CgmLink.Mail;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using static BCrypt.Net.BCrypt;
@@ -19,6 +21,7 @@ namespace CgmLink.Identity.Services;
 
 public sealed class UserService : IUserService
 {
+    private readonly CgmLinkDbContext _dbContext;
     private readonly IRepository<User> _repository;
     private readonly IRepository<AlarmRule> _alarmRepository;
     private readonly ITokenService _tokenService;
@@ -29,8 +32,9 @@ public sealed class UserService : IUserService
 
     public UserService(IRepository<User> repository, IRepository<AlarmRule> alarmRepository, ITokenService tokenService,
         IMailService mailService,
-        ITemplateService templateService, IOptions<IdentityOptions> options, ILogger<UserService> logger)
+        ITemplateService templateService, IOptions<IdentityOptions> options, ILogger<UserService> logger, CgmLinkDbContext dbContext)
     {
+        _dbContext = dbContext ?? throw new ArgumentNullException(nameof(dbContext));
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
         _alarmRepository = alarmRepository ?? throw new ArgumentNullException(nameof(alarmRepository));
         _tokenService = tokenService ?? throw new ArgumentNullException(nameof(tokenService));
@@ -44,7 +48,17 @@ public sealed class UserService : IUserService
         CancellationToken cancellationToken = default)
     {
         var user = await _repository.FindOneAsync(u => u.Email == request.Email,
-            new FindOptions { IsAsNoTracking = true, IsIgnoreAutoIncludes = true }, cancellationToken);
+            new FindOptions { IsAsNoTracking = false, IsIgnoreAutoIncludes = true }, cancellationToken);
+
+        if (user is null || !Verify(request.Password, user.PasswordHash))
+        {
+            throw new UnauthorizedException("EMAIL_OR_PASSWORD_INCORRECT", UnauthorizedSource.CgmLink);
+        }
+
+        if (_options.RequireEmailVerification && !user.IsVerified)
+        {
+            throw new ForbiddenException("EMAIL_NOT_VERIFIED");
+        }
 
         List<AlarmRule>? alarmRules = null;
         if (user is Patient)
@@ -61,23 +75,14 @@ public sealed class UserService : IUserService
                 .ToList();
         }
 
-        if (user is null || !Verify(request.Password, user.PasswordHash))
-        {
-            throw new UnauthorizedException("EMAIL_OR_PASSWORD_INCORRECT", UnauthorizedSource.CgmLink);
-        }
-
-        if (_options.RequireEmailVerification && !user.IsVerified)
-        {
-            throw new ForbiddenException("EMAIL_NOT_VERIFIED");
-        }
-
         var token = _tokenService.GenerateJwtToken(user);
         var refreshToken = _tokenService.GenerateRefreshToken(ipAddress);
-        user.RefreshTokens.Add(refreshToken);
+        AddRefreshToken(user, refreshToken);
 
         RemoveOldRefreshTokens(user);
 
-        await _repository.UpdateAsync(user, cancellationToken).ConfigureAwait(false);
+        await SaveRefreshTokenChangesAsync(user, refreshToken, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Refresh token issued for user {UserId}, token {TokenId}", user.Id, refreshToken.Id);
 
         if (user is Patient)
         {
@@ -221,10 +226,11 @@ public sealed class UserService : IUserService
 
         if (refreshToken?.IsRevoked ?? false)
         {
-            _logger.LogWarning("Refresh token replay detected for user {UserId} from {IpAddress}", user.Id, ipAddress);
+            _logger.LogWarning("Refresh token replay detected for user {UserId}, token {TokenId} from {IpAddress}",
+                user.Id, refreshToken.Id, ipAddress);
             RevokeRefreshTokensRecursively(refreshToken, user, ipAddress,
-                $"Attempted use of revoked ancestor token: {token}");
-            await _repository.UpdateAsync(user, cancellationToken).ConfigureAwait(false);
+                $"Attempted use of revoked ancestor token record: {refreshToken.Id}");
+            await SaveRefreshTokenChangesAsync(user, refreshToken, cancellationToken).ConfigureAwait(false);
         }
 
         if (!(refreshToken?.IsActive ?? false))
@@ -234,11 +240,14 @@ public sealed class UserService : IUserService
 
         var newRefreshToken = _tokenService.GenerateRefreshToken(ipAddress);
         RevokeRefreshToken(refreshToken, ipAddress, "Replaced by new token", newRefreshToken.Token);
-        user.RefreshTokens.Add(newRefreshToken);
+        AddRefreshToken(user, newRefreshToken);
 
         RemoveOldRefreshTokens(user);
 
-        await _repository.UpdateAsync(user, cancellationToken).ConfigureAwait(false);
+        await SaveRefreshTokenChangesAsync(user, refreshToken, cancellationToken).ConfigureAwait(false);
+
+        _logger.LogInformation("Refresh token rotated for user {UserId}, token {TokenId}, replacement {ReplacementTokenId}",
+            user.Id, refreshToken.Id, newRefreshToken.Id);
 
         var jwtToken = _tokenService.GenerateJwtToken(user);
         var response = new TokenResponse()
@@ -284,7 +293,40 @@ public sealed class UserService : IUserService
         }
 
         RevokeRefreshToken(refreshToken, ipAddress, "Revoked without replacement");
-        await _repository.UpdateAsync(user, cancellationToken).ConfigureAwait(false);
+        await SaveRefreshTokenChangesAsync(user, refreshToken, cancellationToken).ConfigureAwait(false);
+        _logger.LogInformation("Refresh token revoked for user {UserId}, token {TokenId}", user.Id, refreshToken.Id);
+    }
+
+    private void AddRefreshToken(User user, RefreshToken token)
+    {
+        user.RefreshTokens.Add(token);
+        _dbContext.Entry(token).State = EntityState.Added;
+    }
+
+    private async Task SaveRefreshTokenChangesAsync(User user, RefreshToken token, CancellationToken cancellationToken)
+    {
+        while (true)
+        {
+            try
+            {
+                await _dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                return;
+            }
+            catch (DbUpdateConcurrencyException exception) when (exception.Entries.Count > 0 &&
+                exception.Entries.All(entry => entry.Entity is RefreshToken && entry.State == EntityState.Deleted))
+            {
+                foreach (var entry in exception.Entries)
+                {
+                    entry.State = EntityState.Detached;
+                }
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                _dbContext.ChangeTracker.Clear();
+                _logger.LogWarning("Refresh token concurrency conflict for user {UserId}, token {TokenId}", user.Id, token.Id);
+                throw new UnauthorizedException("REFRESH_TOKEN_INCORRECT", UnauthorizedSource.CgmLink);
+            }
+        }
     }
 
     private static void RevokeRefreshTokensRecursively(RefreshToken refreshToken, User user, string ipAddress,

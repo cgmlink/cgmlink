@@ -4,6 +4,7 @@ using CgmLink.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CgmLink.Data.Migrators.MSSQL.Migrations
 {
     [DbContext(typeof(CgmLinkDbContext))]
-    partial class CgmLinkDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261009232048_RefreshTokenRevocationConcurrency")]
+    partial class RefreshTokenRevocationConcurrency
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -62,6 +65,9 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("ProductId")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("ThumbnailUrl")
                         .HasMaxLength(2048)
@@ -271,37 +277,6 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.HasIndex("ServingId");
 
                     b.ToTable("meal_ingredients");
-                });
-
-            modelBuilder.Entity("CgmLink.Data.Entities.MealNutritionIngredient", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset>("Created")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("MealId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("NutritionIngredientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<decimal>("Quantity")
-                        .HasColumnType("decimal(18,2)");
-
-                    b.Property<Guid>("ServingId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MealId");
-
-                    b.HasIndex("NutritionIngredientId");
-
-                    b.HasIndex("ServingId");
-
-                    b.ToTable("meal_nutrition_ingredients");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.NutritionIngredient", b =>
@@ -716,33 +691,6 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Navigation("Serving");
                 });
 
-            modelBuilder.Entity("CgmLink.Data.Entities.MealNutritionIngredient", b =>
-                {
-                    b.HasOne("CgmLink.Data.Entities.Meal", "Meal")
-                        .WithMany("NutritionIngredients")
-                        .HasForeignKey("MealId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CgmLink.Data.Entities.NutritionIngredient", "NutritionIngredient")
-                        .WithMany()
-                        .HasForeignKey("NutritionIngredientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("CgmLink.Data.Entities.NutritionServing", "Serving")
-                        .WithMany()
-                        .HasForeignKey("ServingId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
-
-                    b.Navigation("Meal");
-
-                    b.Navigation("NutritionIngredient");
-
-                    b.Navigation("Serving");
-                });
-
             modelBuilder.Entity("CgmLink.Data.Entities.NutritionServing", b =>
                 {
                     b.HasOne("CgmLink.Data.Entities.NutritionIngredient", "NutritionIngredient")
@@ -1003,8 +951,6 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
             modelBuilder.Entity("CgmLink.Data.Entities.Meal", b =>
                 {
                     b.Navigation("Ingredients");
-
-                    b.Navigation("NutritionIngredients");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.NutritionIngredient", b =>

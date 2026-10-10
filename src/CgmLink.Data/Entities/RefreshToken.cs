@@ -20,6 +20,7 @@ public class RefreshToken
 
     public required string CreatedByIp { get; set; }
 
+    [ConcurrencyCheck]
     public DateTimeOffset? Revoked { get; set; }
 
     public string? RevokedByIp { get; set; }
