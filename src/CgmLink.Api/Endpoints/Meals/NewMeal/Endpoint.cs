@@ -19,7 +19,6 @@ internal static class Endpoint
         [FromBody] NewMealRequest request,
         [FromServices] IValidator<NewMealRequest> validator,
         [FromServices] IRepository<Meal> mealsRepository,
-        [FromServices] IIngredientsService ingredientsService,
         [FromServices] IRepository<User> usersRepository,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IMealService mealService,
@@ -38,10 +37,6 @@ internal static class Endpoint
             throw new UnauthorizedException("USER_NOT_LOGGED_IN", UnauthorizedSource.CgmLink);
         }
 
-        var ingredientLookup = await ingredientsService
-            .GetValidatedIngredientsAsync(request.Ingredients, userId, cancellationToken)
-            .ConfigureAwait(false);
-
         var meal = new Meal
         {
             Name = request.Name,
@@ -55,7 +50,8 @@ internal static class Endpoint
             Created = DateTimeOffset.UtcNow,
         };
 
-        mealService.UpdateMealsIngredients(meal, request.Ingredients, ingredientLookup);
+        await mealService.UpdateMealsIngredientsAsync(meal, request.Ingredients, cancellationToken).ConfigureAwait(false);
+        await mealService.UpdateMealsNutritionIngredientsAsync(meal, request.NutritionIngredients, cancellationToken).ConfigureAwait(false);
         await mealService.RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
 
         await mealsRepository.AddAsync(meal, cancellationToken).ConfigureAwait(false);

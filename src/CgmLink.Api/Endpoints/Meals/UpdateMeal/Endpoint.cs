@@ -22,7 +22,6 @@ internal static class Endpoint
         [FromServices] IValidator<UpdateMealRequest> validator,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IRepository<Meal> mealsRepository,
-        [FromServices] IIngredientsService ingredientsService,
         [FromServices] IMealService mealService,
         CancellationToken cancellationToken)
     {
@@ -67,11 +66,7 @@ internal static class Endpoint
 
         if (request.Ingredients is not null)
         {
-            var ingredientLookup = await ingredientsService
-                .GetValidatedIngredientsAsync(request.Ingredients, userId, cancellationToken)
-                .ConfigureAwait(false);
-
-            mealService.UpdateMealsIngredients(meal, request.Ingredients, ingredientLookup);
+            await mealService.UpdateMealsIngredientsAsync(meal, request.Ingredients, cancellationToken).ConfigureAwait(false);
             await mealService.RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
         }
 
