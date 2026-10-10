@@ -5,11 +5,14 @@ using System.Linq.Expressions;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Identity.Models;
 using CgmLink.Identity.Services;
 using CgmLink.Mail;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Update;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -19,6 +22,7 @@ namespace CgmLink.Identity.Tests.Services;
 [TestFixture]
 internal sealed class UserServiceTests
 {
+    private Mock<CgmLinkDbContext> _dbContext;
     private Mock<IRepository<User>> _userRepository;
     private Mock<IRepository<AlarmRule>> _alarmRepository;
     private Mock<ITokenService> _tokenService;
@@ -32,6 +36,11 @@ internal sealed class UserServiceTests
     [SetUp]
     public void Setup()
     {
+        _dbContext = new Mock<CgmLinkDbContext>(new DbContextOptionsBuilder<CgmLinkDbContext>()
+            .UseSqlServer("Server=unused;Database=unit-tests").Options)
+        { CallBase = true };
+        _dbContext.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Callback(() => _dbContext.Object.ChangeTracker.DetectChanges()).ReturnsAsync(1);
         _userRepository = new Mock<IRepository<User>>();
         _alarmRepository = new Mock<IRepository<AlarmRule>>();
         _tokenService = new Mock<ITokenService>();
@@ -43,8 +52,11 @@ internal sealed class UserServiceTests
         _identityOptions.Setup(x => x.Value).Returns(_options);
 
         _sut = new UserService(_userRepository.Object, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
-            _templateService.Object, _identityOptions.Object, _logger.Object);
+            _templateService.Object, _identityOptions.Object, _logger.Object, _dbContext.Object);
     }
+
+    [TearDown]
+    public void TearDown() => _dbContext.Object.Dispose();
 
     [Test]
     public void Constructor_Should_Throw_ArgumentNullExceptions()
@@ -53,22 +65,25 @@ internal sealed class UserServiceTests
         {
             Assert.That(
                 () => new UserService(null!, _alarmRepository.Object, _tokenService.Object, _mailService.Object, _templateService.Object,
-                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object, _dbContext.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, null!, _tokenService.Object, _mailService.Object, _templateService.Object,
-                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object, _dbContext.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, null!, _mailService.Object, _templateService.Object,
-                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object, _dbContext.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, _tokenService.Object, _mailService.Object, null!,
-                    _identityOptions.Object, _logger.Object), Throws.ArgumentNullException);
+                    _identityOptions.Object, _logger.Object, _dbContext.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
-                    _templateService.Object, null!, _logger.Object), Throws.ArgumentNullException);
+                    _templateService.Object, null!, _logger.Object, _dbContext.Object), Throws.ArgumentNullException);
             Assert.That(
                 () => new UserService(_userRepository.Object!, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
-                    _templateService.Object, _identityOptions.Object, null!), Throws.ArgumentNullException);
+                    _templateService.Object, _identityOptions.Object, null!, _dbContext.Object), Throws.ArgumentNullException);
+            Assert.That(
+                () => new UserService(_userRepository.Object, _alarmRepository.Object, _tokenService.Object, _mailService.Object,
+                    _templateService.Object, _identityOptions.Object, _logger.Object, null!), Throws.ArgumentNullException);
         });
     }
 
@@ -80,9 +95,9 @@ internal sealed class UserServiceTests
         { Email = "test@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password"), PatientId = "PatientId" };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
-        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(new RefreshToken { Token = "refresh_token", CreatedByIp = "127.0.0.1" });
+        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("refresh_token"));
 
         var result = await _sut.LoginAsync(request, "127.0.0.1");
 
@@ -103,10 +118,10 @@ internal sealed class UserServiceTests
         var alarmRule = new AlarmRule { Id = Guid.NewGuid(), PatientId = user.Id, TargetDirection = (Data.Enums.AlarmTargetDirection)AlarmTargetDirection.GreaterThan, TargetValue = 10 };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
         _alarmRepository.Setup(r => r.Find(It.IsAny<Expression<Func<AlarmRule, bool>>>(), It.IsAny<FindOptions>())).Returns(new List<AlarmRule>() { alarmRule }.AsQueryable());
 
-        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(new RefreshToken { Token = "refresh_token", CreatedByIp = "127.0.0.1" });
+        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("refresh_token"));
 
         var result = await _sut.LoginAsync(request, "127.0.0.1");
 
@@ -128,9 +143,9 @@ internal sealed class UserServiceTests
         { Email = "test@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password") };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
-        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(new RefreshToken { Token = "refresh_token", CreatedByIp = "127.0.0.1" });
+        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("refresh_token"));
 
         var result = await _sut.LoginAsync(request, "127.0.0.1");
 
@@ -147,7 +162,7 @@ internal sealed class UserServiceTests
     [Test]
     public async Task LoginAsync_WithValidCareGiverCredentials_ReturnsLoginResponse()
     {
-        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(new RefreshToken { Token = "refresh_token", CreatedByIp = "127.0.0.1" });
+        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("refresh_token"));
 
         var request = new LoginRequest { Email = "test@example.com", Password = "password" };
         var user = new CareGiver
@@ -159,9 +174,9 @@ internal sealed class UserServiceTests
             []
         };
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
-        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(new RefreshToken { Token = "refresh_token", CreatedByIp = "127.0.0.1" });
+        _tokenService.Setup(t => t.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("refresh_token"));
 
         var result = await _sut.LoginAsync(request, "127.0.0.1");
 
@@ -182,7 +197,7 @@ internal sealed class UserServiceTests
         { Email = "test@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password") };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
         Assert.That(() => _sut.LoginAsync(request, "127.0.0.1"), Throws.TypeOf<ForbiddenException>());
     }
@@ -196,7 +211,7 @@ internal sealed class UserServiceTests
         { Email = "test@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password") };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
         Assert.That(() => _sut.LoginAsync(request, "127.0.0.1"), Throws.TypeOf<ForbiddenException>());
     }
@@ -208,7 +223,7 @@ internal sealed class UserServiceTests
         var user = new Patient
         { Email = "test@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password") };
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
         Assert.That(() => _sut.LoginAsync(request, "127.0.0.1"), Throws.TypeOf<UnauthorizedException>());
     }
@@ -220,7 +235,7 @@ internal sealed class UserServiceTests
         var user = new CareGiver
         { Email = "test@example.com", PasswordHash = BCrypt.Net.BCrypt.HashPassword("password") };
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
-            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+            It.IsAny<CancellationToken>())).ReturnsAsync(() => TrackUser(user));
 
         Assert.That(() => _sut.LoginAsync(request, "127.0.0.1"), Throws.TypeOf<UnauthorizedException>());
     }
@@ -386,7 +401,7 @@ internal sealed class UserServiceTests
         _userRepository
             .Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         await _sut.VerifyEmailAsync(request, CancellationToken.None);
 
@@ -410,7 +425,7 @@ internal sealed class UserServiceTests
         };
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         var newRefreshToken = new RefreshToken
         {
@@ -431,6 +446,103 @@ internal sealed class UserServiceTests
             Assert.That(result.RefreshToken, Is.EqualTo(newRefreshToken.Token));
         });
     }
+
+    [Test]
+    public async Task LoginAsync_Preserves_Existing_Active_Token_While_Removing_Expired_History()
+    {
+        var existing = ActiveToken("other-device");
+        var expired = ActiveToken("expired-history");
+        expired.Created = DateTimeOffset.UtcNow.AddDays(-60);
+        expired.Expires = DateTimeOffset.UtcNow.AddDays(-31);
+        var user = StubUser(existing, expired);
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword("password");
+        _tokenService.Setup(x => x.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("new-device"));
+
+        await _sut.LoginAsync(new LoginRequest { Email = user.Email, Password = "password" }, "127.0.0.1");
+
+        Assert.That(existing.IsActive, Is.True);
+        Assert.That(user.RefreshTokens.Select(t => t.Token), Is.EquivalentTo(new[] { "other-device", "new-device" }));
+    }
+
+    [Test]
+    public async Task RefreshTokenAsync_Rotates_Only_The_Presented_Token()
+    {
+        var original = ActiveToken("device-a");
+        var otherDevice = ActiveToken("device-b");
+        var user = StubUser(original, otherDevice);
+        var replacement = ActiveToken("replacement");
+        _tokenService.Setup(x => x.GenerateRefreshToken(It.IsAny<string>())).Returns(replacement);
+
+        await _sut.RefreshTokenAsync(original.Token, "127.0.0.1");
+
+        Assert.That(original.IsRevoked, Is.True);
+        Assert.That(original.ReplacedByToken, Is.EqualTo(replacement.Token));
+        Assert.That(user.RefreshTokens, Does.Contain(replacement));
+        Assert.That(otherDevice.IsActive, Is.True);
+        Assert.That(otherDevice.ReplacedByToken, Is.Null);
+    }
+
+    [Test]
+    public void RefreshTokenAsync_Rejects_Concurrency_Conflict_Without_Issuing_Access_Token()
+    {
+        StubUser(ActiveToken("device-a"));
+        _tokenService.Setup(x => x.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("replacement"));
+        _dbContext.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new DbUpdateConcurrencyException());
+
+        Assert.ThrowsAsync<UnauthorizedException>(() => _sut.RefreshTokenAsync("device-a", "127.0.0.1"));
+
+        _tokenService.Verify(x => x.GenerateJwtToken(It.IsAny<User>()), Times.Never);
+        Assert.That(_dbContext.Object.ChangeTracker.HasChanges(), Is.False, "The losing replacement must not remain pending.");
+    }
+
+    [Test]
+    public async Task RefreshTokenAsync_Succeeds_When_Other_Request_Already_Removed_Expired_History()
+    {
+        var expired = ActiveToken("expired-history");
+        expired.Created = DateTimeOffset.UtcNow.AddDays(-60);
+        expired.Expires = DateTimeOffset.UtcNow.AddDays(-31);
+        StubUser(ActiveToken("device-a"), expired);
+        var entry = _dbContext.Object.Entry(expired);
+        var affectedEntry = new Mock<IUpdateEntry>();
+        affectedEntry.Setup(x => x.ToEntityEntry()).Returns(entry);
+        var conflict = new DbUpdateConcurrencyException("History already deleted", new[] { affectedEntry.Object });
+        _tokenService.Setup(x => x.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("replacement"));
+        _dbContext.SetupSequence(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .Returns(() =>
+            {
+                _dbContext.Object.ChangeTracker.DetectChanges();
+                return Task.FromException<int>(conflict);
+            })
+            .ReturnsAsync(1);
+
+        var response = await _sut.RefreshTokenAsync("device-a", "127.0.0.1");
+
+        Assert.That(response.RefreshToken, Is.EqualTo("replacement"));
+    }
+
+    private User TrackUser(User user)
+    {
+        _dbContext.Object.Attach(user);
+        return user;
+    }
+
+    private User StubUser(params RefreshToken[] tokens)
+    {
+        var user = new Patient { Email = "user@example.com", PasswordHash = "unused", RefreshTokens = tokens.ToList() };
+        _dbContext.Object.Attach(user);
+        _userRepository.Setup(x => x.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
+            It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        return user;
+    }
+
+    private static RefreshToken ActiveToken(string token) => new()
+    {
+        Token = token,
+        CreatedByIp = "127.0.0.1",
+        Created = DateTimeOffset.UtcNow,
+        Expires = DateTimeOffset.UtcNow.AddDays(30),
+    };
 
     [Test]
     public void RefreshTokenAsync_With_Null_Token_Throws_UnauthorizedException()
@@ -461,7 +573,7 @@ internal sealed class UserServiceTests
         };
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         Assert.That(() => _sut.RefreshTokenAsync("revoked-token", "127.0.0.1", CancellationToken.None),
             Throws.TypeOf<UnauthorizedException>());
@@ -482,7 +594,7 @@ internal sealed class UserServiceTests
         };
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         Assert.That(() => _sut.RefreshTokenAsync("expired-token", "127.0.0.1", CancellationToken.None),
             Throws.TypeOf<UnauthorizedException>());
@@ -510,12 +622,12 @@ internal sealed class UserServiceTests
         {
             Email = "test@nomail.com",
             PasswordHash = "password",
-            RefreshTokens = [revokedToken, childToken]
+            RefreshTokens = [revokedToken, childToken, ActiveToken("other-device")]
         };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         Assert.Multiple(() =>
         {
@@ -524,6 +636,8 @@ internal sealed class UserServiceTests
 
             Assert.That(revokedToken.IsRevoked, Is.True);
             Assert.That(childToken.IsRevoked, Is.True);
+            Assert.That(user.RefreshTokens.Single(t => t.Token == "other-device").IsActive, Is.True);
+            Assert.That(childToken.RevokedReason, Does.Not.Contain(revokedToken.Token));
         });
 
         _logger.Verify(
@@ -542,11 +656,11 @@ internal sealed class UserServiceTests
         var token = "valid-token";
         var ipAddress = "127.0.0.1";
         var refreshToken = new RefreshToken { Token = token, CreatedByIp = "127.0.0.1", Expires = DateTimeOffset.Now.AddMinutes(5) };
-        var user = new Patient { Email = "test@nomail.com", PasswordHash = "password", RefreshTokens = [refreshToken] };
+        var user = new Patient { Email = "test@nomail.com", PasswordHash = "password", RefreshTokens = [refreshToken, ActiveToken("other-device")] };
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         await _sut.RevokeTokenAsync(token, ipAddress, CancellationToken.None);
 
@@ -556,9 +670,10 @@ internal sealed class UserServiceTests
             Assert.That(refreshToken.Revoked, Is.Not.Null);
             Assert.That(refreshToken.RevokedByIp, Is.EqualTo(ipAddress));
             Assert.That(refreshToken.RevokedReason, Is.EqualTo("Revoked without replacement"));
+            Assert.That(user.RefreshTokens.Single(t => t.Token == "other-device").IsActive, Is.True);
         });
 
-        _userRepository.Verify(r => r.UpdateAsync(user, It.IsAny<CancellationToken>()), Times.Once);
+        _dbContext.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -583,7 +698,7 @@ internal sealed class UserServiceTests
 
         _userRepository.Setup(r => r.FindOneAsync(It.IsAny<Expression<Func<User, bool>>>(), It.IsAny<FindOptions>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(user);
+            .ReturnsAsync(() => TrackUser(user));
 
         Assert.That(async () => await _sut.RevokeTokenAsync(token, "127.0.0.1", CancellationToken.None),
             Throws.TypeOf<UnauthorizedException>());
