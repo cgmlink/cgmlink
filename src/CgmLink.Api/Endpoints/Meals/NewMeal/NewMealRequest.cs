@@ -59,7 +59,7 @@ public sealed record NewMealRequest
             });
 
             RuleFor(x => x.NutritionIngredients)
-                .Must(ingredients => ingredients.Select(i => i.ProductId).Distinct().Count() == ingredients.Count)
+                .Must(nutritionIngredients => nutritionIngredients.Select(i => i.ProductId).Distinct().Count() == nutritionIngredients.Count)
                 .WithMessage(ValidationMessages.DuplicateIngredientId)
                 .When(x => x.NutritionIngredients is not null);
 
