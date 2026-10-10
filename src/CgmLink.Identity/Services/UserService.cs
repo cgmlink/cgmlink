@@ -59,7 +59,7 @@ public sealed class UserService : IUserService
         {
             throw new ForbiddenException("EMAIL_NOT_VERIFIED");
         }
-        
+
         List<AlarmRule>? alarmRules = null;
         if (user is Patient)
         {
