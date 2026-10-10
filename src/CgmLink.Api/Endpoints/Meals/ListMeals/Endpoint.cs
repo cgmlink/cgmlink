@@ -1,5 +1,4 @@
 using FluentValidation;
-using CgmLink.Api.Endpoints.Meals.GetMeal;
 using CgmLink.Api.Models;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Extensions;
@@ -38,7 +37,7 @@ internal static class Endpoint
             .OrderByProperty(sortBy, descending)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)
-            .Select(m => GetMealResponse.ToResponse(m, m.Ingredients.Count + m.NutritionIngredients.Count))
+            .Select(m => MealSummaryResponse.ToResponse(m, m.Ingredients.Count + m.NutritionIngredients.Count))
             .ToList();
 
         var totalMeals = await mealsRepository.CountAsync(m => m.UserId == userId && m.Deleted == null, cancellationToken).ConfigureAwait(false);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Meals.ListMeals;
@@ -136,6 +137,9 @@ public class ListMealsTests
         {
             Assert.That(okResult!.Value.Meals.Count, Is.EqualTo(1));
             Assert.That(okResult.Value.Meals.First().IngredientCount, Is.EqualTo(2 + nutritionIngredientCount));
+            using var json = JsonDocument.Parse(JsonSerializer.Serialize(okResult.Value.Meals.First()));
+            Assert.That(json.RootElement.TryGetProperty("Ingredients", out _), Is.False);
+            Assert.That(json.RootElement.TryGetProperty("NutritionIngredients", out _), Is.False);
             Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(1));
         });
     }

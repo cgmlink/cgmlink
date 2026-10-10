@@ -1,4 +1,6 @@
 using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Api.Endpoints.Ingredients;
+using CgmLink.Api.Endpoints.Meals.GetMeal;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Resources;
@@ -29,6 +31,51 @@ public sealed class MealService : IMealService
         _nutritionCatalog = nutritionCatalog;
         _ingredientsService = ingredientsService;
         _nutritionIngredientsRepository = nutritionIngredientsRepository;
+    }
+
+    public async Task<GetMealResponse> GetMealAsync(Guid mealId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var meal = await _mealsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
+            .AsSplitQuery()
+            .Include(m => m.Ingredients)
+                .ThenInclude(mi => mi.Ingredient)
+            .Include(m => m.Ingredients)
+                .ThenInclude(mi => mi.Serving)
+            .Include(m => m.NutritionIngredients)
+                .ThenInclude(mi => mi.NutritionIngredient)
+            .Include(m => m.NutritionIngredients)
+                .ThenInclude(mi => mi.Serving)
+            .FirstOrDefaultAsync(m => m.Id == mealId && m.UserId == userId && m.Deleted == null, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new NotFoundException("MEAL_NOT_FOUND");
+
+        var products = new Dictionary<string, IngredientResponse>();
+        var nutritionIngredients = new List<MealNutritionIngredientResponse>();
+        foreach (var mealIngredient in meal.NutritionIngredients)
+        {
+            var identity = mealIngredient.NutritionIngredient;
+            if (identity is null || identity.Source != _nutritionCatalog.Source)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+            if (mealIngredient.Serving is null)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            }
+            if (!products.TryGetValue(identity.ProductId, out var product))
+            {
+                product = await _ingredientsService.GetIngredientAsync(
+                    identity.ProductId, meal.UserId, cancellationToken, IngredientType.External).ConfigureAwait(false);
+                products.Add(identity.ProductId, product);
+            }
+            var serving = product.Servings.SingleOrDefault(s => s.ServingId == mealIngredient.Serving.ServingId)
+                ?? throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            nutritionIngredients.Add(MealNutritionIngredientResponse.ToResponse(mealIngredient, product, serving));
+        }
+
+        return GetMealResponse.ToResponse(meal, meal.Ingredients.Count + meal.NutritionIngredients.Count)
+            with
+        { NutritionIngredients = nutritionIngredients };
     }
 
     public async Task<Meal> RecalculateMealsNutritionAsync(Meal meal, CancellationToken cancellationToken = default)
