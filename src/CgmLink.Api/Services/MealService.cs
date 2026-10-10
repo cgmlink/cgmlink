@@ -48,9 +48,14 @@ public sealed class MealService : IMealService
         foreach (var mealIngredient in meal.NutritionIngredients)
         {
             var ingredient = mealIngredient.NutritionIngredient;
-            if (ingredient is null || ingredient.Source != _nutritionCatalog.Source || mealIngredient.Serving is null)
+            if (ingredient is null || ingredient.Source != _nutritionCatalog.Source)
             {
                 throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+
+            if (mealIngredient.Serving is null)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
             }
 
             if (!products.TryGetValue(ingredient.ProductId, out var product))
@@ -61,7 +66,7 @@ public sealed class MealService : IMealService
             }
 
             var serving = product.Servings.SingleOrDefault(s => s.ExternalId == mealIngredient.Serving.ServingId)
-                ?? throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+                ?? throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
             calories += serving.Calories * mealIngredient.Quantity;
             carbs += serving.Carbs * mealIngredient.Quantity;
             protein += serving.Protein * mealIngredient.Quantity;

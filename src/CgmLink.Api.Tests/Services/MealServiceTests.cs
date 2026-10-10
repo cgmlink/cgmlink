@@ -195,10 +195,11 @@ public class MealServiceTests
         _nutritionCatalogMock.Verify(c => c.GetAsync("product", token), Times.Once);
     }
 
-    [TestCase("product")]
-    [TestCase("serving")]
-    [TestCase("source")]
-    public void RecalculateNutrition_Should_Reject_Unresolvable_External_Ingredients(string missing)
+    [TestCase("product", "INGREDIENT_ID_INVALID")]
+    [TestCase("serving", "INGREDIENT_SERVING_ID_INVALID")]
+    [TestCase("servingIdentity", "INGREDIENT_SERVING_ID_INVALID")]
+    [TestCase("source", "INGREDIENT_ID_INVALID")]
+    public void RecalculateNutrition_Should_Reject_Unresolvable_External_Ingredients(string missing, string expectedError)
     {
         var meal = CreateMeal();
         meal.Calories = 123m;
@@ -208,6 +209,10 @@ public class MealServiceTests
         {
             external.NutritionIngredient!.Source = "unsupported";
         }
+        if (missing == "servingIdentity")
+        {
+            external.Serving = null;
+        }
         if (missing != "product")
         {
             _nutritionCatalogMock.Setup(c => c.GetAsync("product", CancellationToken.None))
@@ -215,7 +220,7 @@ public class MealServiceTests
         }
 
         Assert.That(async () => await _service.RecalculateMealsNutritionAsync(meal),
-            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo(expectedError));
         Assert.That(meal.Calories, Is.EqualTo(123m));
         if (missing == "source")
         {
