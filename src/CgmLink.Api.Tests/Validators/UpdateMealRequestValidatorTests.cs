@@ -20,7 +20,9 @@ class UpdateMealRequestValidatorTests
         {
             request.NutritionIngredients.Add(new UpdateMealRequest.UpdateMealNutritionIngredientRequest
             {
-                ProductId = "product-1", ServingId = "serving-1", Quantity = 1,
+                ProductId = "product-1",
+                ServingId = "serving-1",
+                Quantity = 1,
             });
         }
 
