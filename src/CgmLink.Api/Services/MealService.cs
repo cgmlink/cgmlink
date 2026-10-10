@@ -74,7 +74,8 @@ public sealed class MealService : IMealService
         }
 
         return GetMealResponse.ToResponse(meal, meal.Ingredients.Count + meal.NutritionIngredients.Count)
-            with { NutritionIngredients = nutritionIngredients };
+            with
+        { NutritionIngredients = nutritionIngredients };
     }
 
     public async Task<Meal> RecalculateMealsNutritionAsync(Meal meal, CancellationToken cancellationToken = default)

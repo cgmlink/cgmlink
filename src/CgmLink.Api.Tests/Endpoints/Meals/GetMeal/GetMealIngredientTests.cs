@@ -180,20 +180,27 @@ public class GetMealIngredientTests
         {
             var serving = new NutritionServing
             {
-                NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = servingId,
+                NutritionIngredient = identity,
+                NutritionIngredientId = identity.Id,
+                ServingId = servingId,
             };
             meal.NutritionIngredients.Add(new MealNutritionIngredient
             {
-                MealId = meal.Id, NutritionIngredientId = identity.Id, NutritionIngredient = identity,
-                ServingId = serving.Id, Serving = serving,
-                Quantity = servingId == "cup" ? 2.5m : 1m, Created = DateTimeOffset.UtcNow,
+                MealId = meal.Id,
+                NutritionIngredientId = identity.Id,
+                NutritionIngredient = identity,
+                ServingId = serving.Id,
+                Serving = serving,
+                Quantity = servingId == "cup" ? 2.5m : 1m,
+                Created = DateTimeOffset.UtcNow,
             });
         }
         SetupMeal(meal);
         var cachedAt = DateTimeOffset.UtcNow.AddHours(-1);
         var product = IngredientResponse.FromProduct(new CgmLink.Nutrition.Source.NutritionProduct
         {
-            ProductId = "product-1", Name = "External milk",
+            ProductId = "product-1",
+            Name = "External milk",
             Servings =
             [
                 new CgmLink.Nutrition.Source.NutritionServing
@@ -254,17 +261,24 @@ public class GetMealIngredientTests
         var meal = CreateMeal(Guid.NewGuid());
         var identity = new NutritionIngredient
         {
-            Source = missing == "source" ? "unsupported" : "external", ProductId = "product-1",
+            Source = missing == "source" ? "unsupported" : "external",
+            ProductId = "product-1",
         };
         var serving = new NutritionServing
         {
-            NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = "cup",
+            NutritionIngredient = identity,
+            NutritionIngredientId = identity.Id,
+            ServingId = "cup",
         };
         meal.NutritionIngredients.Add(new MealNutritionIngredient
         {
-            MealId = meal.Id, NutritionIngredientId = identity.Id, NutritionIngredient = identity,
-            ServingId = serving.Id, Serving = missing == "servingIdentity" ? null : serving,
-            Quantity = 1, Created = DateTimeOffset.UtcNow,
+            MealId = meal.Id,
+            NutritionIngredientId = identity.Id,
+            NutritionIngredient = identity,
+            ServingId = serving.Id,
+            Serving = missing == "servingIdentity" ? null : serving,
+            Quantity = 1,
+            Created = DateTimeOffset.UtcNow,
         });
         SetupMeal(meal);
         var lookup = _ingredientsServiceMock.Setup(s => s.GetIngredientAsync(
@@ -277,7 +291,9 @@ public class GetMealIngredientTests
         {
             lookup.ReturnsAsync(IngredientResponse.FromProduct(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product-1", Name = "Milk", Servings = [],
+                ProductId = "product-1",
+                Name = "Milk",
+                Servings = [],
             }, null, "Provider attribution"));
         }
 

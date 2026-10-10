@@ -35,7 +35,8 @@ public class GetMealTests
         ingredientsService.Setup(s => s.GetIngredientAsync("product", _userId, It.IsAny<CancellationToken>(), IngredientType.External))
             .ReturnsAsync(IngredientResponse.FromProduct(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product", Name = "External food",
+                ProductId = "product",
+                Name = "External food",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving" }],
             }, null, "Provider attribution"));
         _mealService = new MealService(_mealsRepositoryMock.Object, catalog.Object,
@@ -125,7 +126,9 @@ public class GetMealTests
             var identity = new NutritionIngredient { Source = "external", ProductId = "product" };
             var serving = new NutritionServing
             {
-                NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = "serving",
+                NutritionIngredient = identity,
+                NutritionIngredientId = identity.Id,
+                ServingId = "serving",
             };
             meal.NutritionIngredients.Add(new MealNutritionIngredient
             {
