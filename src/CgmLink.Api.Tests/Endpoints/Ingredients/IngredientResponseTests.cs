@@ -31,7 +31,6 @@ public class IngredientResponseTests
             Name = "Milk",
             Created = timestamp.AddDays(-1),
             Updated = timestamp,
-            ProductId = "legacy-product",
             ImageUrl = "image",
             ThumbnailUrl = "thumbnail",
             Servings = [serving, new IngredientServing

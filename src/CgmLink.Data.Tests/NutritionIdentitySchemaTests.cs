@@ -47,4 +47,31 @@ internal sealed class NutritionIdentitySchemaTests
             Assert.That(foreignKey.IsRequired, Is.True);
         });
     }
+
+    [Test]
+    public void MealNutritionIngredient_Requires_Meal_Ingredient_And_Serving()
+    {
+        var entity = _dbContext.Model.FindEntityType(typeof(MealNutritionIngredient))!;
+        var foreignKeys = entity.GetForeignKeys().ToList();
+        var meal = _dbContext.Model.FindEntityType(typeof(Meal))!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(entity.GetTableName(), Is.EqualTo("meal_nutrition_ingredients"));
+            Assert.That(foreignKeys.Select(key => key.PrincipalEntityType.ClrType),
+                Is.EquivalentTo(new[] { typeof(Meal), typeof(NutritionIngredient), typeof(NutritionServing) }));
+            Assert.That(foreignKeys.All(key => key.IsRequired), Is.True);
+            Assert.That(foreignKeys.Single(key => key.PrincipalEntityType.ClrType == typeof(NutritionServing)).DeleteBehavior,
+                Is.EqualTo(DeleteBehavior.NoAction));
+            Assert.That(meal.FindNavigation(nameof(Meal.NutritionIngredients))!.TargetEntityType, Is.EqualTo(entity));
+        });
+    }
+
+    [Test]
+    public void Ingredient_No_Longer_Stores_ProductId()
+    {
+        var entity = _dbContext.Model.FindEntityType(typeof(Ingredient))!;
+
+        Assert.That(entity.FindProperty("ProductId"), Is.Null);
+    }
 }

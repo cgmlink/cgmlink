@@ -87,4 +87,9 @@ public class Meal : ISoftDeletable
     /// The ingredients that make up the meal.
     /// </summary>
     public virtual ICollection<MealIngredient> Ingredients { get; set; } = [];
+
+    /// <summary>
+    /// The external nutrition ingredients that make up the meal.
+    /// </summary>
+    public virtual ICollection<MealNutritionIngredient> NutritionIngredients { get; set; } = [];
 }

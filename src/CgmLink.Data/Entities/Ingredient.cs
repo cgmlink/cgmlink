@@ -39,11 +39,6 @@ public class Ingredient : ISoftDeletable
     public virtual User? User { get; set; }
 
     /// <summary>
-    /// The id of the linked external product, when created from a barcode scan.
-    /// </summary>
-    public string? ProductId { get; set; }
-
-    /// <summary>
     /// The URL of the ingredient image.
     /// </summary>
     [MaxLength(2048)]

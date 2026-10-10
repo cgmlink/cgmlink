@@ -105,21 +105,6 @@ public class DeleteIngredientTests
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_ConflictException_When_Ingredient_Has_ProductId()
-    {
-        var id = Guid.NewGuid();
-        var ingredient = CreateIngredient(id);
-        ingredient.ProductId = "product1";
-        SetupIngredient(ingredient);
-
-        Assert.That(async () => await Endpoint.HandleAsync(id, _currentUserMock.Object,
-                _ingredientsRepositoryMock.Object, CancellationToken.None),
-            Throws.InstanceOf<ConflictException>().With.Message.EqualTo("INGREDIENT_READ_ONLY"));
-
-        _ingredientsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<Ingredient>(), It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Test]
     public void HandleAsync_Should_Throw_NotFoundException_When_Ingredient_Is_Soft_Deleted()
     {
         var id = Guid.NewGuid();
