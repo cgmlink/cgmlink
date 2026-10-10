@@ -49,7 +49,7 @@ public class NewTreatmentTests
         _treatmentsRepositoryMock = new Mock<IRepository<Treatment>>();
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
-        _mealService = new MealService(_mealsRepositoryMock.Object);
+        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>());
         _ingredientsService = new IngredientsService(
             _ingredientsRepositoryMock.Object,
             Mock.Of<CgmLink.Nutrition.INutritionCatalog>(),

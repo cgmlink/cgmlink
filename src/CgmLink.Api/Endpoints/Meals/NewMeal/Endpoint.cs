@@ -56,7 +56,7 @@ internal static class Endpoint
         };
 
         mealService.UpdateMealsIngredients(meal, request.Ingredients, ingredientLookup);
-        mealService.RecalculateMealsNutrition(meal);
+        await mealService.RecalculateMealsNutritionAsync(meal, cancellationToken).ConfigureAwait(false);
 
         await mealsRepository.AddAsync(meal, cancellationToken).ConfigureAwait(false);
 

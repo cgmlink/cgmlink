@@ -3,6 +3,9 @@ using CgmLink.AspNetCore.Exceptions;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Data.Tests;
+using CgmLink.Nutrition;
+using CgmLink.Nutrition.Source;
+using CatalogServing = CgmLink.Nutrition.Source.NutritionServing;
 using Moq;
 using NUnit.Framework;
 using System;
@@ -17,20 +20,23 @@ public class MealServiceTests
 {
     private Mock<IRepository<Meal>> _mealsRepositoryMock;
     private MealService _service;
+    private Mock<INutritionCatalog> _nutritionCatalogMock;
 
     [SetUp]
     public void SetUp()
     {
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
-        _service = new MealService(_mealsRepositoryMock.Object);
+        _nutritionCatalogMock = new Mock<INutritionCatalog>();
+        _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
+        _service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object);
     }
 
     [Test]
-    public void RecalculateNutrition_Should_Return_Zeros_When_Meal_Has_No_Ingredients()
+    public async Task RecalculateNutrition_Should_Return_Zeros_When_Meal_Has_No_Ingredients()
     {
         var meal = CreateMeal();
 
-        var result = _service.RecalculateMealsNutrition(meal);
+        var result = await _service.RecalculateMealsNutritionAsync(meal);
 
         Assert.Multiple(() =>
         {
@@ -43,12 +49,12 @@ public class MealServiceTests
     }
 
     [Test]
-    public void RecalculateNutrition_Should_Multiply_Serving_Nutrition_By_Quantity()
+    public async Task RecalculateNutrition_Should_Multiply_Serving_Nutrition_By_Quantity()
     {
         var meal = CreateMeal();
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
 
-        var result = _service.RecalculateMealsNutrition(meal);
+        var result = await _service.RecalculateMealsNutritionAsync(meal);
 
         Assert.Multiple(() =>
         {
@@ -61,13 +67,13 @@ public class MealServiceTests
     }
 
     [Test]
-    public void RecalculateNutrition_Should_Sum_Multiple_Ingredient_Lines()
+    public async Task RecalculateNutrition_Should_Sum_Multiple_Ingredient_Lines()
     {
         var meal = CreateMeal();
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(50m, 5m, 3m, 1m), 1m));
 
-        _service.RecalculateMealsNutrition(meal);
+        await _service.RecalculateMealsNutritionAsync(meal);
 
         Assert.Multiple(() =>
         {
@@ -79,7 +85,7 @@ public class MealServiceTests
     }
 
     [Test]
-    public void RecalculateNutrition_Should_Skip_Lines_When_Serving_Not_Loaded()
+    public async Task RecalculateNutrition_Should_Skip_Lines_When_Serving_Not_Loaded()
     {
         var meal = CreateMeal();
         meal.Ingredients.Add(CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m));
@@ -95,7 +101,7 @@ public class MealServiceTests
             Created = DateTimeOffset.UtcNow,
         });
 
-        _service.RecalculateMealsNutrition(meal);
+        await _service.RecalculateMealsNutritionAsync(meal);
 
         Assert.Multiple(() =>
         {
@@ -144,6 +150,97 @@ public class MealServiceTests
             Assert.That(meal.Fat, Is.EqualTo(4m));
             Assert.That(otherMeal.Calories, Is.EqualTo(0m));
         });
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
+    public async Task RecalculateNutrition_Should_Include_External_Servings(bool recalculateForIngredient)
+    {
+        var meal = CreateMeal();
+        var local = CreateMealIngredient(CreateServing(100m, 10m, 5m, 2m), 2m);
+        meal.Ingredients.Add(local);
+        meal.NutritionIngredients.Add(CreateExternalIngredient("product", "cup", 1.5m));
+        meal.NutritionIngredients.Add(CreateExternalIngredient("product", "spoon", 2m));
+        using var cancellation = new CancellationTokenSource();
+        var token = cancellation.Token;
+        _nutritionCatalogMock.Setup(c => c.GetAsync("product", token)).ReturnsAsync(new NutritionProduct
+        {
+            ProductId = "product",
+            Name = "External food",
+            Servings = [
+                new CatalogServing { ExternalId = "cup", Calories = 80m, Carbs = 8m, Protein = 4m, Fat = 2m },
+                new CatalogServing { ExternalId = "spoon", Calories = 10m, Carbs = 1m, Protein = 0.5m, Fat = 0.25m },
+            ],
+        });
+
+        if (recalculateForIngredient)
+        {
+            _mealsRepositoryMock.Setup(r => r.GetAll())
+                .Returns(new TestAsyncEnumerable<Meal>(new[] { meal }));
+            await _service.RecalculateMealsWithIngredientNutrition(local.IngredientId, token);
+        }
+        else
+        {
+            var result = await _service.RecalculateMealsNutritionAsync(meal, token);
+            Assert.That(result, Is.SameAs(meal));
+        }
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(meal.Calories, Is.EqualTo(340m));
+            Assert.That(meal.Carbs, Is.EqualTo(34m));
+            Assert.That(meal.Protein, Is.EqualTo(17m));
+            Assert.That(meal.Fat, Is.EqualTo(7.5m));
+        });
+        _nutritionCatalogMock.Verify(c => c.GetAsync("product", token), Times.Once);
+    }
+
+    [TestCase("product")]
+    [TestCase("serving")]
+    [TestCase("source")]
+    public void RecalculateNutrition_Should_Reject_Unresolvable_External_Ingredients(string missing)
+    {
+        var meal = CreateMeal();
+        meal.Calories = 123m;
+        var external = CreateExternalIngredient("product", "cup", 2m);
+        meal.NutritionIngredients.Add(external);
+        if (missing == "source")
+        {
+            external.NutritionIngredient!.Source = "unsupported";
+        }
+        if (missing != "product")
+        {
+            _nutritionCatalogMock.Setup(c => c.GetAsync("product", CancellationToken.None))
+                .ReturnsAsync(new NutritionProduct { ProductId = "product", Name = "External food" });
+        }
+
+        Assert.That(async () => await _service.RecalculateMealsNutritionAsync(meal),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo("INGREDIENT_ID_INVALID"));
+        Assert.That(meal.Calories, Is.EqualTo(123m));
+        if (missing == "source")
+        {
+            _nutritionCatalogMock.Verify(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+    }
+
+    private static MealNutritionIngredient CreateExternalIngredient(string productId, string servingId, decimal quantity)
+    {
+        var ingredient = new NutritionIngredient { Source = "external", ProductId = productId };
+        var serving = new CgmLink.Data.Entities.NutritionServing
+        {
+            NutritionIngredient = ingredient,
+            NutritionIngredientId = ingredient.Id,
+            ServingId = servingId,
+        };
+        return new MealNutritionIngredient
+        {
+            NutritionIngredientId = ingredient.Id,
+            NutritionIngredient = ingredient,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = quantity,
+            Created = DateTimeOffset.UtcNow,
+        };
     }
 
     private static Meal CreateMeal()
