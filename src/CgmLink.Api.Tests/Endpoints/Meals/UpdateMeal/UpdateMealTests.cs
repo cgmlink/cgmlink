@@ -134,7 +134,8 @@ public class UpdateMealTests
             _nutritionCatalogMock.Setup(c => c.GetAsync(productId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
                 {
-                    ProductId = productId, Name = "External milk",
+                    ProductId = productId,
+                    Name = "External milk",
                     Servings =
                     [
                         new CgmLink.Nutrition.Source.NutritionServing
@@ -153,7 +154,9 @@ public class UpdateMealTests
         {
             identity.Servings.Add(new NutritionServing
             {
-                NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = servingId,
+                NutritionIngredient = identity,
+                NutritionIngredientId = identity.Id,
+                ServingId = servingId,
             });
         }
         _nutritionIdentities.Add(identity);
@@ -164,14 +167,23 @@ public class UpdateMealTests
         SetupIngredients([ingredient]);
         meal.Ingredients.Add(new MealIngredient
         {
-            MealId = meal.Id, IngredientId = ingredient.Id, Ingredient = ingredient,
-            ServingId = serving.Id, Serving = serving, Quantity = 1, Created = DateTimeOffset.UtcNow,
+            MealId = meal.Id,
+            IngredientId = ingredient.Id,
+            Ingredient = ingredient,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = 1,
+            Created = DateTimeOffset.UtcNow,
         });
         var existing = new MealNutritionIngredient
         {
-            MealId = meal.Id, NutritionIngredientId = identity.Id, NutritionIngredient = identity,
-            ServingId = identity.Servings.First().Id, Serving = identity.Servings.First(),
-            Quantity = 1, Created = DateTimeOffset.UtcNow,
+            MealId = meal.Id,
+            NutritionIngredientId = identity.Id,
+            NutritionIngredient = identity,
+            ServingId = identity.Servings.First().Id,
+            Serving = identity.Servings.First(),
+            Quantity = 1,
+            Created = DateTimeOffset.UtcNow,
         };
         meal.NutritionIngredients.Add(existing);
         meal.Calories = 200; meal.Carbs = 20; meal.Protein = 10; meal.Fat = 4;
@@ -229,7 +241,8 @@ public class UpdateMealTests
         _nutritionCatalogMock.Setup(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product-1", Name = "Milk",
+                ProductId = "product-1",
+                Name = "Milk",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving-1" }],
             });
         var meal = CreateMeal(Guid.NewGuid());

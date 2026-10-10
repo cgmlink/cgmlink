@@ -259,7 +259,10 @@ public class MealServiceTests
         meal.Calories = meal.Carbs = meal.Protein = meal.Fat = 999m;
         var ingredient = new Ingredient
         {
-            Id = local.IngredientId, Name = "Milk", Created = DateTimeOffset.UtcNow, UserId = meal.UserId,
+            Id = local.IngredientId,
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            UserId = meal.UserId,
             Servings = [local.Serving],
         };
         var requests = clear ? Array.Empty<IMealIngredientRequest>() :
@@ -272,7 +275,8 @@ public class MealServiceTests
             .ReturnsAsync(new Dictionary<Guid, Ingredient> { [ingredient.Id] = ingredient });
         _nutritionCatalogMock.Setup(c => c.GetAsync("product", token)).ReturnsAsync(new NutritionProduct
         {
-            ProductId = "product", Name = "External milk",
+            ProductId = "product",
+            Name = "External milk",
             Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
         });
         var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
@@ -312,7 +316,10 @@ public class MealServiceTests
         var ingredientsService = new Mock<IIngredientsService>();
         var ingredient = new Ingredient
         {
-            Id = local.IngredientId, Name = "Milk", Created = DateTimeOffset.UtcNow, UserId = meal.UserId,
+            Id = local.IngredientId,
+            Name = "Milk",
+            Created = DateTimeOffset.UtcNow,
+            UserId = meal.UserId,
             Servings = [local.Serving],
         };
         ingredientsService.Setup(s => s.GetValidatedIngredientsAsync(
@@ -326,7 +333,8 @@ public class MealServiceTests
             .Returns(new TestAsyncEnumerable<NutritionIngredient>(new[] { external.NutritionIngredient }));
         _nutritionCatalogMock.Setup(c => c.GetAsync("product", token)).ReturnsAsync(new NutritionProduct
         {
-            ProductId = "product", Name = "External milk",
+            ProductId = "product",
+            Name = "External milk",
             Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
         });
         var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
