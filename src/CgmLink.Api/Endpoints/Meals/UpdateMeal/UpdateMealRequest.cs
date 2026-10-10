@@ -51,7 +51,7 @@ public sealed record UpdateMealRequest
                 .WithMessage(ValidationMessages.IngredientsNotEmpty)
                 .When(x => x.Ingredients is not null && !(x.NutritionIngredients?.Count > 0));
 
-            RuleForEach(x => x.NutritionIngredients).ChildRules(ingredient =>
+            RuleForEach(x => x.NutritionIngredients).NotNull().ChildRules(ingredient =>
             {
                 ingredient.RuleFor(i => i.ProductId)
                     .NotEmpty()
@@ -62,12 +62,13 @@ public sealed record UpdateMealRequest
                 ingredient.RuleFor(i => i.Quantity)
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);
-            }).When(x => x.NutritionIngredients is not null);
+            }).When(x => x.NutritionIngredients?.Any() ?? false);
 
             RuleFor(x => x.NutritionIngredients)
                 .Must(ingredients => ingredients is null ||
                     ingredients.Select(i => i.ProductId).Distinct().Count() == ingredients.Count)
-                .WithMessage(ValidationMessages.DuplicateIngredientId);
+                .WithMessage(ValidationMessages.DuplicateIngredientId)
+                .When(x => x.NutritionIngredients?.All(i => i is not null) ?? false);
 
             RuleForEach(x => x.Ingredients).ChildRules(ingredient =>
             {
@@ -76,7 +77,7 @@ public sealed record UpdateMealRequest
                     .WithMessage(ValidationMessages.IngredientIdInvalid);
                 ingredient.RuleFor(i => i.ServingId)
                     .NotEmpty()
-                    .WithMessage(ValidationMessages.IngredientIdInvalid);
+                    .WithMessage(ValidationMessages.IngredientServingIdInvalid);
                 ingredient.RuleFor(i => i.Quantity)
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);

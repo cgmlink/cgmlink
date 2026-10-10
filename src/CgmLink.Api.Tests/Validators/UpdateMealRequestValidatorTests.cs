@@ -13,6 +13,22 @@ class UpdateMealRequestValidatorTests
 
     [TestCase(false)]
     [TestCase(true)]
+    public void Should_Reject_Null_Nutrition_Ingredient(bool includeValidIngredient)
+    {
+        var request = new UpdateMealRequest { NutritionIngredients = [null!] };
+        if (includeValidIngredient)
+        {
+            request.NutritionIngredients.Add(new UpdateMealRequest.UpdateMealNutritionIngredientRequest
+            {
+                ProductId = "product-1", ServingId = "serving-1", Quantity = 1,
+            });
+        }
+
+        _validator.TestValidate(request).ShouldHaveValidationErrorFor("NutritionIngredients[0]");
+    }
+
+    [TestCase(false)]
+    [TestCase(true)]
     public void Should_Accept_Nutrition_Only_Update(bool clear)
     {
         var request = new UpdateMealRequest
