@@ -45,7 +45,7 @@ public class UpdateTreatmentTests
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _ingredientsRepositoryMock = new Mock<IRepository<Ingredient>>();
         _currentUserMock = new Mock<ICurrentUser>();
-        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>());
+        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>(), Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
         _ingredientsService = new IngredientsService(
             _ingredientsRepositoryMock.Object,
             Mock.Of<CgmLink.Nutrition.INutritionCatalog>(),

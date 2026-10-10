@@ -16,11 +16,19 @@ public sealed class MealService : IMealService
 {
     private readonly IRepository<Meal> _mealsRepository;
     private readonly INutritionCatalog _nutritionCatalog;
+    private readonly IIngredientsService _ingredientsService;
+    private readonly IRepository<NutritionIngredient> _nutritionIngredientsRepository;
 
-    public MealService(IRepository<Meal> mealsRepository, INutritionCatalog nutritionCatalog)
+    public MealService(
+        IRepository<Meal> mealsRepository,
+        INutritionCatalog nutritionCatalog,
+        IIngredientsService ingredientsService,
+        IRepository<NutritionIngredient> nutritionIngredientsRepository)
     {
         _mealsRepository = mealsRepository;
         _nutritionCatalog = nutritionCatalog;
+        _ingredientsService = ingredientsService;
+        _nutritionIngredientsRepository = nutritionIngredientsRepository;
     }
 
     public async Task<Meal> RecalculateMealsNutritionAsync(Meal meal, CancellationToken cancellationToken = default)
@@ -101,12 +109,15 @@ public sealed class MealService : IMealService
         }
     }
 
-    public void UpdateMealsIngredients(
+    public async Task UpdateMealsIngredientsAsync(
         Meal meal,
         IEnumerable<IMealIngredientRequest> ingredients,
-        Dictionary<Guid, Ingredient> ingredientLookup)
+        CancellationToken cancellationToken = default)
     {
         var requestIngredients = ingredients.ToList();
+        var ingredientLookup = await _ingredientsService
+            .GetValidatedIngredientsAsync(requestIngredients, meal.UserId, cancellationToken)
+            .ConfigureAwait(false);
         var currentIngredients = meal.Ingredients.ToList();
         var currentByIngredientId = currentIngredients.ToDictionary(mi => mi.IngredientId);
         var requestedIds = requestIngredients.Select(i => i.IngredientId).ToHashSet();
@@ -138,6 +149,44 @@ public sealed class MealService : IMealService
         foreach (var removed in currentIngredients.Where(mi => !requestedIds.Contains(mi.IngredientId)).ToList())
         {
             meal.Ingredients.Remove(removed);
+        }
+    }
+
+    public async Task UpdateMealsNutritionIngredientsAsync(
+        Meal meal,
+        IEnumerable<IMealNutritionIngredientRequest> ingredients,
+        CancellationToken cancellationToken = default)
+    {
+        var references = ingredients
+            .Select(i => new IngredientReference(null, i.ProductId, i.ServingId, i.Quantity))
+            .ToList();
+        if (references.Count == 0)
+        {
+            return;
+        }
+
+        var resolved = await _ingredientsService.ResolveIngredientsAsync(
+            references, meal.UserId, cancellationToken).ConfigureAwait(false);
+        var ingredientIds = resolved.Select(i => i.IngredientId).ToList();
+        var nutritionIngredientLookup = await _nutritionIngredientsRepository.GetAll()
+            .Where(i => ingredientIds.Contains(i.Id))
+            .Include(i => i.Servings)
+            .ToDictionaryAsync(i => i.Id, cancellationToken)
+            .ConfigureAwait(false);
+
+        foreach (var ingredient in resolved)
+        {
+            var identity = nutritionIngredientLookup[ingredient.IngredientId];
+            meal.NutritionIngredients.Add(new MealNutritionIngredient
+            {
+                MealId = meal.Id,
+                NutritionIngredientId = identity.Id,
+                NutritionIngredient = identity,
+                ServingId = ingredient.ServingId,
+                Serving = identity.Servings.Single(s => s.Id == ingredient.ServingId),
+                Quantity = ingredient.Quantity,
+                Created = DateTimeOffset.UtcNow,
+            });
         }
     }
 

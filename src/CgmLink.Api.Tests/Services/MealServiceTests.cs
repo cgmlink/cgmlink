@@ -28,7 +28,7 @@ public class MealServiceTests
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _nutritionCatalogMock = new Mock<INutritionCatalog>();
         _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
-        _service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object);
+        _service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object, Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
     }
 
     [Test]

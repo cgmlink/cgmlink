@@ -28,7 +28,7 @@ public sealed record NewMealResponse
             Carbs = meal.Carbs,
             Protein = meal.Protein,
             Fat = meal.Fat,
-            IngredientCount = meal.Ingredients.Count,
+            IngredientCount = meal.Ingredients.Count + meal.NutritionIngredients.Count,
             Created = meal.Created,
         };
     }

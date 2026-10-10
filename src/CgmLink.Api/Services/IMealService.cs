@@ -10,10 +10,14 @@ public interface IMealService
 {
     Task<Meal> RecalculateMealsNutritionAsync(Meal meal, CancellationToken cancellationToken = default);
     Task RecalculateMealsWithIngredientNutrition(Guid ingredientId, CancellationToken cancellationToken = default);
-    void UpdateMealsIngredients(
+    Task UpdateMealsIngredientsAsync(
         Meal meal,
         IEnumerable<IMealIngredientRequest> ingredients,
-        Dictionary<Guid, Ingredient> ingredientLookup);
+        CancellationToken cancellationToken = default);
+    Task UpdateMealsNutritionIngredientsAsync(
+        Meal meal,
+        IEnumerable<IMealNutritionIngredientRequest> ingredients,
+        CancellationToken cancellationToken = default);
     Task<Dictionary<Guid, Meal>> GetValidatedMealsAsync(
         IEnumerable<ITreatmentMealRequest> meals,
         Guid userId,
