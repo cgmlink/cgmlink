@@ -95,13 +95,25 @@ public class ListMealsTests
             Throws.InstanceOf<UnauthorizedAccessException>());
     }
 
-    [Test]
-    public async Task HandleAsync_Should_Return_Ok_With_Meals_When_Request_Is_Valid()
+    [TestCase(0)]
+    [TestCase(3)]
+    public async Task HandleAsync_Should_Return_Ok_With_Meals_When_Request_Is_Valid(int nutritionIngredientCount)
     {
         var meals = new List<Meal>
         {
             CreateMeal("Breakfast", ingredientCount: 2),
         };
+        for (var i = 0; i < nutritionIngredientCount; i++)
+        {
+            meals[0].NutritionIngredients.Add(new MealNutritionIngredient
+            {
+                MealId = meals[0].Id,
+                NutritionIngredientId = Guid.NewGuid(),
+                ServingId = Guid.NewGuid(),
+                Quantity = 2,
+                Created = DateTimeOffset.UtcNow,
+            });
+        }
 
         _mealsRepositoryMock
             .Setup(r => r.Find(It.IsAny<Expression<Func<Meal, bool>>>(), It.IsAny<FindOptions>()))
@@ -123,7 +135,7 @@ public class ListMealsTests
         Assert.Multiple(() =>
         {
             Assert.That(okResult!.Value.Meals.Count, Is.EqualTo(1));
-            Assert.That(okResult.Value.Meals.First().IngredientCount, Is.EqualTo(2));
+            Assert.That(okResult.Value.Meals.First().IngredientCount, Is.EqualTo(2 + nutritionIngredientCount));
             Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(1));
         });
     }

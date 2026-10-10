@@ -80,8 +80,9 @@ public class GetMealTests
         });
     }
 
-    [Test]
-    public async Task HandleAsync_Should_Return_Ingredient_Count_When_Meal_Has_Ingredients()
+    [TestCase(0)]
+    [TestCase(3)]
+    public async Task HandleAsync_Should_Return_Total_Ingredient_Count_When_Meal_Has_Ingredients(int nutritionIngredientCount)
     {
         var mealId = Guid.NewGuid();
         var meal = CreateMeal(mealId);
@@ -101,6 +102,17 @@ public class GetMealTests
             Quantity = 1,
             Created = DateTimeOffset.UtcNow,
         });
+        for (var i = 0; i < nutritionIngredientCount; i++)
+        {
+            meal.NutritionIngredients.Add(new MealNutritionIngredient
+            {
+                MealId = mealId,
+                NutritionIngredientId = Guid.NewGuid(),
+                ServingId = Guid.NewGuid(),
+                Quantity = 2,
+                Created = DateTimeOffset.UtcNow,
+            });
+        }
         SetupMeal(meal);
 
         var result = await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
@@ -108,7 +120,7 @@ public class GetMealTests
 
         Assert.That(result.Result, Is.TypeOf<Ok<GetMealResponse>>());
         var okResult = result.Result as Ok<GetMealResponse>;
-        Assert.That(okResult!.Value.IngredientCount, Is.EqualTo(2));
+        Assert.That(okResult!.Value.IngredientCount, Is.EqualTo(2 + nutritionIngredientCount));
     }
 
     [Test]
