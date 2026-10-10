@@ -70,7 +70,7 @@ public sealed record NewMealRequest
                     .WithMessage(ValidationMessages.IngredientIdInvalid);
                 ingredient.RuleFor(i => i.ServingId)
                     .NotEmpty()
-                    .WithMessage(ValidationMessages.IngredientIdInvalid);
+                    .WithMessage(ValidationMessages.IngredientServingIdInvalid);
                 ingredient.RuleFor(i => i.Quantity)
                     .GreaterThan(0)
                     .WithMessage(ValidationMessages.QuantityGreaterThanZero);

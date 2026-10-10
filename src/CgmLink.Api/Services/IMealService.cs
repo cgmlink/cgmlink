@@ -12,11 +12,8 @@ public interface IMealService
     Task RecalculateMealsWithIngredientNutrition(Guid ingredientId, CancellationToken cancellationToken = default);
     Task UpdateMealsIngredientsAsync(
         Meal meal,
-        IEnumerable<IMealIngredientRequest> ingredients,
-        CancellationToken cancellationToken = default);
-    Task UpdateMealsNutritionIngredientsAsync(
-        Meal meal,
-        IEnumerable<IMealNutritionIngredientRequest> ingredients,
+        IEnumerable<IMealIngredientRequest>? ingredients,
+        IEnumerable<IMealNutritionIngredientRequest>? nutritionIngredients,
         CancellationToken cancellationToken = default);
     Task<Dictionary<Guid, Meal>> GetValidatedMealsAsync(
         IEnumerable<ITreatmentMealRequest> meals,
