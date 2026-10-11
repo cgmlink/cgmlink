@@ -25,6 +25,7 @@ public class CgmLinkDbContext : DbContext
     public DbSet<Treatment> Treatments { get; set; }
     public DbSet<TreatmentMeal> TreatmentMeals { get; set; }
     public DbSet<TreatmentIngredient> TreatmentIngredients { get; set; }
+    public DbSet<TreatmentNutritionIngredient> TreatmentNutritionIngredients { get; set; }
 
     public CgmLinkDbContext(DbContextOptions<CgmLinkDbContext> options) : base(options)
     {
