@@ -34,7 +34,7 @@ public class GetMealIngredientTests
         _nutritionCatalogMock = new Mock<CgmLink.Nutrition.INutritionCatalog>();
         var catalog = _nutritionCatalogMock;
         catalog.SetupGet(c => c.Source).Returns("external");
-        _mealService = new MealService(_mealsRepositoryMock.Object, catalog.Object,
+        _mealService = new MealService(_mealsRepositoryMock.Object,
             new IngredientsService(Mock.Of<IRepository<Ingredient>>(), catalog.Object, Mock.Of<IRepository<NutritionIngredient>>()), Mock.Of<IRepository<NutritionIngredient>>());
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);

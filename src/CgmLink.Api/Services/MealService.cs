@@ -3,7 +3,6 @@ using CgmLink.Api.Endpoints.Meals.GetMeal;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Resources;
-using CgmLink.Nutrition;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -16,18 +15,15 @@ namespace CgmLink.Api.Services;
 public sealed class MealService : IMealService
 {
     private readonly IRepository<Meal> _mealsRepository;
-    private readonly INutritionCatalog _nutritionCatalog;
     private readonly IIngredientsService _ingredientsService;
     private readonly IRepository<NutritionIngredient> _nutritionIngredientsRepository;
 
     public MealService(
         IRepository<Meal> mealsRepository,
-        INutritionCatalog nutritionCatalog,
         IIngredientsService ingredientsService,
         IRepository<NutritionIngredient> nutritionIngredientsRepository)
     {
         _mealsRepository = mealsRepository;
-        _nutritionCatalog = nutritionCatalog;
         _ingredientsService = ingredientsService;
         _nutritionIngredientsRepository = nutritionIngredientsRepository;
     }

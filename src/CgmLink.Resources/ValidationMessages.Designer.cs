@@ -178,6 +178,15 @@ namespace CgmLink.Resources {
         }
 
         /// <summary>
+        ///   Looks up a localized string similar to INGREDIENT_NOT_FOUND.
+        /// </summary>
+        public static string IngredientNotFound {
+            get {
+                return ResourceManager.GetString("IngredientNotFound", resourceCulture);
+            }
+        }
+
+        /// <summary>
         ///   Looks up a localized string similar to INGREDIENT_SERVING_ID_INVALID.
         /// </summary>
         public static string IngredientServingIdInvalid {

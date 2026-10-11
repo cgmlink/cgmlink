@@ -249,6 +249,9 @@
   <data name="MealInjectionIdInjectionIdMustBeProvided" xml:space="preserve">
     <value>MEAL_INGREDIENT_IDS_INJECTION_ID_MUST_BE_PROVIDED</value>
   </data>
+  <data name="IngredientNotFound" xml:space="preserve">
+    <value>INGREDIENT_NOT_FOUND</value>
+  </data>
   <data name="IngredientRequiredWhenAllNull" xml:space="preserve">
     <value>INGREDIENT_REQUIRED_WHEN_ALL_NULL</value>
   </data>

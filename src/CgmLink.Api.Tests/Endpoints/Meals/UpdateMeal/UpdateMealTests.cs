@@ -53,7 +53,7 @@ public class UpdateMealTests
             _ingredientsRepositoryMock.Object,
             _nutritionCatalogMock.Object,
             _nutritionIngredientsRepositoryMock.Object);
-        _mealService = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object, _ingredientsService, _nutritionIngredientsRepositoryMock.Object);
+        _mealService = new MealService(_mealsRepositoryMock.Object, _ingredientsService, _nutritionIngredientsRepositoryMock.Object);
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 

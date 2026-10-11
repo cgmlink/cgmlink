@@ -60,7 +60,7 @@ public class UpdateTreatmentTests
         _nutritionIngredientsRepositoryMock
             .Setup(r => r.UpdateAsync(It.IsAny<NutritionIngredient>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
-        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>(), Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
+        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
         _ingredientsService = new IngredientsService(
             _ingredientsRepositoryMock.Object,
             _nutritionCatalogMock.Object,

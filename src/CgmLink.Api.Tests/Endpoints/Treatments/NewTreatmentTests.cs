@@ -61,7 +61,7 @@ public class NewTreatmentTests
             .Setup(r => r.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(), It.IsAny<CancellationToken>()))
             .Callback<IEnumerable<NutritionIngredient>, CancellationToken>((identities, _) => _nutritionIdentities.AddRange(identities))
             .Returns(Task.CompletedTask);
-        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<CgmLink.Nutrition.INutritionCatalog>(), Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
+        _mealService = new MealService(_mealsRepositoryMock.Object, Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
         _ingredientsService = new IngredientsService(
             _ingredientsRepositoryMock.Object,
             _nutritionCatalogMock.Object,

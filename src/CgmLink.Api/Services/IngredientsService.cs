@@ -93,7 +93,7 @@ public sealed class IngredientsService : IIngredientsService
         {
             if (!Guid.TryParse(identifier, out var ingredientId))
             {
-                throw new NotFoundException("INGREDIENT_NOT_FOUND");
+                throw new NotFoundException(ValidationMessages.IngredientNotFound);
             }
             var ingredient = await _ingredientsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
                 .Include(item => item.Servings.Where(serving => serving.Deleted == null))
@@ -103,7 +103,7 @@ public sealed class IngredientsService : IIngredientsService
             {
                 return IngredientResponse.FromIngredient(ingredient);
             }
-            throw new NotFoundException("INGREDIENT_NOT_FOUND");
+            throw new NotFoundException(ValidationMessages.IngredientNotFound);
         }
 
         Nutrition.Source.NutritionProduct? product;
@@ -118,7 +118,7 @@ public sealed class IngredientsService : IIngredientsService
         }
         if (product is null)
         {
-            throw new NotFoundException("INGREDIENT_NOT_FOUND");
+            throw new NotFoundException(ValidationMessages.IngredientNotFound);
         }
         return IngredientResponse.FromProduct(product, product.CachedAt, product.Attribution);
     }
@@ -211,30 +211,7 @@ public sealed class IngredientsService : IIngredientsService
         IReadOnlyList<(Guid IngredientId, Guid ServingId)>? storedIds,
         CancellationToken cancellationToken)
     {
-        var selections = references.Select((reference, index) =>
-        {
-            if (reference.IngredientId.HasValue == !string.IsNullOrWhiteSpace(reference.ProductId))
-            {
-                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
-            }
-
-            if (reference.IngredientId is Guid ingredientId)
-            {
-                if (!Guid.TryParse(reference.ServingId, out var servingId))
-                {
-                    throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
-                }
-
-                return new Selection(index, reference, ingredientId, servingId);
-            }
-
-            if (string.IsNullOrWhiteSpace(reference.ServingId))
-            {
-                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
-            }
-
-            return new Selection(index, reference, null, null);
-        }).ToList();
+        var selections = references.Select(CreateSelection).ToList();
 
         var localSelections = selections.Where(selection => selection.IngredientId.HasValue).ToList();
         var ingredientLookup = localSelections.Count == 0
@@ -246,36 +223,8 @@ public sealed class IngredientsService : IIngredientsService
                 .ConfigureAwait(false);
 
         var externalSelections = selections.Where(selection => !selection.IngredientId.HasValue).ToList();
-        var externalProducts = new Dictionary<string, CgmLink.Nutrition.Source.NutritionProduct>();
-        foreach (var productId in externalSelections.Select(selection => selection.Reference.ProductId!).Distinct())
-        {
-            var product = await _nutritionCatalog.GetAsync(productId, cancellationToken).ConfigureAwait(false);
-            if (product is null)
-            {
-                if (storedIds is not null)
-                {
-                    throw new NotFoundException("INGREDIENT_NOT_FOUND");
-                }
-                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
-            }
-
-            externalProducts.Add(productId, product);
-        }
-
-        var externalServings = new Dictionary<int, CatalogServing>();
-        foreach (var selection in externalSelections)
-        {
-            var serving = externalProducts[selection.Reference.ProductId!].Servings
-                .SingleOrDefault(candidate => candidate.ExternalId == selection.Reference.ServingId);
-            if (serving is null)
-            {
-                throw new BadRequestException(storedIds is null
-                    ? ValidationMessages.IngredientIdInvalid
-                    : ValidationMessages.IngredientServingIdInvalid);
-            }
-
-            externalServings.Add(selection.Index, serving);
-        }
+        var externalServings = await GetExternalServingsAsync(
+            externalSelections, storedIds is not null, cancellationToken).ConfigureAwait(false);
 
         var identityLookup = storedIds is not null ? [] : await GetOrCreateExternalIdentitiesAsync(
                 externalSelections,
@@ -314,6 +263,70 @@ public sealed class IngredientsService : IIngredientsService
         }
 
         return resolved;
+    }
+
+    private static Selection CreateSelection(IngredientReference reference, int index)
+    {
+        if (reference.IngredientId.HasValue == !string.IsNullOrWhiteSpace(reference.ProductId))
+        {
+            throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+        }
+
+        if (reference.IngredientId is Guid ingredientId)
+        {
+            if (!Guid.TryParse(reference.ServingId, out var servingId))
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+
+            return new Selection(index, reference, ingredientId, servingId);
+        }
+
+        if (string.IsNullOrWhiteSpace(reference.ServingId))
+        {
+            throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+        }
+
+        return new Selection(index, reference, null, null);
+    }
+
+    private async Task<Dictionary<int, CatalogServing>> GetExternalServingsAsync(
+        IReadOnlyCollection<Selection> selections,
+        bool useStoredIdentities,
+        CancellationToken cancellationToken)
+    {
+        var products = new Dictionary<string, CgmLink.Nutrition.Source.NutritionProduct>();
+        foreach (var productId in selections.Select(selection => selection.Reference.ProductId!).Distinct())
+        {
+            var product = await _nutritionCatalog.GetAsync(productId, cancellationToken).ConfigureAwait(false);
+            if (product is null)
+            {
+                if (useStoredIdentities)
+                {
+                    throw new NotFoundException(ValidationMessages.IngredientNotFound);
+                }
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+
+            products.Add(productId, product);
+        }
+
+        var servings = new Dictionary<int, CatalogServing>();
+        foreach (var selection in selections)
+        {
+            var serving = products[selection.Reference.ProductId!].Servings
+                .SingleOrDefault(candidate => candidate.ExternalId == selection.Reference.ServingId);
+            if (serving is null)
+            {
+                throw new BadRequestException(useStoredIdentities
+                    ? ValidationMessages.IngredientServingIdInvalid
+                    : ValidationMessages.IngredientIdInvalid);
+            }
+
+            servings.Add(selection.Index, serving);
+        }
+
+        return servings;
     }
 
     public Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(

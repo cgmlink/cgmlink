@@ -31,7 +31,7 @@ public class MealServiceTests
         _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
         _ingredientsService = new IngredientsService(Mock.Of<IRepository<Ingredient>>(), _nutritionCatalogMock.Object,
             Mock.Of<IRepository<NutritionIngredient>>());
-        _service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object, _ingredientsService, Mock.Of<IRepository<NutritionIngredient>>());
+        _service = new MealService(_mealsRepositoryMock.Object, _ingredientsService, Mock.Of<IRepository<NutritionIngredient>>());
     }
 
     [Test]
@@ -287,7 +287,7 @@ public class MealServiceTests
             Name = "External milk",
             Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
         });
-        var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
+        var service = new MealService(_mealsRepositoryMock.Object,
             ingredientsService.Object, Mock.Of<IRepository<NutritionIngredient>>());
 
         await service.UpdateMealsIngredientsAsync(meal, requests, null, token);
@@ -350,7 +350,7 @@ public class MealServiceTests
             Name = "External milk",
             Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
         });
-        var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
+        var service = new MealService(_mealsRepositoryMock.Object,
             ingredientsService.Object, identities.Object);
 
         await service.UpdateMealsIngredientsAsync(meal,

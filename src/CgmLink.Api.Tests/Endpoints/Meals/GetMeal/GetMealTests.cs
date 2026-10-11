@@ -40,7 +40,7 @@ public class GetMealTests
                 Attribution = "Provider attribution",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving" }],
             });
-        _mealService = new MealService(_mealsRepositoryMock.Object, catalog.Object,
+        _mealService = new MealService(_mealsRepositoryMock.Object,
             ingredientsService, Mock.Of<IRepository<NutritionIngredient>>());
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
