@@ -200,7 +200,9 @@ public class GetMealIngredientTests
         var product = new CgmLink.Nutrition.Source.NutritionProduct
         {
             ProductId = "product-1",
-            Name = "External milk", CachedAt = cachedAt, Attribution = "Provider attribution",
+            Name = "External milk",
+            CachedAt = cachedAt,
+            Attribution = "Provider attribution",
             Servings =
             [
                 new CgmLink.Nutrition.Source.NutritionServing
@@ -292,7 +294,8 @@ public class GetMealIngredientTests
             lookup.ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
                 ProductId = "product-1",
-                Name = "Milk", Attribution = "Provider attribution",
+                Name = "Milk",
+                Attribution = "Provider attribution",
                 Servings = [],
             });
         }
