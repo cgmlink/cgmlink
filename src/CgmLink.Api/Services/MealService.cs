@@ -1,5 +1,4 @@
 using CgmLink.AspNetCore.Exceptions;
-using CgmLink.Api.Endpoints.Ingredients;
 using CgmLink.Api.Endpoints.Meals.GetMeal;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
@@ -49,29 +48,14 @@ public sealed class MealService : IMealService
             .ConfigureAwait(false)
             ?? throw new NotFoundException("MEAL_NOT_FOUND");
 
-        var products = new Dictionary<string, IngredientResponse>();
-        var nutritionIngredients = new List<MealNutritionIngredientResponse>();
-        foreach (var mealIngredient in meal.NutritionIngredients)
+        var servings = await _ingredientsService.GetNutritionServingsAsync(
+            meal.NutritionIngredients.Select(i => (i.NutritionIngredient, i.Serving)),
+            meal.UserId, cancellationToken).ConfigureAwait(false);
+        var nutritionIngredients = meal.NutritionIngredients.Select(i =>
         {
-            var identity = mealIngredient.NutritionIngredient;
-            if (identity is null || identity.Source != _nutritionCatalog.Source)
-            {
-                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
-            }
-            if (mealIngredient.Serving is null)
-            {
-                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
-            }
-            if (!products.TryGetValue(identity.ProductId, out var product))
-            {
-                product = await _ingredientsService.GetIngredientAsync(
-                    identity.ProductId, meal.UserId, cancellationToken, IngredientType.External).ConfigureAwait(false);
-                products.Add(identity.ProductId, product);
-            }
-            var serving = product.Servings.SingleOrDefault(s => s.ServingId == mealIngredient.Serving.ServingId)
-                ?? throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
-            nutritionIngredients.Add(MealNutritionIngredientResponse.ToResponse(mealIngredient, product, serving));
-        }
+            var resolved = servings[i.ServingId];
+            return MealNutritionIngredientResponse.ToResponse(i, resolved.Product, resolved.Serving);
+        }).ToList();
 
         return GetMealResponse.ToResponse(meal, meal.Ingredients.Count + meal.NutritionIngredients.Count)
             with

@@ -22,6 +22,11 @@ public interface IIngredientsService
         string identifier, Guid userId, CancellationToken cancellationToken = default,
         IngredientType type = IngredientType.Personal);
 
+    Task<Dictionary<Guid, (IngredientResponse Product, IngredientServingResponse Serving)>> GetNutritionServingsAsync(
+        IEnumerable<(NutritionIngredient? Ingredient, NutritionServing? Serving)> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
         IEnumerable<IngredientReference> references,
         Guid userId,

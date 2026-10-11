@@ -1,12 +1,63 @@
 using CgmLink.Data.Entities;
+using CgmLink.Api.Endpoints.Treatments.GetTreatment;
+using CgmLink.AspNetCore.Exceptions;
+using CgmLink.Data.Repository;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CgmLink.Api.Services;
 
 public sealed class TreatmentService : ITreatmentService
 {
+    private readonly IRepository<Treatment> _treatmentsRepository;
+    private readonly IIngredientsService _ingredientsService;
+
+    public TreatmentService(
+        IRepository<Treatment> treatmentsRepository,
+        IIngredientsService ingredientsService)
+    {
+        _treatmentsRepository = treatmentsRepository;
+        _ingredientsService = ingredientsService;
+    }
+
+    public async Task<GetTreatmentResponse> GetTreatmentAsync(
+        Guid treatmentId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var treatment = await _treatmentsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
+            .Include(t => t.Meals)
+                .ThenInclude(tm => tm.Meal)
+            .Include(t => t.Ingredients)
+                .ThenInclude(ti => ti.Ingredient)
+            .Include(t => t.Ingredients)
+                .ThenInclude(ti => ti.Serving)
+            .Include(t => t.NutritionIngredients)
+                .ThenInclude(ti => ti.NutritionIngredient)
+            .Include(t => t.NutritionIngredients)
+                .ThenInclude(ti => ti.Serving)
+            .Include(t => t.Injection)
+                .ThenInclude(i => i!.Insulin)
+            .Include(t => t.Reading)
+            .AsSplitQuery()
+            .FirstOrDefaultAsync(t => t.Id == treatmentId && t.UserId == userId && t.Deleted == null, cancellationToken)
+            .ConfigureAwait(false)
+            ?? throw new NotFoundException("TREATMENT_NOT_FOUND");
+
+        var servings = await _ingredientsService.GetNutritionServingsAsync(
+            treatment.NutritionIngredients.Select(i => (i.NutritionIngredient, i.Serving)),
+            treatment.UserId, cancellationToken).ConfigureAwait(false);
+        var nutritionIngredients = treatment.NutritionIngredients.Select(i =>
+        {
+            var resolved = servings[i.ServingId];
+            return GetTreatmentNutritionIngredientResponse.ToResponse(i, resolved.Product, resolved.Serving);
+        }).ToList();
+
+        return GetTreatmentResponse.ToResponse(treatment) with { NutritionIngredients = nutritionIngredients };
+    }
+
     public Treatment CreateTreatment(
         IEnumerable<ITreatmentMealRequest> meals,
         IEnumerable<IMealIngredientRequest> ingredients,

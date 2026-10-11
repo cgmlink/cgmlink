@@ -123,6 +123,36 @@ public sealed class IngredientsService : IIngredientsService
         return IngredientResponse.FromProduct(product, product.CachedAt, product.Attribution);
     }
 
+    public async Task<Dictionary<Guid, (IngredientResponse Product, IngredientServingResponse Serving)>> GetNutritionServingsAsync(
+        IEnumerable<(NutritionIngredient? Ingredient, CgmLink.Data.Entities.NutritionServing? Serving)> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var products = new Dictionary<string, IngredientResponse>();
+        var servings = new Dictionary<Guid, (IngredientResponse Product, IngredientServingResponse Serving)>();
+        foreach (var (identity, servingIdentity) in ingredients)
+        {
+            if (identity is null || identity.Source != _nutritionCatalog.Source)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+            if (servingIdentity is null)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            }
+            if (!products.TryGetValue(identity.ProductId, out var product))
+            {
+                product = await GetIngredientAsync(
+                    identity.ProductId, userId, cancellationToken, IngredientType.External).ConfigureAwait(false);
+                products.Add(identity.ProductId, product);
+            }
+            var serving = product.Servings.SingleOrDefault(s => s.ServingId == servingIdentity.ServingId)
+                ?? throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            servings[servingIdentity.Id] = (product, serving);
+        }
+        return servings;
+    }
+
     public async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
         IEnumerable<IngredientReference> references,
         Guid userId,

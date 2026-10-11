@@ -1,5 +1,7 @@
+using Moq;
 using CgmLink.Api.Services;
 using CgmLink.Data.Entities;
+using CgmLink.Data.Repository;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
@@ -15,7 +17,8 @@ public class TreatmentServiceTests
     [SetUp]
     public void SetUp()
     {
-        _service = new TreatmentService();
+        _service = new TreatmentService(Mock.Of<IRepository<Treatment>>(),
+            Mock.Of<IIngredientsService>());
     }
 
     [Test]
