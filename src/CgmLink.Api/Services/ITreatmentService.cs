@@ -22,15 +22,15 @@ public interface ITreatmentService
         DateTimeOffset created,
         IEnumerable<ResolvedIngredient> nutritionIngredients);
 
-    Treatment UpdateTreatmentFoods(
+    Task<Treatment> UpdateTreatmentFoodsAsync(
         Treatment treatment,
         IEnumerable<ITreatmentMealRequest>? meals,
         IEnumerable<IMealIngredientRequest>? ingredients,
-        Dictionary<Guid, Meal> mealLookup,
-        Dictionary<Guid, Ingredient> ingredientLookup,
-        DateTimeOffset updated);
+        IEnumerable<IngredientReference>? nutritionIngredients,
+        DateTimeOffset updated,
+        CancellationToken cancellationToken = default);
 
-    Treatment RecalculateTreatmentNutrition(
+    Task<Treatment> RecalculateTreatmentNutritionAsync(
         Treatment treatment,
-        IEnumerable<ResolvedIngredient> nutritionIngredients);
+        CancellationToken cancellationToken = default);
 }

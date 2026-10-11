@@ -31,7 +31,7 @@ public sealed record UpdateTreatmentResponse
             InsulinName = treatment.Injection?.Insulin?.Name,
             InsulinUnits = treatment.Injection?.Units,
             MealCount = treatment.Meals.Count,
-            IngredientCount = treatment.Ingredients.Count,
+            IngredientCount = treatment.Ingredients.Count + treatment.NutritionIngredients.Count,
         };
     }
 }

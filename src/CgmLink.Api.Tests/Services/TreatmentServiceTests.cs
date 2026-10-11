@@ -6,6 +6,8 @@ using NUnit.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CgmLink.Api.Tests.Services;
 
@@ -13,20 +15,22 @@ namespace CgmLink.Api.Tests.Services;
 public class TreatmentServiceTests
 {
     private TreatmentService _service;
+    private Mock<IIngredientsService> _ingredientsServiceMock;
 
     [SetUp]
     public void SetUp()
     {
+        _ingredientsServiceMock = new Mock<IIngredientsService>();
         _service = new TreatmentService(Mock.Of<IRepository<Treatment>>(),
-            Mock.Of<IIngredientsService>());
+            _ingredientsServiceMock.Object, Mock.Of<IMealService>());
     }
 
     [Test]
-    public void RecalculateTreatmentNutrition_Should_Return_Zeros_When_No_Links()
+    public async Task RecalculateTreatmentNutrition_Should_Return_Zeros_When_No_Links()
     {
         var treatment = CreateTreatment();
 
-        var result = _service.RecalculateTreatmentNutrition(treatment, []);
+        var result = await _service.RecalculateTreatmentNutritionAsync(treatment);
 
         Assert.Multiple(() =>
         {
@@ -39,12 +43,12 @@ public class TreatmentServiceTests
     }
 
     [Test]
-    public void RecalculateTreatmentNutrition_Should_Multiply_Meal_Nutrition_By_Quantity()
+    public async Task RecalculateTreatmentNutrition_Should_Multiply_Meal_Nutrition_By_Quantity()
     {
         var treatment = CreateTreatment();
         treatment.Meals.Add(CreateTreatmentMeal(CreateMeal(100m, 10m, 5m, 2m), 2m, treatment.Id));
 
-        _service.RecalculateTreatmentNutrition(treatment, []);
+        await _service.RecalculateTreatmentNutritionAsync(treatment);
 
         Assert.Multiple(() =>
         {
@@ -56,13 +60,13 @@ public class TreatmentServiceTests
     }
 
     [Test]
-    public void RecalculateTreatmentNutrition_Should_Sum_Meals_And_Ingredients()
+    public async Task RecalculateTreatmentNutrition_Should_Sum_Meals_And_Ingredients()
     {
         var treatment = CreateTreatment();
         treatment.Meals.Add(CreateTreatmentMeal(CreateMeal(100m, 10m, 5m, 2m), 2m, treatment.Id));
         treatment.Ingredients.Add(CreateTreatmentIngredient(CreateServing(50m, 5m, 3m, 1m), 1m, treatment.Id));
 
-        _service.RecalculateTreatmentNutrition(treatment, []);
+        await _service.RecalculateTreatmentNutritionAsync(treatment);
 
         Assert.Multiple(() =>
         {
@@ -74,7 +78,7 @@ public class TreatmentServiceTests
     }
 
     [Test]
-    public void RecalculateTreatmentNutrition_Should_Include_Nutrition_Ingredients_Without_Double_Counting()
+    public async Task RecalculateTreatmentNutrition_Should_Include_Nutrition_Ingredients_Without_Double_Counting()
     {
         var treatment = CreateTreatment();
         treatment.Meals.Add(CreateTreatmentMeal(CreateMeal(100m, 10m, 5m, 2m), 2m, treatment.Id));
@@ -84,8 +88,18 @@ public class TreatmentServiceTests
             new ResolvedIngredient(Guid.NewGuid(), Guid.NewGuid(), 1.5m, 100m, 10m, 5m, 2m),
         };
 
-        _service.RecalculateTreatmentNutrition(treatment, resolved);
-        var result = _service.RecalculateTreatmentNutrition(treatment, resolved);
+        treatment.NutritionIngredients.Add(new TreatmentNutritionIngredient
+        {
+            TreatmentId = treatment.Id, NutritionIngredientId = resolved[0].IngredientId,
+            ServingId = resolved[0].ServingId, Quantity = resolved[0].Quantity, Created = treatment.Created,
+        });
+        _ingredientsServiceMock.Setup(s => s.ResolveIngredientsAsync(
+                It.IsAny<IEnumerable<(Guid IngredientId, Guid ServingId, decimal Quantity)>>(),
+                treatment.UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(resolved);
+
+        await _service.RecalculateTreatmentNutritionAsync(treatment);
+        var result = await _service.RecalculateTreatmentNutritionAsync(treatment);
 
         Assert.Multiple(() =>
         {
@@ -98,7 +112,7 @@ public class TreatmentServiceTests
     }
 
     [Test]
-    public void RecalculateTreatmentNutrition_Should_Skip_Lines_When_Meal_Not_Loaded()
+    public async Task RecalculateTreatmentNutrition_Should_Skip_Lines_When_Meal_Not_Loaded()
     {
         var treatment = CreateTreatment();
         treatment.Meals.Add(new TreatmentMeal
@@ -111,7 +125,7 @@ public class TreatmentServiceTests
             Created = DateTimeOffset.UtcNow,
         });
 
-        _service.RecalculateTreatmentNutrition(treatment, []);
+        await _service.RecalculateTreatmentNutritionAsync(treatment);
 
         Assert.Multiple(() =>
         {
@@ -123,7 +137,7 @@ public class TreatmentServiceTests
     }
 
     [Test]
-    public void RecalculateTreatmentNutrition_Should_Skip_Lines_When_Serving_Not_Loaded()
+    public async Task RecalculateTreatmentNutrition_Should_Skip_Lines_When_Serving_Not_Loaded()
     {
         var treatment = CreateTreatment();
         treatment.Ingredients.Add(new TreatmentIngredient
@@ -137,7 +151,7 @@ public class TreatmentServiceTests
             Created = DateTimeOffset.UtcNow,
         });
 
-        _service.RecalculateTreatmentNutrition(treatment, []);
+        await _service.RecalculateTreatmentNutritionAsync(treatment);
 
         Assert.Multiple(() =>
         {

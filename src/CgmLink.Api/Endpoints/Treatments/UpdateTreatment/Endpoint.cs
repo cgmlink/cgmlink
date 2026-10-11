@@ -9,7 +9,6 @@ using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -26,8 +25,6 @@ internal static class Endpoint
         [FromServices] IRepository<Treatment> treatmentsRepository,
         [FromServices] IRepository<Reading> readingsRepository,
         [FromServices] IRepository<Insulin> insulinsRepository,
-        [FromServices] IMealService mealService,
-        [FromServices] IIngredientsService ingredientsService,
         [FromServices] ITreatmentService treatmentService,
         CancellationToken cancellationToken)
     {
@@ -53,6 +50,7 @@ internal static class Endpoint
                 .ThenInclude(ti => ti.Ingredient)
             .Include(t => t.Ingredients)
                 .ThenInclude(ti => ti.Serving)
+            .Include(t => t.NutritionIngredients)
             .Include(t => t.Injection)
                 .ThenInclude(i => i.Insulin)
             .AsSplitQuery()
@@ -116,39 +114,6 @@ internal static class Endpoint
             }
         }
 
-        var mealLookup = new Dictionary<Guid, Meal>();
-
-        if (request.Meals is not null)
-        {
-            var existingMealIds = treatment.Meals.Select(tm => tm.MealId).ToHashSet();
-            var mealsToValidate = request.Meals.Where(m => !existingMealIds.Contains(m.MealId)).ToList();
-
-            mealLookup = await mealService
-                .GetValidatedMealsAsync(mealsToValidate, userId, cancellationToken)
-                .ConfigureAwait(false);
-        }
-
-        var ingredientLookup = new Dictionary<Guid, Ingredient>();
-
-        if (request.Ingredients is not null)
-        {
-            var existingByIngredientId = treatment.Ingredients.ToDictionary(ti => ti.IngredientId);
-            var ingredientsToValidate = new List<IMealIngredientRequest>();
-
-            foreach (var requested in request.Ingredients)
-            {
-                if (!existingByIngredientId.TryGetValue(requested.IngredientId, out var existing) ||
-                    (existing.Ingredient?.Deleted is null && existing.ServingId != requested.ServingId))
-                {
-                    ingredientsToValidate.Add(requested);
-                }
-            }
-
-            ingredientLookup = await ingredientsService
-                .GetValidatedIngredientsAsync(ingredientsToValidate, userId, cancellationToken)
-                .ConfigureAwait(false);
-        }
-
         if (injection is not null)
         {
             treatment.Injection = injection;
@@ -160,16 +125,13 @@ internal static class Endpoint
             treatment.ReadingId = request.ReadingId;
         }
 
-        if (request.Meals is not null || request.Ingredients is not null)
-        {
-            treatmentService.UpdateTreatmentFoods(
-                treatment,
-                request.Meals,
-                request.Ingredients,
-                mealLookup,
-                ingredientLookup,
-                updated);
-        }
+        await treatmentService.UpdateTreatmentFoodsAsync(
+            treatment,
+            request.Meals,
+            request.Ingredients,
+            request.NutritionIngredients?.Select(IngredientReference.FromNutrition),
+            updated,
+            cancellationToken).ConfigureAwait(false);
 
         treatment.Updated = updated;
 

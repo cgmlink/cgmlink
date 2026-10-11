@@ -15,13 +15,16 @@ public sealed class TreatmentService : ITreatmentService
 {
     private readonly IRepository<Treatment> _treatmentsRepository;
     private readonly IIngredientsService _ingredientsService;
+    private readonly IMealService _mealService;
 
     public TreatmentService(
         IRepository<Treatment> treatmentsRepository,
-        IIngredientsService ingredientsService)
+        IIngredientsService ingredientsService,
+        IMealService mealService)
     {
         _treatmentsRepository = treatmentsRepository;
         _ingredientsService = ingredientsService;
+        _mealService = mealService;
     }
 
     public async Task<GetTreatmentResponse> GetTreatmentAsync(
@@ -116,32 +119,100 @@ public sealed class TreatmentService : ITreatmentService
             });
         }
 
-        RecalculateTreatmentNutrition(treatment, resolvedIngredients);
+        CalculateTreatmentNutrition(treatment, resolvedIngredients);
 
         return treatment;
     }
 
-    public Treatment UpdateTreatmentFoods(
+    public async Task<Treatment> UpdateTreatmentFoodsAsync(
         Treatment treatment,
         IEnumerable<ITreatmentMealRequest>? meals,
         IEnumerable<IMealIngredientRequest>? ingredients,
-        Dictionary<Guid, Meal> mealLookup,
-        Dictionary<Guid, Ingredient> ingredientLookup,
+        IEnumerable<IngredientReference>? nutritionIngredients,
+        DateTimeOffset updated,
+        CancellationToken cancellationToken = default)
+    {
+        if (meals is null && ingredients is null && nutritionIngredients is null)
+        {
+            return treatment;
+        }
+
+        var requestedMeals = meals?.ToList();
+        var requestedIngredients = ingredients?.ToList();
+        var mealLookup = new Dictionary<Guid, Meal>();
+        if (requestedMeals is not null)
+        {
+            var existingIds = treatment.Meals.Select(m => m.MealId).ToHashSet();
+            mealLookup = await _mealService.GetValidatedMealsAsync(
+                requestedMeals.Where(m => !existingIds.Contains(m.MealId)), treatment.UserId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var ingredientLookup = new Dictionary<Guid, Ingredient>();
+        if (requestedIngredients is not null)
+        {
+            var existingIngredients = treatment.Ingredients.ToDictionary(i => i.IngredientId);
+            var toValidate = requestedIngredients.Where(i =>
+                !existingIngredients.TryGetValue(i.IngredientId, out var existing) ||
+                (existing.Ingredient?.Deleted is null && existing.ServingId != i.ServingId));
+            ingredientLookup = await _ingredientsService.GetValidatedIngredientsAsync(
+                toValidate.Select(IngredientReference.FromPersonal), treatment.UserId, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var resolvedIngredients = nutritionIngredients is null ? null :
+            await _ingredientsService.ResolveIngredientsAsync(nutritionIngredients, treatment.UserId, cancellationToken)
+                .ConfigureAwait(false);
+
+        if (requestedMeals is not null)
+        {
+            UpdateTreatmentMeals(treatment, requestedMeals, mealLookup, updated);
+        }
+
+        if (requestedIngredients is not null)
+        {
+            UpdateTreatmentIngredients(treatment, requestedIngredients, ingredientLookup, updated);
+        }
+
+        if (resolvedIngredients is not null)
+        {
+            UpdateTreatmentNutritionIngredients(treatment, resolvedIngredients.ToList(), updated);
+        }
+
+        return await RecalculateTreatmentNutritionAsync(treatment, cancellationToken).ConfigureAwait(false);
+    }
+
+    private static void UpdateTreatmentNutritionIngredients(
+        Treatment treatment,
+        IReadOnlyCollection<ResolvedIngredient> ingredients,
         DateTimeOffset updated)
     {
-        if (meals is not null)
+        var existingByIngredientId = treatment.NutritionIngredients.ToDictionary(i => i.NutritionIngredientId);
+        var requestedIds = ingredients.Select(i => i.IngredientId).ToHashSet();
+        foreach (var ingredient in ingredients)
         {
-            UpdateTreatmentMeals(treatment, meals, mealLookup, updated);
+            if (existingByIngredientId.TryGetValue(ingredient.IngredientId, out var existing))
+            {
+                existing.ServingId = ingredient.ServingId;
+                existing.Quantity = ingredient.Quantity;
+            }
+            else
+            {
+                treatment.NutritionIngredients.Add(new TreatmentNutritionIngredient
+                {
+                    TreatmentId = treatment.Id,
+                    NutritionIngredientId = ingredient.IngredientId,
+                    ServingId = ingredient.ServingId,
+                    Quantity = ingredient.Quantity,
+                    Created = updated,
+                });
+            }
         }
 
-        if (ingredients is not null)
+        foreach (var removed in treatment.NutritionIngredients.Where(i => !requestedIds.Contains(i.NutritionIngredientId)).ToList())
         {
-            UpdateTreatmentIngredients(treatment, ingredients, ingredientLookup, updated);
+            treatment.NutritionIngredients.Remove(removed);
         }
-
-        RecalculateTreatmentNutrition(treatment, []);
-
-        return treatment;
     }
 
     private static void UpdateTreatmentMeals(
@@ -228,7 +299,18 @@ public sealed class TreatmentService : ITreatmentService
         }
     }
 
-    public Treatment RecalculateTreatmentNutrition(
+    public async Task<Treatment> RecalculateTreatmentNutritionAsync(
+        Treatment treatment,
+        CancellationToken cancellationToken = default)
+    {
+        var nutritionIngredients = treatment.NutritionIngredients.Count == 0 ? [] :
+            await _ingredientsService.ResolveIngredientsAsync(
+                treatment.NutritionIngredients.Select(i => (i.NutritionIngredientId, i.ServingId, i.Quantity)),
+                treatment.UserId, cancellationToken).ConfigureAwait(false);
+        return CalculateTreatmentNutrition(treatment, nutritionIngredients);
+    }
+
+    private static Treatment CalculateTreatmentNutrition(
         Treatment treatment,
         IEnumerable<ResolvedIngredient> nutritionIngredients)
     {

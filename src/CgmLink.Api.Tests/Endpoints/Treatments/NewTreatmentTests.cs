@@ -67,7 +67,7 @@ public class NewTreatmentTests
             _nutritionCatalogMock.Object,
             _nutritionIngredientsRepositoryMock.Object);
         _treatmentService = new TreatmentService(Mock.Of<IRepository<Treatment>>(),
-            Mock.Of<IIngredientsService>());
+            _ingredientsService, _mealService);
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 

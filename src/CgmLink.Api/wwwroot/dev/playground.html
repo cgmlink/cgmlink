@@ -197,12 +197,16 @@
             <div><label>Image URL (optional)</label><input id="mealImageUrl" type="text" placeholder="leave blank" /></div>
             <div><label>Thumbnail URL (optional)</label><input id="mealThumbnailUrl" type="text" placeholder="leave blank" /></div>
           </div>
-          <label>Ingredients *</label>
+          <label>Personal ingredients</label>
           <div id="mealIngredientRows"></div>
           <div class="row">
             <button id="addMealIngredientBtn" class="secondary small">+ Add ingredient</button>
             <span id="mealIngHint" class="muted small" style="align-self:center;"></span>
           </div>
+          <label>Nutrition ingredients</label>
+          <p class="muted small">Add personal ingredients, nutrition ingredients, or both. Search the catalog below, then choose a product and serving.</p>
+          <div id="mealNutritionRows"></div>
+          <button id="addMealNutritionBtn" class="secondary small">+ Add nutrition ingredient</button>
           <div class="actions" style="margin-top:12px;">
             <button id="mealCancelBtn" class="secondary">Cancel</button>
             <button id="mealCreateBtn">Create meal</button>
@@ -260,7 +264,7 @@
 
         <div id="trForm" class="card" hidden>
           <h3>New treatment</h3>
-          <p class="muted" style="margin:0 0 12px;">A treatment links a reading to an insulin injection and/or food (meals and ingredients).</p>
+          <p class="muted" style="margin:0 0 12px;">A treatment links a reading to an insulin injection and/or food (meals, personal ingredients, and nutrition ingredients).</p>
           <div class="form-grid">
             <div><label>Created (optional)</label><input id="trCreated" type="datetime-local" title="Defaults to now if left blank" /></div>
             <div><label>Reading ID (optional)</label><input id="trReadingId" type="text" placeholder="leave blank" /></div>
@@ -287,6 +291,11 @@
             <button id="addTrIngredientBtn" class="secondary small">+ Add ingredient</button>
             <span id="trIngHint" class="muted small" style="align-self:center;"></span>
           </div>
+
+          <label>Nutrition ingredients (optional)</label>
+          <p class="muted small">Search the catalog below, then choose a product, serving, and number of servings.</p>
+          <div id="trNutritionRows"></div>
+          <button id="addTrNutritionBtn" class="secondary small">+ Add nutrition ingredient</button>
 
           <div class="actions" style="margin-top:12px;">
             <button id="trCancelBtn" class="secondary">Cancel</button>
@@ -640,6 +649,7 @@
 
   function ingredientDetailHtml(d) {
     const metaBits = [];
+    if (d.productId) metaBits.push("Product ID: " + esc(d.productId));
     if (d.barcode) metaBits.push("Barcode: " + esc(d.barcode));
     if (d.imageUrl) metaBits.push('<a href="' + esc(d.imageUrl) + '" target="_blank" rel="noopener">Image</a>');
     if (d.thumbnailUrl) metaBits.push('<a href="' + esc(d.thumbnailUrl) + '" target="_blank" rel="noopener">Thumbnail</a>');
@@ -652,9 +662,9 @@
     h += '<div class="meta-line">' + metaBits.join(" &middot; ") + '</div>';
     if (d.servings && d.servings.length) {
       h += '<div class="muted" style="margin:2px 0 6px;">Servings</div>';
-      h += "<table><thead><tr><th>Description</th><th>Amount</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      h += "<table><thead><tr><th>Description</th><th>Serving ID</th><th>Amount</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
       d.servings.forEach((s) => {
-        h += "<tr><td>" + esc(s.description || "-") + "</td>" +
+        h += "<tr><td>" + esc(s.description || "-") + "</td><td>" + esc(s.servingId || s.id || "-") + "</td>" +
           "<td>" + (s.servingAmount != null ? s.servingAmount + (s.servingUnit ? " " + esc(s.servingUnit) : "") : "-") + "</td>" +
           "<td>" + (s.calories ?? "-") + "</td><td>" + (s.carbs ?? "-") + "</td><td>" + (s.protein ?? "-") + "</td><td>" + (s.fat ?? "-") + "</td></tr>";
       });
@@ -876,7 +886,7 @@
     if (!out || !out.ok || !out.data) return;
     const cell = expandMealUnder(id);
     if (!cell) return;
-    cell.innerHTML = mealCardHtml(out.data, await getMealIngredients(id));
+    cell.innerHTML = mealCardHtml(out.data);
     cell.querySelector("[data-close-meal]").addEventListener("click", clearMealExpansions);
   }
 
@@ -886,7 +896,8 @@
     if (out && out.ok) refreshMeals(true);
   }
 
-  function mealCardHtml(d, ingredients) {
+  function mealCardHtml(d) {
+    const ingredients = d.ingredients || [];
     let h = '<div class="card"><div class="header-line"><h3>' + esc(d.name) + '</h3><div class="actions">' +
       '<button class="small secondary" data-close-meal>Close</button></div></div>' +
       '<div class="meta-line">Id: ' + esc(d.id || "-") + " &middot; Created " + fmtDate(d.created) +
@@ -912,18 +923,14 @@
     } else {
       h += '<div class="muted">No ingredients.</div>';
     }
+    h += nutritionIngredientsHtml(d.nutritionIngredients);
     h += "</div>";
     return h;
   }
 
-  async function getMealIngredients(id) {
-    const out = await run("list meal ingredients", () => requestJson("api/v1/meals/" + id + "/ingredients", "GET"));
-    return (out && out.ok && out.data && out.data.ingredients) ? out.data.ingredients : [];
-  }
-
-  function showMealCard(d, ingredients) {
+  function showMealCard(d) {
     const box = $("mealDetail");
-    box.innerHTML = mealCardHtml(d, ingredients || []);
+    box.innerHTML = mealCardHtml(d);
     box.querySelector("[data-close-meal]").addEventListener("click", () => { box.innerHTML = ""; });
   }
 
@@ -931,7 +938,7 @@
     const id = $("mealId").value.trim();
     if (!id) { showResponse({ status: "form", text: "Enter a meal id." }); return; }
     const out = await run("get meal", () => requestJson("api/v1/meals/" + id, "GET"));
-    if (out && out.ok && out.data) showMealCard(out.data, await getMealIngredients(id));
+    if (out && out.ok && out.data) showMealCard(out.data);
     else $("mealDetail").innerHTML = "";
   }
 
@@ -941,7 +948,7 @@
     mealIngredients = [];
     const out = await run("list ingredients for meal", () =>
       requestJson("api/v1/ingredients?page=0&pageSize=25&sortBy=Name&sortDirection=Asc", "GET"));
-    if (out && out.ok && out.data) mealIngredients = out.data.ingredients || [];
+    if (out && out.ok && out.data) mealIngredients = (out.data.ingredients || []).map(i => ({ ...i, id: i.ingredientId }));
     if (hintEl) hintEl.textContent = mealIngredients.length ? "" : "No ingredients yet - create one in the Ingredients tab first.";
     return mealIngredients;
   }
@@ -990,7 +997,7 @@
     }
     const servings = (detail && detail.servings) || [];
     servingSel.innerHTML = '<option value="">Select a serving</option>' + servings.map((s) =>
-      '<option value="' + s.id + '">' +
+      '<option value="' + esc(s.servingId) + '">' +
         esc((s.description || "Serving") + (s.servingAmount != null ? " - " + s.servingAmount + (s.servingUnit ? " " + s.servingUnit : "") : "")) +
       '</option>').join("");
     servingSel.disabled = false;
@@ -1025,6 +1032,7 @@
     $("mealImageUrl").value = "";
     $("mealThumbnailUrl").value = "";
     mealIngRowsEl.innerHTML = "";
+    $("mealNutritionRows").innerHTML = "";
     mealIngHint.textContent = "";
   }
 
@@ -1045,17 +1053,20 @@
     if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
     const ingredients = collectMealIngredients();
     if (!ingredients) return;
-    if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
+    const nutritionIngredients = collectNutritionIngredients($("mealNutritionRows"));
+    if (nutritionIngredients === null) return;
+    if (!ingredients.length && !nutritionIngredients.length) { showResponse({ status: "form", text: "Add at least one personal or nutrition ingredient." }); return; }
     const out = await run("create meal", () =>
       requestJson("api/v1/meals", "POST", {
         name,
         imageUrl: $("mealImageUrl").value.trim() || null,
         thumbnailUrl: $("mealThumbnailUrl").value.trim() || null,
         ingredients: ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity })),
+        nutritionIngredients,
       }));
     if (!out || !out.ok) return;
     $("mealId").value = out.data.id || "";
-    showMealCard(out.data, await getMealIngredients(out.data.id));
+    await getMeal();
     closeMealForm();
     refreshMeals(true);
   }
@@ -1078,14 +1089,19 @@
           '<div><label>Image URL (optional)</label><input data-edit-image type="text" /></div>' +
           '<div><label>Thumbnail URL (optional)</label><input data-edit-thumb type="text" /></div>' +
         '</div>' +
-        '<label>Ingredients *</label>' +
+        '<label>Personal ingredients</label>' +
         '<div data-edit-rows></div>' +
         '<div class="row">' +
           '<button class="secondary small" data-edit-add-ing>+ Add ingredient</button>' +
           '<span data-edit-hint class="muted small" style="align-self:center;"></span>' +
         '</div>' +
+        '<label>Nutrition ingredients</label>' +
+        '<p class="muted small">Search by name, choose a product and serving, then save to add it to this meal.</p>' +
+        '<div data-edit-nutrition-rows></div>' +
+        '<button class="secondary small" data-edit-add-nutrition>+ Add nutrition ingredient</button>' +
       '</div>';
     cell.querySelector("[data-edit-name]").value = d.name || "";
+    cell.querySelector("[data-edit-save]").disabled = true;
     cell.querySelector("[data-edit-image]").value = d.imageUrl || "";
     cell.querySelector("[data-edit-thumb]").value = d.thumbnailUrl || "";
     const rowsEl = cell.querySelector("[data-edit-rows]");
@@ -1093,7 +1109,15 @@
     cell.querySelector("[data-edit-cancel]").addEventListener("click", clearMealExpansions);
     cell.querySelector("[data-edit-save]").addEventListener("click", () => saveEditMeal(id, cell));
     cell.querySelector("[data-edit-add-ing]").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, rowsEl));
-    const ingredients = await getMealIngredients(id);
+    cell.querySelector("[data-edit-add-nutrition]").addEventListener("click", () =>
+      addNutritionIngredientRow(cell.querySelector("[data-edit-nutrition-rows]")));
+    for (const ingredient of d.nutritionIngredients || []) {
+      await addNutritionIngredientRow(cell.querySelector("[data-edit-nutrition-rows]"), ingredient);
+    }
+    if (!d.nutritionIngredients?.length) {
+      await addNutritionIngredientRow(cell.querySelector("[data-edit-nutrition-rows]"));
+    }
+    const ingredients = d.ingredients || [];
     const options = await loadMealIngredients(true);
     for (const mi of ingredients) {
       if (!options.some((o) => o.id === mi.ingredientId)) {
@@ -1105,28 +1129,46 @@
     }
     if (!ingredients.length) {
       hint.textContent = "No ingredients on this meal - add some below.";
-      addMealIngredientRow(undefined, undefined, undefined, rowsEl);
     }
+    rememberFoodRows(cell, ["[data-edit-rows]", "[data-edit-nutrition-rows]"]);
+    cell.dataset.initialFields = JSON.stringify({
+      name: d.name || "",
+      imageUrl: d.imageUrl || null,
+      thumbnailUrl: d.thumbnailUrl || null,
+    });
+    cell.querySelector("[data-edit-save]").disabled = false;
   }
 
   async function saveEditMeal(id, cell) {
     const name = cell.querySelector("[data-edit-name]").value.trim();
     if (!name) { showResponse({ status: "form", text: "Meal name is required." }); return; }
-    const rowsEl = cell.querySelector("[data-edit-rows]");
-    const ingredients = collectMealIngredients(rowsEl);
-    if (!ingredients) return;
-    if (!ingredients.length) { showResponse({ status: "form", text: "Add at least one ingredient with a serving and a quantity greater than zero." }); return; }
+    const fields = {
+      name,
+      imageUrl: cell.querySelector("[data-edit-image]").value.trim() || null,
+      thumbnailUrl: cell.querySelector("[data-edit-thumb]").value.trim() || null,
+    };
+    const initialFields = JSON.parse(cell.dataset.initialFields);
+    const payload = Object.fromEntries(Object.entries(fields).filter(([key, value]) => value !== initialFields[key]));
+    for (const [key, selector, collect] of [
+      ["ingredients", "[data-edit-rows]", collectMealIngredients],
+      ["nutritionIngredients", "[data-edit-nutrition-rows]", collectNutritionIngredients],
+    ]) {
+      const container = cell.querySelector(selector);
+      if (foodRowsSignature(container) === container.dataset.initialRows) continue;
+      const rows = collect(container);
+      if (rows === null) return;
+      payload[key] = rows;
+    }
+    if (!Object.keys(payload).length) {
+      showResponse({ status: "form", text: "No changes to save." });
+      return;
+    }
     const out = await run("update meal", () =>
-      requestJson("api/v1/meals/" + id, "PATCH", {
-        name,
-        imageUrl: cell.querySelector("[data-edit-image]").value.trim() || null,
-        thumbnailUrl: cell.querySelector("[data-edit-thumb]").value.trim() || null,
-        ingredients: ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity })),
-      }));
+      requestJson("api/v1/meals/" + id, "PATCH", payload));
     if (!out || !out.ok) return;
     clearMealExpansions();
     $("mealId").value = id;
-    showMealCard(out.data, await getMealIngredients(id));
+    await getMeal();
     refreshMeals(true);
   }
 
@@ -1392,6 +1434,130 @@
     return rows;
   }
 
+  async function addNutritionIngredientRow(container, ingredient) {
+    const row = document.createElement("div");
+    row.className = "card nutrition-ingredient-row";
+    row.dataset.existing = ingredient ? "true" : "false";
+    row.innerHTML =
+      '<div class="row"><input class="ni-search" aria-label="Search nutrition ingredients" placeholder="Search foods, e.g. milk" />' +
+      '<button class="ni-search-btn secondary small" style="flex:0 0 auto;">Search</button></div>' +
+      '<div class="ni-hint muted small" role="status"></div>' +
+      '<div class="meal-ing-row">' +
+      '<select class="ni-product" aria-label="Nutrition product"><option value="">Search and select a product</option></select>' +
+      '<select class="ni-serving" aria-label="Serving"><option value="">Select a product first</option></select>' +
+      '<input class="ni-qty" aria-label="Quantity" type="number" min="0" step="any" value="1" />' +
+      '<button class="mi-remove secondary small" aria-label="Remove nutrition ingredient">x</button></div>';
+    const product = row.querySelector(".ni-product");
+    const serving = row.querySelector(".ni-serving");
+    if (ingredient) {
+      product.innerHTML = '<option value="' + esc(ingredient.productId) + '">' + esc(ingredient.ingredientName) + '</option>';
+      serving.innerHTML = '<option value="' + esc(ingredient.serving.servingId) + '">' + esc(ingredient.serving.description || ingredient.serving.servingId) + '</option>';
+      row.querySelector(".ni-qty").value = ingredient.quantity;
+    }
+    product.addEventListener("change", () => populateNutritionServings(row));
+    row.querySelector(".ni-search-btn").addEventListener("click", () => searchNutritionIngredients(row));
+    row.querySelector(".ni-search").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); searchNutritionIngredients(row); }
+    });
+    row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
+    container.appendChild(row);
+    if (ingredient) await populateNutritionServings(row, ingredient.serving.servingId);
+    else row.querySelector(".ni-search").focus();
+  }
+
+  async function searchNutritionIngredients(row) {
+    const name = row.querySelector(".ni-search").value.trim();
+    const hint = row.querySelector(".ni-hint");
+    if (!name) { hint.textContent = "Enter a food name to search."; return; }
+    const button = row.querySelector(".ni-search-btn");
+    if (button.disabled) return;
+    button.disabled = true;
+    hint.textContent = "Searching…";
+    try {
+      const params = new URLSearchParams({ type: "External", name, page: 0, pageSize: 25 });
+      const out = await run("search nutrition ingredients", () => requestJson("api/v1/ingredients?" + params, "GET"));
+      if (!out || !out.ok || !out.data) { hint.textContent = "Search failed. Try again."; return; }
+      const products = out.data.ingredients || [];
+      const productSelect = row.querySelector(".ni-product");
+      const selectedId = productSelect.value;
+      const selectedName = selectedId ? productSelect.selectedOptions[0].textContent : "";
+      productSelect.innerHTML = '<option value="">Select a product</option>' +
+        (selectedId ? '<option value="' + esc(selectedId) + '">' + esc(selectedName) + '</option>' : "") +
+        products.filter(product => product.productId !== selectedId).map(product =>
+        '<option value="' + esc(product.productId) + '">' + esc(product.name) + '</option>').join("");
+      productSelect.value = selectedId;
+      if (!selectedId) {
+        row.querySelector(".ni-serving").innerHTML = '<option value="">Select a product first</option>';
+        row.querySelector(".ni-serving").disabled = false;
+      }
+      hint.textContent = products.length ? products.length + " results. Choose a product below; narrow your search if needed." : "No products found. Try another name.";
+    } finally {
+      button.disabled = false;
+    }
+  }
+
+  async function populateNutritionServings(row, selectedServingId) {
+    const productId = row.querySelector(".ni-product").value;
+    const serving = row.querySelector(".ni-serving");
+    if (!selectedServingId) serving.innerHTML = '<option value="">Select a serving</option>';
+    if (!productId) { serving.disabled = false; return; }
+    serving.disabled = true;
+    const out = await run("get nutrition servings", () =>
+      requestJson("api/v1/ingredients/" + encodeURIComponent(productId) + "?type=External", "GET"));
+    if (row.querySelector(".ni-product").value !== productId) return;
+    serving.disabled = false;
+    if (!out || !out.ok || !out.data) {
+      row.querySelector(".ni-hint").textContent = "Could not load servings. Select the product again to retry.";
+      return;
+    }
+    const servings = out.data.servings || [];
+    serving.innerHTML = '<option value="">Select a serving</option>' + servings.map(s =>
+      '<option value="' + esc(s.servingId) + '">' + esc((s.description || "Serving") +
+        (s.servingAmount != null ? " - " + s.servingAmount + " " + (s.servingUnit || "") : "") +
+        " (" + s.calories + " kcal)") + '</option>').join("");
+    if (selectedServingId && servings.some(s => s.servingId === selectedServingId)) serving.value = selectedServingId;
+    row.querySelector(".ni-hint").textContent = servings.length ? "Choose a serving and enter the quantity." : "This product has no servings. Choose another product.";
+  }
+
+  function collectNutritionIngredients(container) {
+    const rows = Array.from(container.querySelectorAll(".nutrition-ingredient-row"))
+      .filter(row => row.dataset.existing === "true" || row.querySelector(".ni-product").value)
+      .map((row) => ({
+      productId: row.querySelector(".ni-product").value.trim(),
+      servingId: row.querySelector(".ni-serving").value.trim(),
+      quantity: Number(row.querySelector(".ni-qty").value),
+    }));
+    const seen = new Set();
+    for (const row of rows) {
+      if (!row.productId || !row.servingId || !Number.isFinite(row.quantity) || row.quantity <= 0) {
+        showResponse({ status: "form", text: "Every nutrition ingredient needs a product, serving, and quantity greater than zero." });
+        return null;
+      }
+      if (seen.has(row.productId)) {
+        showResponse({ status: "form", text: "The same nutrition product can only be added once." });
+        return null;
+      }
+      seen.add(row.productId);
+    }
+    return rows;
+  }
+
+  function foodRowsSignature(container) {
+    return JSON.stringify(Array.from(container.querySelectorAll(
+      ".tm-meal, .tm-qty, .mi-ing, .mi-serving, .mi-qty, .ni-product, .ni-serving, .ni-qty"
+    )).filter(field => {
+      const row = field.closest(".nutrition-ingredient-row");
+      return !row || row.dataset.existing === "true" || row.querySelector(".ni-product").value;
+    }).map(field => field.type === "number" ? Number(field.value) : field.value.trim()));
+  }
+
+  function rememberFoodRows(cell, selectors) {
+    for (const selector of selectors) {
+      const container = cell.querySelector(selector);
+      container.dataset.initialRows = foodRowsSignature(container);
+    }
+  }
+
   function collectInjection(prefix, enableId) {
     if (enableId && !$(enableId).checked) return null;
     const insulinId = $(prefix + "Insulin").value;
@@ -1422,6 +1588,7 @@
     $("trUnits").value = "";
     $("trMealRows").innerHTML = "";
     $("trIngredientRows").innerHTML = "";
+    $("trNutritionRows").innerHTML = "";
     $("trMealHint").textContent = "";
     $("trIngHint").textContent = "";
   }
@@ -1453,20 +1620,26 @@
     if (meals === null) return;
     const ingredients = collectMealIngredients($("trIngredientRows"));
     if (ingredients === null) return;
+    const nutritionIngredients = collectNutritionIngredients($("trNutritionRows"));
+    if (nutritionIngredients === null) return;
 
-    if (!payload.injection && !meals.length && !ingredients.length) {
-      showResponse({ status: "form", text: "A treatment needs an injection, at least one meal, or at least one ingredient." });
+    if (!payload.injection && !meals.length && !ingredients.length && !nutritionIngredients.length) {
+      showResponse({ status: "form", text: "A treatment needs an injection, meal, personal ingredient, or nutrition ingredient." });
       return;
     }
 
     payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
     payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
+    payload.nutritionIngredients = nutritionIngredients;
 
     const out = await run("create treatment", () => requestJson("api/v1/treatments", "POST", payload));
     if (!out || !out.ok) return;
     closeTreatmentForm();
     refreshTreatments(true);
-    if (out.data.id) showTreatmentCard(out.data);
+    if (out.data.id) {
+      $("treatmentId").value = out.data.id;
+      await getTreatment();
+    }
   }
 
   async function refreshTreatments(resetPage) {
@@ -1581,18 +1754,22 @@
             '<div><label>Units</label><input data-edit-units type="number" step="any" min="0" /></div>' +
           '</div>' +
         '</div>' +
-        '<label style="margin-top:12px;">Meals (optional - replaces the meal set when rows are present)</label>' +
+        '<label style="margin-top:12px;">Meals</label>' +
         '<div data-edit-meal-rows></div>' +
         '<div class="row">' +
           '<button class="secondary small" data-edit-add-meal>+ Add meal</button>' +
           '<span data-edit-meal-hint class="muted small" style="align-self:center;"></span>' +
         '</div>' +
-        '<label>Ingredients (optional - replaces the ingredient set when rows are present)</label>' +
+        '<label>Personal ingredients</label>' +
         '<div data-edit-ing-rows></div>' +
         '<div class="row">' +
           '<button class="secondary small" data-edit-add-ing>+ Add ingredient</button>' +
           '<span data-edit-ing-hint class="muted small" style="align-self:center;"></span>' +
         '</div>' +
+        '<label>Nutrition ingredients</label>' +
+        '<p class="muted small">Search by name, choose a product and serving, then save to add it to this treatment.</p>' +
+        '<div data-edit-nutrition-rows></div>' +
+        '<button class="secondary small" data-edit-add-nutrition>+ Add nutrition ingredient</button>' +
       '</div>';
     cell.querySelector("[data-edit-cancel]").addEventListener("click", clearTreatmentExpansions);
     cell.querySelector("[data-edit-save]").addEventListener("click", () => saveEditTreatment(id, cell));
@@ -1600,8 +1777,17 @@
       addTreatmentMealRow(undefined, undefined, cell.querySelector("[data-edit-meal-rows]"), cell.querySelector("[data-edit-meal-hint]")));
     cell.querySelector("[data-edit-add-ing]").addEventListener("click", () =>
       addMealIngredientRow(undefined, undefined, undefined, cell.querySelector("[data-edit-ing-rows]"), cell.querySelector("[data-edit-ing-hint]")));
+    cell.querySelector("[data-edit-add-nutrition]").addEventListener("click", () =>
+      addNutritionIngredientRow(cell.querySelector("[data-edit-nutrition-rows]")));
+    for (const ingredient of d.nutritionIngredients || []) {
+      await addNutritionIngredientRow(cell.querySelector("[data-edit-nutrition-rows]"), ingredient);
+    }
+    if (!d.nutritionIngredients?.length) {
+      await addNutritionIngredientRow(cell.querySelector("[data-edit-nutrition-rows]"));
+    }
 
     cell.querySelector("[data-edit-reading]").value = (d.reading && d.reading.id) ? d.reading.id : "";
+    cell.querySelector("[data-edit-save]").disabled = true;
 
     await loadTreatmentPickers();
     const insulinSel = cell.querySelector("[data-edit-insulin]");
@@ -1644,13 +1830,22 @@
     } else {
       ingHint.textContent = "No ingredients on this treatment - add some below.";
     }
+    rememberFoodRows(cell, ["[data-edit-meal-rows]", "[data-edit-ing-rows]", "[data-edit-nutrition-rows]"]);
+    cell.dataset.initialFields = JSON.stringify({
+      readingId: cell.querySelector("[data-edit-reading]").value.trim(),
+      includeInjection: cell.querySelector("[data-edit-include-inj]").checked,
+      insulinId: cell.querySelector("[data-edit-insulin]").value,
+      units: Number(cell.querySelector("[data-edit-units]").value),
+    });
+    cell.querySelector("[data-edit-save]").disabled = false;
   }
 
   async function saveEditTreatment(id, cell) {
     const payload = {};
+    const initialFields = JSON.parse(cell.dataset.initialFields);
 
     const readingId = cell.querySelector("[data-edit-reading]").value.trim();
-    if (readingId) payload.readingId = readingId;
+    if (readingId && readingId !== initialFields.readingId) payload.readingId = readingId;
 
     if (cell.querySelector("[data-edit-include-inj]").checked) {
       const insulinId = cell.querySelector("[data-edit-insulin]").value;
@@ -1668,19 +1863,25 @@
         showResponse({ status: "form", text: "Injection units must be greater than zero." });
         return;
       }
-      payload.injection = { insulinId, units };
+      if (!initialFields.includeInjection || insulinId !== initialFields.insulinId || units !== initialFields.units) {
+        payload.injection = { insulinId, units };
+      }
     }
 
-    const meals = collectMealRows(cell.querySelector("[data-edit-meal-rows]"));
-    if (meals === null) return;
-    if (meals.length) payload.meals = meals.map((m) => ({ mealId: m.mealId, quantity: m.quantity }));
+    for (const [name, selector, collect] of [
+      ["meals", "[data-edit-meal-rows]", collectMealRows],
+      ["ingredients", "[data-edit-ing-rows]", collectMealIngredients],
+      ["nutritionIngredients", "[data-edit-nutrition-rows]", collectNutritionIngredients],
+    ]) {
+      const container = cell.querySelector(selector);
+      if (foodRowsSignature(container) === container.dataset.initialRows) continue;
+      const rows = collect(container);
+      if (rows === null) return;
+      payload[name] = rows;
+    }
 
-    const ingredients = collectMealIngredients(cell.querySelector("[data-edit-ing-rows]"));
-    if (ingredients === null) return;
-    if (ingredients.length) payload.ingredients = ingredients.map((i) => ({ ingredientId: i.ingredientId, servingId: i.servingId, quantity: i.quantity }));
-
-    if (!payload.injection && !payload.readingId && !payload.meals && !payload.ingredients) {
-      showResponse({ status: "form", text: "Update needs at least one of: injection, readingId, meals, or ingredients." });
+    if (!Object.keys(payload).length) {
+      showResponse({ status: "form", text: "No changes to save." });
       return;
     }
 
@@ -1688,7 +1889,7 @@
     if (!out || !out.ok) return;
     clearTreatmentExpansions();
     $("treatmentId").value = id;
-    if (out.data && out.data.id) showTreatmentCard(out.data);
+    await getTreatment();
     refreshTreatments(true);
   }
 
@@ -1735,7 +1936,24 @@
     } else {
       h += '<div class="muted">No ingredients.</div>';
     }
+    h += nutritionIngredientsHtml(d.nutritionIngredients);
     h += "</div>";
+    return h;
+  }
+
+  function nutritionIngredientsHtml(ingredients) {
+    let h = '<div class="muted" style="margin:12px 0 6px;">Nutrition ingredients</div>';
+    if (ingredients && ingredients.length) {
+      h += "<table><thead><tr><th>Name / Product ID</th><th>Serving / ID</th><th>Qty</th><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody>";
+      for (const i of ingredients) {
+        h += "<tr><td>" + esc(i.ingredientName) + "<br>" + esc(i.productId) + "</td><td>" +
+          esc(i.serving.description || "-") + "<br>" + esc(i.serving.servingId) + "</td><td>" + i.quantity + "</td>" +
+          "<td>" + i.calories + " kcal</td><td>" + i.carbs + " g</td><td>" + i.protein + " g</td><td>" + i.fat + " g</td></tr>";
+      }
+      h += "</tbody></table>";
+    } else {
+      h += '<div class="muted">No nutrition ingredients.</div>';
+    }
     return h;
   }
 
@@ -1803,6 +2021,7 @@
   $("addMealIngredientBtn").addEventListener("click", () => addMealIngredientRow());
   $("mealCancelBtn").addEventListener("click", closeMealForm);
   $("mealCreateBtn").addEventListener("click", createMeal);
+  $("addMealNutritionBtn").addEventListener("click", () => addNutritionIngredientRow($("mealNutritionRows")));
   $("refreshTreatmentsBtn").addEventListener("click", () => refreshTreatments(false));
   $("newTreatmentBtn").addEventListener("click", showTreatmentForm);
   $("getTreatmentBtn").addEventListener("click", getTreatment);
@@ -1810,6 +2029,7 @@
   $("addTrMealBtn").addEventListener("click", () => addTreatmentMealRow(undefined, undefined, $("trMealRows"), $("trMealHint")));
   $("addTrIngredientBtn").addEventListener("click", () => addMealIngredientRow(undefined, undefined, undefined, $("trIngredientRows"), $("trIngHint")));
   $("trCancelBtn").addEventListener("click", closeTreatmentForm);
+  $("addTrNutritionBtn").addEventListener("click", () => addNutritionIngredientRow($("trNutritionRows")));
   $("trCreateBtn").addEventListener("click", createTreatment);
   $("refreshInsulinsBtn").addEventListener("click", () => refreshInsulins(false));
   $("newInsulinBtn").addEventListener("click", () => openInsulinForm("new", {}));

@@ -153,10 +153,63 @@ public sealed class IngredientsService : IIngredientsService
         return servings;
     }
 
-    public async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+    public Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
         IEnumerable<IngredientReference> references,
         Guid userId,
         CancellationToken cancellationToken = default)
+        => ResolveIngredientsAsync(references, userId, null, cancellationToken);
+
+    public Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+        IEnumerable<(NutritionIngredient? Ingredient, CgmLink.Data.Entities.NutritionServing? Serving, decimal Quantity)> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var references = new List<IngredientReference>();
+        var storedIds = new List<(Guid IngredientId, Guid ServingId)>();
+        foreach (var (ingredient, serving, quantity) in ingredients)
+        {
+            if (ingredient is null || ingredient.Source != _nutritionCatalog.Source)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+            if (serving is null)
+            {
+                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
+            }
+            references.Add(new IngredientReference(null, ingredient.ProductId, serving.ServingId, quantity));
+            storedIds.Add((ingredient.Id, serving.Id));
+        }
+
+        return ResolveIngredientsAsync(references, userId, storedIds, cancellationToken);
+    }
+
+    public async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+        IEnumerable<(Guid IngredientId, Guid ServingId, decimal Quantity)> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default)
+    {
+        var selections = ingredients.ToList();
+        var ids = selections.Select(i => i.IngredientId).Distinct().ToList();
+        var identities = await _nutritionIngredientsRepository.GetAll()
+            .Where(i => ids.Contains(i.Id))
+            .Include(i => i.Servings)
+            .ToDictionaryAsync(i => i.Id, cancellationToken).ConfigureAwait(false);
+        var references = selections.Select(i =>
+        {
+            if (!identities.TryGetValue(i.IngredientId, out var ingredient))
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+            return ((NutritionIngredient?)ingredient, ingredient.Servings.SingleOrDefault(s => s.Id == i.ServingId), i.Quantity);
+        }).ToList();
+        return await ResolveIngredientsAsync(references, userId, cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+        IEnumerable<IngredientReference> references,
+        Guid userId,
+        IReadOnlyList<(Guid IngredientId, Guid ServingId)>? storedIds,
+        CancellationToken cancellationToken)
     {
         var selections = references.Select((reference, index) =>
         {
@@ -199,6 +252,10 @@ public sealed class IngredientsService : IIngredientsService
             var product = await _nutritionCatalog.GetAsync(productId, cancellationToken).ConfigureAwait(false);
             if (product is null)
             {
+                if (storedIds is not null)
+                {
+                    throw new NotFoundException("INGREDIENT_NOT_FOUND");
+                }
                 throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
             }
 
@@ -212,13 +269,15 @@ public sealed class IngredientsService : IIngredientsService
                 .SingleOrDefault(candidate => candidate.ExternalId == selection.Reference.ServingId);
             if (serving is null)
             {
-                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+                throw new BadRequestException(storedIds is null
+                    ? ValidationMessages.IngredientIdInvalid
+                    : ValidationMessages.IngredientServingIdInvalid);
             }
 
             externalServings.Add(selection.Index, serving);
         }
 
-        var identityLookup = await GetOrCreateExternalIdentitiesAsync(
+        var identityLookup = storedIds is not null ? [] : await GetOrCreateExternalIdentitiesAsync(
                 externalSelections,
                 cancellationToken)
             .ConfigureAwait(false);
@@ -241,12 +300,12 @@ public sealed class IngredientsService : IIngredientsService
 
         foreach (var selection in externalSelections)
         {
-            var identity = identityLookup[selection.Reference.ProductId!];
-            var identityServing = identity.Servings.Single(serving => serving.ServingId == selection.Reference.ServingId);
+            var identity = storedIds is null ? identityLookup[selection.Reference.ProductId!] : null;
+            var identityServing = identity?.Servings.Single(serving => serving.ServingId == selection.Reference.ServingId);
             var serving = externalServings[selection.Index];
             resolved[selection.Index] = new ResolvedIngredient(
-                identity.Id,
-                identityServing.Id,
+                storedIds?[selection.Index].IngredientId ?? identity!.Id,
+                storedIds?[selection.Index].ServingId ?? identityServing!.Id,
                 selection.Reference.Quantity,
                 serving.Calories,
                 serving.Carbs,
@@ -257,12 +316,26 @@ public sealed class IngredientsService : IIngredientsService
         return resolved;
     }
 
-    public async Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(
+    public Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(
         IEnumerable<IMealIngredientRequest> ingredients,
         Guid userId,
         CancellationToken cancellationToken = default)
+        => GetValidatedIngredientsAsync(ingredients.Select(IngredientReference.FromPersonal), userId, cancellationToken);
+
+    public async Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(
+        IEnumerable<IngredientReference> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default)
     {
-        var references = ingredients.Select(ingredient => (ingredient.IngredientId, ingredient.ServingId)).ToList();
+        var references = ingredients.Select(ingredient =>
+        {
+            if (ingredient.IngredientId is not Guid id || !string.IsNullOrWhiteSpace(ingredient.ProductId) ||
+                !Guid.TryParse(ingredient.ServingId, out var servingId))
+            {
+                throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
+            }
+            return (id, servingId);
+        }).ToList();
 
         return await GetIngredientLookupAsync(references, userId, cancellationToken).ConfigureAwait(false);
     }
