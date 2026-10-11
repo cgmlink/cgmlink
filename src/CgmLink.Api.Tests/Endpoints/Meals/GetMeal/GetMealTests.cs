@@ -36,7 +36,8 @@ public class GetMealTests
             .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
                 ProductId = "product",
-                Name = "External food", Attribution = "Provider attribution",
+                Name = "External food",
+                Attribution = "Provider attribution",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving" }],
             });
         _mealService = new MealService(_mealsRepositoryMock.Object, catalog.Object,

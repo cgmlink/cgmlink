@@ -213,7 +213,9 @@ public class GetTreatmentTests
         var product = new NutritionProduct
         {
             ProductId = "product",
-            Name = "External food", CachedAt = cachedAt, Attribution = "source attribution",
+            Name = "External food",
+            CachedAt = cachedAt,
+            Attribution = "source attribution",
             Servings = [new CgmLink.Nutrition.Source.NutritionServing
             {
                 ExternalId = "serving", Description = "1 cup", ServingAmount = 250, ServingUnit = "ml",
@@ -265,7 +267,10 @@ public class GetTreatmentTests
             It.IsAny<CancellationToken>()))
             .ReturnsAsync(new NutritionProduct
             {
-                ProductId = "product", Name = "External food", Attribution = "attribution", Servings = [],
+                ProductId = "product",
+                Name = "External food",
+                Attribution = "attribution",
+                Servings = [],
             });
 
         var message = invalidReference is "missingIngredient" or "wrongSource"
