@@ -23,7 +23,7 @@ public class GetMealIngredientTests
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IRepository<Meal>> _mealsRepositoryMock;
     private Mock<ICurrentUser> _currentUserMock;
-    private Mock<IIngredientsService> _ingredientsServiceMock;
+    private Mock<CgmLink.Nutrition.INutritionCatalog> _nutritionCatalogMock;
     private IMealService _mealService;
 
     [SetUp]
@@ -31,11 +31,11 @@ public class GetMealIngredientTests
     {
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _currentUserMock = new Mock<ICurrentUser>();
-        _ingredientsServiceMock = new Mock<IIngredientsService>();
-        var catalog = new Mock<CgmLink.Nutrition.INutritionCatalog>();
+        _nutritionCatalogMock = new Mock<CgmLink.Nutrition.INutritionCatalog>();
+        var catalog = _nutritionCatalogMock;
         catalog.SetupGet(c => c.Source).Returns("external");
         _mealService = new MealService(_mealsRepositoryMock.Object, catalog.Object,
-            _ingredientsServiceMock.Object, Mock.Of<IRepository<NutritionIngredient>>());
+            new IngredientsService(Mock.Of<IRepository<Ingredient>>(), catalog.Object, Mock.Of<IRepository<NutritionIngredient>>()), Mock.Of<IRepository<NutritionIngredient>>());
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
     }
@@ -197,10 +197,12 @@ public class GetMealIngredientTests
         }
         SetupMeal(meal);
         var cachedAt = DateTimeOffset.UtcNow.AddHours(-1);
-        var product = IngredientResponse.FromProduct(new CgmLink.Nutrition.Source.NutritionProduct
+        var product = new CgmLink.Nutrition.Source.NutritionProduct
         {
             ProductId = "product-1",
             Name = "External milk",
+            CachedAt = cachedAt,
+            Attribution = "Provider attribution",
             Servings =
             [
                 new CgmLink.Nutrition.Source.NutritionServing
@@ -213,10 +215,10 @@ public class GetMealIngredientTests
                     ExternalId = "spoon", Description = "1 spoon", Calories = 10, Carbs = 1, Protein = 0.5m, Fat = 0.25m,
                 },
             ],
-        }, cachedAt, "Provider attribution");
+        };
         using var cancellation = new CancellationTokenSource();
         var token = cancellation.Token;
-        _ingredientsServiceMock.Setup(s => s.GetIngredientAsync("product-1", _userId, token, IngredientType.External))
+        _nutritionCatalogMock.Setup(s => s.GetAsync("product-1", token))
             .ReturnsAsync(product);
 
         var result = await Endpoint.HandleAsync(mealId, _currentUserMock.Object,
@@ -245,7 +247,7 @@ public class GetMealIngredientTests
             Assert.That(spoon.Serving.ServingId, Is.EqualTo("spoon"));
             Assert.That(spoon.Calories, Is.EqualTo(10));
         });
-        _ingredientsServiceMock.Verify(s => s.GetIngredientAsync("product-1", _userId, token, IngredientType.External), Times.Once);
+        _nutritionCatalogMock.Verify(s => s.GetAsync("product-1", token), Times.Once);
         if (includePersonalIngredient)
         {
             Assert.That(response.Ingredients.Single().Calories, Is.EqualTo(200));
@@ -281,20 +283,21 @@ public class GetMealIngredientTests
             Created = DateTimeOffset.UtcNow,
         });
         SetupMeal(meal);
-        var lookup = _ingredientsServiceMock.Setup(s => s.GetIngredientAsync(
-            "product-1", _userId, CancellationToken.None, IngredientType.External));
+        var lookup = _nutritionCatalogMock.Setup(s => s.GetAsync(
+            "product-1", CancellationToken.None));
         if (missing == "product")
         {
             lookup.ThrowsAsync(new NotFoundException("INGREDIENT_NOT_FOUND"));
         }
         else
         {
-            lookup.ReturnsAsync(IngredientResponse.FromProduct(new CgmLink.Nutrition.Source.NutritionProduct
+            lookup.ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
                 ProductId = "product-1",
                 Name = "Milk",
+                Attribution = "Provider attribution",
                 Servings = [],
-            }, null, "Provider attribution"));
+            });
         }
 
         Assert.That(async () => await Endpoint.HandleAsync(meal.Id, _currentUserMock.Object,
@@ -314,8 +317,8 @@ public class GetMealIngredientTests
         var okResult = result.Result as Ok<GetMealResponse>;
         Assert.That(okResult!.Value.Ingredients, Is.Empty);
         Assert.That(okResult.Value.NutritionIngredients, Is.Empty);
-        _ingredientsServiceMock.Verify(s => s.GetIngredientAsync(It.IsAny<string>(), It.IsAny<Guid>(),
-            It.IsAny<CancellationToken>(), It.IsAny<IngredientType>()), Times.Never);
+        _nutritionCatalogMock.Verify(s => s.GetAsync(It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]

@@ -1,11 +1,16 @@
 using CgmLink.Data.Entities;
+using CgmLink.Api.Endpoints.Treatments.GetTreatment;
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CgmLink.Api.Services;
 
 public interface ITreatmentService
 {
+    Task<GetTreatmentResponse> GetTreatmentAsync(Guid treatmentId, Guid userId, CancellationToken cancellationToken = default);
+
     Treatment CreateTreatment(
         IEnumerable<ITreatmentMealRequest> meals,
         IEnumerable<IMealIngredientRequest> ingredients,

@@ -1,4 +1,5 @@
 using CgmLink.Data.Entities;
+using CgmLink.Api.Endpoints.Ingredients;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,6 +21,7 @@ public sealed record GetTreatmentResponse
     public decimal? InsulinUnits { get; init; }
     public required ICollection<GetTreatmentMealResponse> Meals { get; init; } = [];
     public required ICollection<GetTreatmentIngredientResponse> Ingredients { get; init; } = [];
+    public required ICollection<GetTreatmentNutritionIngredientResponse> NutritionIngredients { get; init; } = [];
 
     public static GetTreatmentResponse ToResponse(Treatment treatment)
     {
@@ -37,6 +39,7 @@ public sealed record GetTreatmentResponse
             InsulinUnits = treatment.Injection?.Units,
             Meals = treatment.Meals.Select(GetTreatmentMealResponse.ToResponse).ToList(),
             Ingredients = treatment.Ingredients.Select(GetTreatmentIngredientResponse.ToResponse).ToList(),
+            NutritionIngredients = [],
         };
     }
 }
@@ -145,6 +148,38 @@ public sealed record GetTreatmentServingResponse
             Carbs = serving.Carbs,
             Protein = serving.Protein,
             Fat = serving.Fat,
+        };
+    }
+}
+
+public sealed record GetTreatmentNutritionIngredientResponse
+{
+    public required string ProductId { get; init; }
+    public required string IngredientName { get; init; }
+    public required decimal Quantity { get; init; }
+    public required IngredientServingResponse Serving { get; init; }
+    public required decimal Calories { get; init; }
+    public required decimal Carbs { get; init; }
+    public required decimal Protein { get; init; }
+    public required decimal Fat { get; init; }
+    public DateTimeOffset? CachedAt { get; init; }
+    public string? Attribution { get; init; }
+
+    public static GetTreatmentNutritionIngredientResponse ToResponse(
+        TreatmentNutritionIngredient treatmentIngredient, IngredientResponse product, IngredientServingResponse serving)
+    {
+        return new GetTreatmentNutritionIngredientResponse
+        {
+            ProductId = product.ProductId!,
+            IngredientName = product.Name,
+            Quantity = treatmentIngredient.Quantity,
+            Serving = serving,
+            Calories = serving.Calories * treatmentIngredient.Quantity,
+            Carbs = serving.Carbs * treatmentIngredient.Quantity,
+            Protein = serving.Protein * treatmentIngredient.Quantity,
+            Fat = serving.Fat * treatmentIngredient.Quantity,
+            CachedAt = product.CachedAt,
+            Attribution = product.Attribution,
         };
     }
 }

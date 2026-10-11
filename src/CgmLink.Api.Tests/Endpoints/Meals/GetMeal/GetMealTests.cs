@@ -31,16 +31,17 @@ public class GetMealTests
         _currentUserMock = new Mock<ICurrentUser>();
         var catalog = new Mock<CgmLink.Nutrition.INutritionCatalog>();
         catalog.SetupGet(c => c.Source).Returns("external");
-        var ingredientsService = new Mock<IIngredientsService>();
-        ingredientsService.Setup(s => s.GetIngredientAsync("product", _userId, It.IsAny<CancellationToken>(), IngredientType.External))
-            .ReturnsAsync(IngredientResponse.FromProduct(new CgmLink.Nutrition.Source.NutritionProduct
+        var ingredientsService = new IngredientsService(Mock.Of<IRepository<Ingredient>>(), catalog.Object, Mock.Of<IRepository<NutritionIngredient>>());
+        catalog.Setup(s => s.GetAsync("product", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
                 ProductId = "product",
                 Name = "External food",
+                Attribution = "Provider attribution",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving" }],
-            }, null, "Provider attribution"));
+            });
         _mealService = new MealService(_mealsRepositoryMock.Object, catalog.Object,
-            ingredientsService.Object, Mock.Of<IRepository<NutritionIngredient>>());
+            ingredientsService, Mock.Of<IRepository<NutritionIngredient>>());
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
     }

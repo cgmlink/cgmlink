@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Linq.Expressions;
+using CgmLink.Api.Services;
+using CgmLink.Api.Endpoints.Ingredients;
+using CgmLink.Nutrition;
+using CgmLink.Nutrition.Source;
+using CgmLink.Resources;
 using System.Threading;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Treatments.GetTreatment;
@@ -23,6 +27,8 @@ public class GetTreatmentTests
     private readonly Guid _userId = Guid.NewGuid();
     private Mock<IRepository<Treatment>> _treatmentsRepositoryMock;
     private Mock<ICurrentUser> _currentUserMock;
+    private Mock<INutritionCatalog> _nutritionCatalogMock;
+    private TreatmentService _service;
 
     [SetUp]
     public void SetUp()
@@ -32,9 +38,10 @@ public class GetTreatmentTests
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 
-        _treatmentsRepositoryMock
-            .Setup(r => r.AnyAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(true);
+        _nutritionCatalogMock = new Mock<INutritionCatalog>();
+        _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
+        var ingredientsService = new IngredientsService(Mock.Of<IRepository<Ingredient>>(), _nutritionCatalogMock.Object, Mock.Of<IRepository<NutritionIngredient>>());
+        _service = new TreatmentService(_treatmentsRepositoryMock.Object, ingredientsService);
     }
 
     private Reading CreateReading(Guid id)
@@ -159,6 +166,119 @@ public class GetTreatmentTests
             .Returns(new TestAsyncEnumerable<Treatment>(new List<Treatment> { treatment }));
     }
 
+    private TreatmentNutritionIngredient CreateNutritionIngredient()
+    {
+        var identity = new NutritionIngredient { Source = "external", ProductId = "product" };
+        var serving = new CgmLink.Data.Entities.NutritionServing
+        {
+            NutritionIngredientId = identity.Id,
+            NutritionIngredient = identity,
+            ServingId = "serving",
+        };
+        return new TreatmentNutritionIngredient
+        {
+            NutritionIngredientId = identity.Id,
+            NutritionIngredient = identity,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = 2m,
+            Created = DateTimeOffset.UtcNow,
+        };
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Delegate_To_Treatment_Service()
+    {
+        var treatmentId = Guid.NewGuid();
+        var response = GetTreatmentResponse.ToResponse(CreateTreatment(treatmentId));
+        var service = new Mock<ITreatmentService>();
+        using var cancellation = new CancellationTokenSource();
+        service.Setup(s => s.GetTreatmentAsync(treatmentId, _userId, cancellation.Token)).ReturnsAsync(response);
+
+        var result = await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object, service.Object, cancellation.Token);
+
+        Assert.That(((Ok<GetTreatmentResponse>)result.Result).Value, Is.SameAs(response));
+        service.Verify(s => s.GetTreatmentAsync(treatmentId, _userId, cancellation.Token), Times.Once);
+    }
+
+    [Test]
+    public async Task HandleAsync_Should_Return_Nutrition_Ingredients_And_Fetch_Each_Product_Once()
+    {
+        var treatment = CreateTreatment(Guid.NewGuid());
+        treatment.Ingredients.Add(CreateTreatmentIngredient(treatment.Id, Guid.NewGuid(), Guid.NewGuid(), 1m));
+        treatment.NutritionIngredients.Add(CreateNutritionIngredient());
+        treatment.NutritionIngredients.Add(CreateNutritionIngredient());
+        SetupTreatment(treatment);
+        var cachedAt = DateTimeOffset.UtcNow;
+        var product = new NutritionProduct
+        {
+            ProductId = "product",
+            Name = "External food",
+            CachedAt = cachedAt,
+            Attribution = "source attribution",
+            Servings = [new CgmLink.Nutrition.Source.NutritionServing
+            {
+                ExternalId = "serving", Description = "1 cup", ServingAmount = 250, ServingUnit = "ml",
+                Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m,
+            }],
+        };
+        using var cancellation = new CancellationTokenSource();
+        _nutritionCatalogMock.Setup(s => s.GetAsync("product",
+            cancellation.Token)).ReturnsAsync(product);
+
+        var result = await Endpoint.HandleAsync(treatment.Id, _currentUserMock.Object, _service, cancellation.Token);
+        var response = ((Ok<GetTreatmentResponse>)result.Result).Value!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.Ingredients, Has.Count.EqualTo(1));
+            Assert.That(response.NutritionIngredients, Has.Count.EqualTo(2));
+            var ingredient = response.NutritionIngredients.First();
+            Assert.That(ingredient.ProductId, Is.EqualTo("product"));
+            Assert.That(ingredient.IngredientName, Is.EqualTo("External food"));
+            Assert.That(ingredient.Quantity, Is.EqualTo(2m));
+            Assert.That(ingredient.Serving.ServingId, Is.EqualTo("serving"));
+            Assert.That(ingredient.Calories, Is.EqualTo(200m));
+            Assert.That(ingredient.Carbs, Is.EqualTo(20m));
+            Assert.That(ingredient.Protein, Is.EqualTo(10m));
+            Assert.That(ingredient.Fat, Is.EqualTo(4m));
+            Assert.That(ingredient.CachedAt, Is.EqualTo(cachedAt));
+            Assert.That(ingredient.Attribution, Is.EqualTo("source attribution"));
+            Assert.That(response.Calories, Is.EqualTo(treatment.Calories));
+        });
+        _nutritionCatalogMock.Verify(s => s.GetAsync("product",
+            cancellation.Token), Times.Once);
+    }
+
+    [TestCase("missingIngredient")]
+    [TestCase("wrongSource")]
+    [TestCase("missingServing")]
+    [TestCase("unknownServing")]
+    public void GetTreatmentAsync_Should_Reject_Invalid_Nutrition_References(string invalidReference)
+    {
+        var treatment = CreateTreatment(Guid.NewGuid());
+        var ingredient = CreateNutritionIngredient();
+        if (invalidReference == "missingIngredient") ingredient.NutritionIngredient = null;
+        if (invalidReference == "wrongSource") ingredient.NutritionIngredient!.Source = "other";
+        if (invalidReference == "missingServing") ingredient.Serving = null;
+        treatment.NutritionIngredients.Add(ingredient);
+        SetupTreatment(treatment);
+        _nutritionCatalogMock.Setup(s => s.GetAsync("product",
+            It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new NutritionProduct
+            {
+                ProductId = "product",
+                Name = "External food",
+                Attribution = "attribution",
+                Servings = [],
+            });
+
+        var message = invalidReference is "missingIngredient" or "wrongSource"
+            ? ValidationMessages.IngredientIdInvalid : ValidationMessages.IngredientServingIdInvalid;
+        Assert.That(async () => await _service.GetTreatmentAsync(treatment.Id, _userId),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo(message));
+    }
+
     [Test]
     public async Task HandleAsync_Should_Return_Ok_With_Treatment_Details_When_Treatment_Found()
     {
@@ -178,10 +298,9 @@ public class GetTreatmentTests
         SetupTreatment(treatment);
 
         var result = await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-            _treatmentsRepositoryMock.Object, CancellationToken.None);
+            _service, CancellationToken.None);
 
         _treatmentsRepositoryMock.Verify(r => r.GetAll(It.Is<FindOptions>(o => o.IsAsNoTracking)), Times.Once);
-        _treatmentsRepositoryMock.Verify(r => r.AnyAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
 
         Assert.That(result.Result, Is.TypeOf<Ok<GetTreatmentResponse>>());
         var okResult = result.Result as Ok<GetTreatmentResponse>;
@@ -249,7 +368,7 @@ public class GetTreatmentTests
         SetupTreatment(treatment);
 
         var result = await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-            _treatmentsRepositoryMock.Object, CancellationToken.None);
+            _service, CancellationToken.None);
 
         var okResult = result.Result as Ok<GetTreatmentResponse>;
         var mealResponse = okResult!.Value.Meals.Single();
@@ -277,13 +396,14 @@ public class GetTreatmentTests
         SetupTreatment(treatment);
 
         var result = await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-            _treatmentsRepositoryMock.Object, CancellationToken.None);
+            _service, CancellationToken.None);
 
         var okResult = result.Result as Ok<GetTreatmentResponse>;
         Assert.Multiple(() =>
         {
             Assert.That(okResult!.Value.Meals, Is.Empty);
             Assert.That(okResult.Value.Ingredients, Is.Empty);
+            Assert.That(okResult.Value.NutritionIngredients, Is.Empty);
             Assert.That(okResult.Value.Calories, Is.EqualTo(0m));
         });
     }
@@ -315,7 +435,7 @@ public class GetTreatmentTests
         SetupTreatment(treatment);
 
         var result = await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-            _treatmentsRepositoryMock.Object, CancellationToken.None);
+            _service, CancellationToken.None);
 
         var okResult = result.Result as Ok<GetTreatmentResponse>;
         var ingredientResponse = okResult!.Value.Ingredients.Single();
@@ -336,19 +456,14 @@ public class GetTreatmentTests
         var treatmentId = Guid.NewGuid();
 
         _treatmentsRepositoryMock
-            .Setup(r => r.AnyAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(false);
-
-        _treatmentsRepositoryMock
             .Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Treatment>(new List<Treatment>()));
 
         Assert.That(async () => await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-                _treatmentsRepositoryMock.Object, CancellationToken.None),
+                _service, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("TREATMENT_NOT_FOUND"));
 
-        _treatmentsRepositoryMock.Verify(r => r.GetAll(It.IsAny<FindOptions>()), Times.Never);
-        _treatmentsRepositoryMock.Verify(r => r.AnyAsync(It.IsAny<Expression<Func<Treatment, bool>>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _treatmentsRepositoryMock.Verify(r => r.GetAll(It.IsAny<FindOptions>()), Times.Once);
     }
 
     [Test]
@@ -360,7 +475,7 @@ public class GetTreatmentTests
         SetupTreatment(treatment);
 
         Assert.That(async () => await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-                _treatmentsRepositoryMock.Object, CancellationToken.None),
+                _service, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("TREATMENT_NOT_FOUND"));
     }
 
@@ -373,7 +488,7 @@ public class GetTreatmentTests
         SetupTreatment(treatment);
 
         Assert.That(async () => await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-                _treatmentsRepositoryMock.Object, CancellationToken.None),
+                _service, CancellationToken.None),
             Throws.InstanceOf<NotFoundException>().With.Message.EqualTo("TREATMENT_NOT_FOUND"));
     }
 
@@ -387,7 +502,7 @@ public class GetTreatmentTests
             .Throws<UnauthorizedAccessException>();
 
         Assert.That(async () => await Endpoint.HandleAsync(treatmentId, _currentUserMock.Object,
-                _treatmentsRepositoryMock.Object, CancellationToken.None),
+                _service, CancellationToken.None),
             Throws.InstanceOf<UnauthorizedAccessException>());
     }
 }

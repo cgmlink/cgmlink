@@ -54,7 +54,8 @@ public class NewTreatmentTests
             _ingredientsRepositoryMock.Object,
             Mock.Of<CgmLink.Nutrition.INutritionCatalog>(),
             Mock.Of<IRepository<NutritionIngredient>>());
-        _treatmentService = new TreatmentService();
+        _treatmentService = new TreatmentService(Mock.Of<IRepository<Treatment>>(),
+            Mock.Of<IIngredientsService>());
 
         _currentUserMock.Setup(c => c.GetUserId()).Returns(_userId);
 
