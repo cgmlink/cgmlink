@@ -108,7 +108,8 @@ public class NewTreatmentTests
         _nutritionCatalogMock.Setup(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product-1", Name = "Milk",
+                ProductId = "product-1",
+                Name = "Milk",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing
                 {
                     ExternalId = "serving-1", Calories = 100, Carbs = 10, Protein = 5, Fat = 2,
@@ -134,7 +135,9 @@ public class NewTreatmentTests
             SetupIngredients([ingredient]);
             request.Ingredients.Add(new NewTreatmentRequest.NewTreatmentIngredientRequest
             {
-                IngredientId = ingredient.Id, ServingId = serving.Id, Quantity = 1,
+                IngredientId = ingredient.Id,
+                ServingId = serving.Id,
+                Quantity = 1,
             });
         }
         Treatment saved = null;
@@ -172,7 +175,8 @@ public class NewTreatmentTests
         _nutritionCatalogMock.Setup(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product-1", Name = "Milk",
+                ProductId = "product-1",
+                Name = "Milk",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving-1" }],
             });
         var insulinId = Guid.NewGuid();
