@@ -226,7 +226,8 @@ public class IngredientsServiceTests
         var identity = new NutritionIngredient { Source = missing == "source" ? "other" : "fatsecret", ProductId = "product-1" };
         var serving = new CgmLink.Data.Entities.NutritionServing
         {
-            NutritionIngredient = identity, NutritionIngredientId = identity.Id,
+            NutritionIngredient = identity,
+            NutritionIngredientId = identity.Id,
             ServingId = missing == "unknownServing" ? "unknown" : "serving-1",
         };
 
