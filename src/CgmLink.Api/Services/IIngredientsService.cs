@@ -32,6 +32,21 @@ public interface IIngredientsService
         Guid userId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+        IEnumerable<(Guid IngredientId, Guid ServingId, decimal Quantity)> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyCollection<ResolvedIngredient>> ResolveIngredientsAsync(
+        IEnumerable<(NutritionIngredient? Ingredient, NutritionServing? Serving, decimal Quantity)> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
+    Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(
+        IEnumerable<IngredientReference> ingredients,
+        Guid userId,
+        CancellationToken cancellationToken = default);
+
     Task<Dictionary<Guid, Ingredient>> GetValidatedIngredientsAsync(
         IEnumerable<IMealIngredientRequest> ingredients,
         Guid userId,

@@ -72,7 +72,7 @@ internal static class Endpoint
 
         var mealLookup = await mealService.GetValidatedMealsAsync(request.Meals, userId, cancellationToken).ConfigureAwait(false);
         var ingredientLookup = await ingredientsService
-            .GetValidatedIngredientsAsync(request.Ingredients, userId, cancellationToken)
+            .GetValidatedIngredientsAsync(request.Ingredients.Select(IngredientReference.FromPersonal), userId, cancellationToken)
             .ConfigureAwait(false);
 
         Reading? reading = null;
@@ -93,7 +93,7 @@ internal static class Endpoint
         var nutritionIngredients = request.NutritionIngredients.Count == 0
             ? []
             : await ingredientsService.ResolveIngredientsAsync(
-                request.NutritionIngredients.Select(i => new IngredientReference(null, i.ProductId, i.ServingId, i.Quantity)),
+                request.NutritionIngredients.Select(IngredientReference.FromNutrition),
                 userId, cancellationToken).ConfigureAwait(false);
 
         if (injection is not null)

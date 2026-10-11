@@ -21,6 +21,7 @@ public class MealServiceTests
     private Mock<IRepository<Meal>> _mealsRepositoryMock;
     private MealService _service;
     private Mock<INutritionCatalog> _nutritionCatalogMock;
+    private IngredientsService _ingredientsService;
 
     [SetUp]
     public void SetUp()
@@ -28,7 +29,9 @@ public class MealServiceTests
         _mealsRepositoryMock = new Mock<IRepository<Meal>>();
         _nutritionCatalogMock = new Mock<INutritionCatalog>();
         _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
-        _service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object, Mock.Of<IIngredientsService>(), Mock.Of<IRepository<NutritionIngredient>>());
+        _ingredientsService = new IngredientsService(Mock.Of<IRepository<Ingredient>>(), _nutritionCatalogMock.Object,
+            Mock.Of<IRepository<NutritionIngredient>>());
+        _service = new MealService(_mealsRepositoryMock.Object, _ingredientsService, Mock.Of<IRepository<NutritionIngredient>>());
     }
 
     [Test]
@@ -271,15 +274,20 @@ public class MealServiceTests
         var token = cancellation.Token;
         var ingredientsService = new Mock<IIngredientsService>();
         ingredientsService.Setup(s => s.GetValidatedIngredientsAsync(
-            It.IsAny<IEnumerable<IMealIngredientRequest>>(), meal.UserId, token))
+            It.IsAny<IEnumerable<IngredientReference>>(), meal.UserId, token))
             .ReturnsAsync(new Dictionary<Guid, Ingredient> { [ingredient.Id] = ingredient });
+        ingredientsService.Setup(s => s.ResolveIngredientsAsync(
+                It.IsAny<IEnumerable<(NutritionIngredient, CgmLink.Data.Entities.NutritionServing, decimal)>>(), meal.UserId, token))
+            .Returns((IEnumerable<(NutritionIngredient, CgmLink.Data.Entities.NutritionServing, decimal)> references,
+                Guid userId, CancellationToken cancellationToken) =>
+                _ingredientsService.ResolveIngredientsAsync(references, userId, cancellationToken));
         _nutritionCatalogMock.Setup(c => c.GetAsync("product", token)).ReturnsAsync(new NutritionProduct
         {
             ProductId = "product",
             Name = "External milk",
             Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
         });
-        var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
+        var service = new MealService(_mealsRepositoryMock.Object,
             ingredientsService.Object, Mock.Of<IRepository<NutritionIngredient>>());
 
         await service.UpdateMealsIngredientsAsync(meal, requests, null, token);
@@ -323,8 +331,13 @@ public class MealServiceTests
             Servings = [local.Serving],
         };
         ingredientsService.Setup(s => s.GetValidatedIngredientsAsync(
-            It.IsAny<IEnumerable<IMealIngredientRequest>>(), meal.UserId, token))
+            It.IsAny<IEnumerable<IngredientReference>>(), meal.UserId, token))
             .ReturnsAsync(new Dictionary<Guid, Ingredient> { [ingredient.Id] = ingredient });
+        ingredientsService.Setup(s => s.ResolveIngredientsAsync(
+                It.IsAny<IEnumerable<(NutritionIngredient, CgmLink.Data.Entities.NutritionServing, decimal)>>(), meal.UserId, token))
+            .Returns((IEnumerable<(NutritionIngredient, CgmLink.Data.Entities.NutritionServing, decimal)> references,
+                Guid userId, CancellationToken cancellationToken) =>
+                _ingredientsService.ResolveIngredientsAsync(references, userId, cancellationToken));
         ingredientsService.Setup(s => s.ResolveIngredientsAsync(It.IsAny<IEnumerable<IngredientReference>>(), meal.UserId, token))
             .ReturnsAsync(new[] { new ResolvedIngredient(external.NutritionIngredientId, external.ServingId, 2m, 100m, 10m, 5m, 2m) });
         var identities = new Mock<IRepository<NutritionIngredient>>();
@@ -337,7 +350,7 @@ public class MealServiceTests
             Name = "External milk",
             Servings = [new CatalogServing { ExternalId = "cup", Calories = 100m, Carbs = 10m, Protein = 5m, Fat = 2m }],
         });
-        var service = new MealService(_mealsRepositoryMock.Object, _nutritionCatalogMock.Object,
+        var service = new MealService(_mealsRepositoryMock.Object,
             ingredientsService.Object, identities.Object);
 
         await service.UpdateMealsIngredientsAsync(meal,

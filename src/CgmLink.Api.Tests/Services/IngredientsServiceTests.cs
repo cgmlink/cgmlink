@@ -161,6 +161,82 @@ public class IngredientsServiceTests
     }
 
     [Test]
+    public async Task ResolveIngredientsAsync_Should_Preserve_Stored_Ids_Without_Writing_Identities()
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("serving-1"), CreateNutritionServing("serving-2")));
+        var identity = new NutritionIngredient { Source = "fatsecret", ProductId = "product-1" };
+        var first = new CgmLink.Data.Entities.NutritionServing
+        { NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = "serving-1" };
+        var second = new CgmLink.Data.Entities.NutritionServing
+        { NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = "serving-2" };
+
+        var result = (await _service.ResolveIngredientsAsync(
+            [(identity, first, 2m), (identity, second, 3m)], _userId)).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result[0], Is.EqualTo(new ResolvedIngredient(identity.Id, first.Id, 2m, 100m, 10m, 5m, 2m)));
+            Assert.That(result[1], Is.EqualTo(new ResolvedIngredient(identity.Id, second.Id, 3m, 100m, 10m, 5m, 2m)));
+        });
+        _nutritionCatalogMock.Verify(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()), Times.Once);
+        _nutritionIngredientsRepositoryMock.Verify(r => r.GetAll(It.IsAny<FindOptions>()), Times.Never);
+        _nutritionIngredientsRepositoryMock.Verify(r => r.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        _nutritionIngredientsRepositoryMock.Verify(r => r.UpdateAsync(It.IsAny<NutritionIngredient>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task ResolveIngredientsAsync_Should_Load_Stored_Nutrition_Ingredients_By_Id()
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("serving-1")));
+        var identity = new NutritionIngredient { Source = "fatsecret", ProductId = "product-1" };
+        var serving = new CgmLink.Data.Entities.NutritionServing
+        { NutritionIngredient = identity, NutritionIngredientId = identity.Id, ServingId = "serving-1" };
+        identity.Servings.Add(serving);
+        _nutritionIdentities.Add(identity);
+
+        var result = await _service.ResolveIngredientsAsync([(identity.Id, serving.Id, 2m)], _userId);
+
+        Assert.That(result.Single(), Is.EqualTo(new ResolvedIngredient(identity.Id, serving.Id, 2m, 100m, 10m, 5m, 2m)));
+        _nutritionIngredientsRepositoryMock.Verify(r => r.AddManyAsync(It.IsAny<IEnumerable<NutritionIngredient>>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestCase(true, "INGREDIENT_ID_INVALID")]
+    [TestCase(false, "INGREDIENT_SERVING_ID_INVALID")]
+    public void ResolveIngredientsAsync_Should_Reject_Invalid_Stored_Ids(bool missingIngredient, string error)
+    {
+        var identity = new NutritionIngredient { Source = "fatsecret", ProductId = "product-1" };
+        _nutritionIdentities.Add(identity);
+
+        Assert.That(async () => await _service.ResolveIngredientsAsync(
+            [(missingIngredient ? Guid.NewGuid() : identity.Id, Guid.NewGuid(), 1m)], _userId),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo(error));
+        _nutritionCatalogMock.Verify(c => c.GetAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [TestCase("identity", "INGREDIENT_ID_INVALID")]
+    [TestCase("source", "INGREDIENT_ID_INVALID")]
+    [TestCase("serving", "INGREDIENT_SERVING_ID_INVALID")]
+    [TestCase("unknownServing", "INGREDIENT_SERVING_ID_INVALID")]
+    public void ResolveIngredientsAsync_Should_Validate_Stored_Nutrition_References(string missing, string error)
+    {
+        SetupProduct(CreateProduct("product-1", CreateNutritionServing("serving-1")));
+        var identity = new NutritionIngredient { Source = missing == "source" ? "other" : "fatsecret", ProductId = "product-1" };
+        var serving = new CgmLink.Data.Entities.NutritionServing
+        {
+            NutritionIngredient = identity,
+            NutritionIngredientId = identity.Id,
+            ServingId = missing == "unknownServing" ? "unknown" : "serving-1",
+        };
+
+        Assert.That(async () => await _service.ResolveIngredientsAsync(
+            [(missing == "identity" ? null : identity, missing == "serving" ? null : serving, 1m)], _userId),
+            Throws.InstanceOf<BadRequestException>().With.Message.EqualTo(error));
+    }
+
+    [Test]
     public void ResolveIngredientsAsync_Should_Reject_Missing_External_Product()
     {
         _nutritionCatalogMock

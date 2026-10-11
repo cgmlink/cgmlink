@@ -3,7 +3,6 @@ using CgmLink.Api.Endpoints.Meals.GetMeal;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
 using CgmLink.Resources;
-using CgmLink.Nutrition;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -16,18 +15,15 @@ namespace CgmLink.Api.Services;
 public sealed class MealService : IMealService
 {
     private readonly IRepository<Meal> _mealsRepository;
-    private readonly INutritionCatalog _nutritionCatalog;
     private readonly IIngredientsService _ingredientsService;
     private readonly IRepository<NutritionIngredient> _nutritionIngredientsRepository;
 
     public MealService(
         IRepository<Meal> mealsRepository,
-        INutritionCatalog nutritionCatalog,
         IIngredientsService ingredientsService,
         IRepository<NutritionIngredient> nutritionIngredientsRepository)
     {
         _mealsRepository = mealsRepository;
-        _nutritionCatalog = nutritionCatalog;
         _ingredientsService = ingredientsService;
         _nutritionIngredientsRepository = nutritionIngredientsRepository;
     }
@@ -83,33 +79,27 @@ public sealed class MealService : IMealService
             fat += serving.Fat * mealIngredient.Quantity;
         }
 
-        var products = new Dictionary<string, Nutrition.Source.NutritionProduct>();
-        foreach (var mealIngredient in meal.NutritionIngredients)
+        IReadOnlyCollection<ResolvedIngredient> nutritionIngredients = [];
+        if (meal.NutritionIngredients.Count > 0)
         {
-            var ingredient = mealIngredient.NutritionIngredient;
-            if (ingredient is null || ingredient.Source != _nutritionCatalog.Source)
+            try
+            {
+                nutritionIngredients = await _ingredientsService.ResolveIngredientsAsync(
+                    meal.NutritionIngredients.Select(i => (i.NutritionIngredient, i.Serving, i.Quantity)),
+                    meal.UserId, cancellationToken).ConfigureAwait(false);
+            }
+            catch (NotFoundException)
             {
                 throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
             }
+        }
 
-            if (mealIngredient.Serving is null)
-            {
-                throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
-            }
-
-            if (!products.TryGetValue(ingredient.ProductId, out var product))
-            {
-                product = await _nutritionCatalog.GetAsync(ingredient.ProductId, cancellationToken).ConfigureAwait(false)
-                    ?? throw new BadRequestException(ValidationMessages.IngredientIdInvalid);
-                products.Add(ingredient.ProductId, product);
-            }
-
-            var serving = product.Servings.SingleOrDefault(s => s.ExternalId == mealIngredient.Serving.ServingId)
-                ?? throw new BadRequestException(ValidationMessages.IngredientServingIdInvalid);
-            calories += serving.Calories * mealIngredient.Quantity;
-            carbs += serving.Carbs * mealIngredient.Quantity;
-            protein += serving.Protein * mealIngredient.Quantity;
-            fat += serving.Fat * mealIngredient.Quantity;
+        foreach (var ingredient in nutritionIngredients)
+        {
+            calories += ingredient.Calories * ingredient.Quantity;
+            carbs += ingredient.Carbs * ingredient.Quantity;
+            protein += ingredient.Protein * ingredient.Quantity;
+            fat += ingredient.Fat * ingredient.Quantity;
         }
 
         meal.Calories = calories;
@@ -167,7 +157,7 @@ public sealed class MealService : IMealService
     {
         var requestIngredients = ingredients.ToList();
         var ingredientLookup = await _ingredientsService
-            .GetValidatedIngredientsAsync(requestIngredients, meal.UserId, cancellationToken)
+            .GetValidatedIngredientsAsync(requestIngredients.Select(IngredientReference.FromPersonal), meal.UserId, cancellationToken)
             .ConfigureAwait(false);
         var currentIngredients = meal.Ingredients.ToList();
         var currentByIngredientId = currentIngredients.ToDictionary(mi => mi.IngredientId);
@@ -209,7 +199,7 @@ public sealed class MealService : IMealService
         CancellationToken cancellationToken = default)
     {
         var references = ingredients
-            .Select(i => new IngredientReference(null, i.ProductId, i.ServingId, i.Quantity))
+            .Select(IngredientReference.FromNutrition)
             .ToList();
         if (references.Count == 0)
         {

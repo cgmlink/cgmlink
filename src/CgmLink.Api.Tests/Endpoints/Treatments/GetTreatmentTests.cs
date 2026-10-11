@@ -41,7 +41,7 @@ public class GetTreatmentTests
         _nutritionCatalogMock = new Mock<INutritionCatalog>();
         _nutritionCatalogMock.SetupGet(c => c.Source).Returns("external");
         var ingredientsService = new IngredientsService(Mock.Of<IRepository<Ingredient>>(), _nutritionCatalogMock.Object, Mock.Of<IRepository<NutritionIngredient>>());
-        _service = new TreatmentService(_treatmentsRepositoryMock.Object, ingredientsService);
+        _service = new TreatmentService(_treatmentsRepositoryMock.Object, ingredientsService, Mock.Of<IMealService>());
     }
 
     private Reading CreateReading(Guid id)
