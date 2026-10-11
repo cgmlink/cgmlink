@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -89,6 +90,12 @@ internal static class Endpoint
             }
         }
 
+        var nutritionIngredients = request.NutritionIngredients.Count == 0
+            ? []
+            : await ingredientsService.ResolveIngredientsAsync(
+                request.NutritionIngredients.Select(i => new IngredientReference(null, i.ProductId, i.ServingId, i.Quantity)),
+                userId, cancellationToken).ConfigureAwait(false);
+
         if (injection is not null)
         {
             await injectionsRepository.AddAsync(injection, cancellationToken).ConfigureAwait(false);
@@ -102,7 +109,8 @@ internal static class Endpoint
             userId,
             reading?.Id,
             injection?.Id,
-            created);
+            created,
+            nutritionIngredients);
 
         await treatmentsRepository.AddAsync(treatment, cancellationToken).ConfigureAwait(false);
 

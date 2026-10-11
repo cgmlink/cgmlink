@@ -65,7 +65,8 @@ public sealed class TreatmentService : ITreatmentService
         Guid userId,
         Guid? readingId,
         Guid? injectionId,
-        DateTimeOffset created)
+        DateTimeOffset created,
+        IEnumerable<ResolvedIngredient> nutritionIngredients)
     {
         var treatmentId = Guid.NewGuid();
 
@@ -102,7 +103,20 @@ public sealed class TreatmentService : ITreatmentService
             }).ToList(),
         };
 
-        RecalculateTreatmentNutrition(treatment);
+        var resolvedIngredients = nutritionIngredients.ToList();
+        foreach (var ingredient in resolvedIngredients)
+        {
+            treatment.NutritionIngredients.Add(new TreatmentNutritionIngredient
+            {
+                TreatmentId = treatmentId,
+                NutritionIngredientId = ingredient.IngredientId,
+                ServingId = ingredient.ServingId,
+                Quantity = ingredient.Quantity,
+                Created = created,
+            });
+        }
+
+        RecalculateTreatmentNutrition(treatment, resolvedIngredients);
 
         return treatment;
     }
@@ -125,7 +139,7 @@ public sealed class TreatmentService : ITreatmentService
             UpdateTreatmentIngredients(treatment, ingredients, ingredientLookup, updated);
         }
 
-        RecalculateTreatmentNutrition(treatment);
+        RecalculateTreatmentNutrition(treatment, []);
 
         return treatment;
     }
@@ -214,7 +228,9 @@ public sealed class TreatmentService : ITreatmentService
         }
     }
 
-    public Treatment RecalculateTreatmentNutrition(Treatment treatment)
+    public Treatment RecalculateTreatmentNutrition(
+        Treatment treatment,
+        IEnumerable<ResolvedIngredient> nutritionIngredients)
     {
         var calories = 0m;
         var carbs = 0m;
@@ -247,6 +263,14 @@ public sealed class TreatmentService : ITreatmentService
             carbs += serving.Carbs * treatmentIngredient.Quantity;
             protein += serving.Protein * treatmentIngredient.Quantity;
             fat += serving.Fat * treatmentIngredient.Quantity;
+        }
+
+        foreach (var ingredient in nutritionIngredients)
+        {
+            calories += ingredient.Calories * ingredient.Quantity;
+            carbs += ingredient.Carbs * ingredient.Quantity;
+            protein += ingredient.Protein * ingredient.Quantity;
+            fat += ingredient.Fat * ingredient.Quantity;
         }
 
         treatment.Calories = calories;
