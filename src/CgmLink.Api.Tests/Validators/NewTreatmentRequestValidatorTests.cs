@@ -12,6 +12,66 @@ class NewTreatmentRequestValidatorTests
     private readonly NewTreatmentRequest.NewTreatmentRequestValidator _validator = new();
 
     [Test]
+    public void Should_Accept_Only_Nutrition_Ingredients()
+    {
+        var request = new NewTreatmentRequest
+        {
+            NutritionIngredients = [new NewTreatmentRequest.NewTreatmentNutritionIngredientRequest
+            {
+                ProductId = "product-1", ServingId = "serving-1", Quantity = 1,
+            }],
+        };
+
+        _validator.TestValidate(request).ShouldNotHaveAnyValidationErrors();
+    }
+
+    [TestCase("", "serving-1", 1, "NutritionIngredients[0].ProductId")]
+    [TestCase("product-1", "", 1, "NutritionIngredients[0].ServingId")]
+    [TestCase("product-1", "serving-1", 0, "NutritionIngredients[0].Quantity")]
+    [TestCase("product-1", "serving-1", -1, "NutritionIngredients[0].Quantity")]
+    public void Should_Reject_Invalid_Nutrition_Ingredients(string productId, string servingId, int quantity, string property)
+    {
+        var request = new NewTreatmentRequest
+        {
+            NutritionIngredients = [new NewTreatmentRequest.NewTreatmentNutritionIngredientRequest
+            {
+                ProductId = productId, ServingId = servingId, Quantity = quantity,
+            }],
+        };
+
+        _validator.TestValidate(request).ShouldHaveValidationErrorFor(property);
+    }
+
+    [Test]
+    public void Should_Reject_Null_Nutrition_Ingredients()
+    {
+        _validator.TestValidate(new NewTreatmentRequest { NutritionIngredients = null! })
+            .ShouldHaveValidationErrorFor(x => x.NutritionIngredients);
+    }
+
+    [Test]
+    public void Should_Reject_Duplicate_Nutrition_Products_With_Different_Servings()
+    {
+        var request = new NewTreatmentRequest
+        {
+            NutritionIngredients =
+            [
+                new NewTreatmentRequest.NewTreatmentNutritionIngredientRequest
+                {
+                    ProductId = "product-1", ServingId = "serving-1", Quantity = 1,
+                },
+                new NewTreatmentRequest.NewTreatmentNutritionIngredientRequest
+                {
+                    ProductId = "product-1", ServingId = "serving-2", Quantity = 2,
+                },
+            ],
+        };
+
+        _validator.TestValidate(request).ShouldHaveValidationErrorFor(x => x.NutritionIngredients)
+            .WithErrorMessage(ValidationMessages.DuplicateIngredientId);
+    }
+
+    [Test]
     public void Should_Have_Error_When_Same_Ingredient_Is_Repeated_With_Different_Servings()
     {
         var ingredientId = Guid.NewGuid();

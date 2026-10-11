@@ -26,7 +26,7 @@ public class TreatmentServiceTests
     {
         var treatment = CreateTreatment();
 
-        var result = _service.RecalculateTreatmentNutrition(treatment);
+        var result = _service.RecalculateTreatmentNutrition(treatment, []);
 
         Assert.Multiple(() =>
         {
@@ -44,7 +44,7 @@ public class TreatmentServiceTests
         var treatment = CreateTreatment();
         treatment.Meals.Add(CreateTreatmentMeal(CreateMeal(100m, 10m, 5m, 2m), 2m, treatment.Id));
 
-        _service.RecalculateTreatmentNutrition(treatment);
+        _service.RecalculateTreatmentNutrition(treatment, []);
 
         Assert.Multiple(() =>
         {
@@ -62,7 +62,7 @@ public class TreatmentServiceTests
         treatment.Meals.Add(CreateTreatmentMeal(CreateMeal(100m, 10m, 5m, 2m), 2m, treatment.Id));
         treatment.Ingredients.Add(CreateTreatmentIngredient(CreateServing(50m, 5m, 3m, 1m), 1m, treatment.Id));
 
-        _service.RecalculateTreatmentNutrition(treatment);
+        _service.RecalculateTreatmentNutrition(treatment, []);
 
         Assert.Multiple(() =>
         {
@@ -70,6 +70,30 @@ public class TreatmentServiceTests
             Assert.That(treatment.Carbs, Is.EqualTo(25m));
             Assert.That(treatment.Protein, Is.EqualTo(13m));
             Assert.That(treatment.Fat, Is.EqualTo(5m));
+        });
+    }
+
+    [Test]
+    public void RecalculateTreatmentNutrition_Should_Include_Nutrition_Ingredients_Without_Double_Counting()
+    {
+        var treatment = CreateTreatment();
+        treatment.Meals.Add(CreateTreatmentMeal(CreateMeal(100m, 10m, 5m, 2m), 2m, treatment.Id));
+        treatment.Ingredients.Add(CreateTreatmentIngredient(CreateServing(50m, 5m, 3m, 1m), 1m, treatment.Id));
+        var resolved = new[]
+        {
+            new ResolvedIngredient(Guid.NewGuid(), Guid.NewGuid(), 1.5m, 100m, 10m, 5m, 2m),
+        };
+
+        _service.RecalculateTreatmentNutrition(treatment, resolved);
+        var result = _service.RecalculateTreatmentNutrition(treatment, resolved);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(result, Is.SameAs(treatment));
+            Assert.That(result.Calories, Is.EqualTo(400m));
+            Assert.That(result.Carbs, Is.EqualTo(40m));
+            Assert.That(result.Protein, Is.EqualTo(20.5m));
+            Assert.That(result.Fat, Is.EqualTo(8m));
         });
     }
 
@@ -87,7 +111,7 @@ public class TreatmentServiceTests
             Created = DateTimeOffset.UtcNow,
         });
 
-        _service.RecalculateTreatmentNutrition(treatment);
+        _service.RecalculateTreatmentNutrition(treatment, []);
 
         Assert.Multiple(() =>
         {
@@ -113,7 +137,7 @@ public class TreatmentServiceTests
             Created = DateTimeOffset.UtcNow,
         });
 
-        _service.RecalculateTreatmentNutrition(treatment);
+        _service.RecalculateTreatmentNutrition(treatment, []);
 
         Assert.Multiple(() =>
         {
@@ -145,7 +169,8 @@ public class TreatmentServiceTests
             userId,
             readingId,
             injectionId,
-            created);
+            created,
+            []);
 
         Assert.Multiple(() =>
         {
@@ -184,7 +209,8 @@ public class TreatmentServiceTests
             Guid.NewGuid(),
             null,
             null,
-            DateTimeOffset.UtcNow);
+            DateTimeOffset.UtcNow,
+            []);
 
         Assert.Multiple(() =>
         {

@@ -19,7 +19,8 @@ public interface ITreatmentService
         Guid userId,
         Guid? readingId,
         Guid? injectionId,
-        DateTimeOffset created);
+        DateTimeOffset created,
+        IEnumerable<ResolvedIngredient> nutritionIngredients);
 
     Treatment UpdateTreatmentFoods(
         Treatment treatment,
@@ -29,5 +30,7 @@ public interface ITreatmentService
         Dictionary<Guid, Ingredient> ingredientLookup,
         DateTimeOffset updated);
 
-    Treatment RecalculateTreatmentNutrition(Treatment treatment);
+    Treatment RecalculateTreatmentNutrition(
+        Treatment treatment,
+        IEnumerable<ResolvedIngredient> nutritionIngredients);
 }

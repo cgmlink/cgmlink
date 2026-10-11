@@ -14,6 +14,14 @@ public sealed record NewTreatmentRequest
     public Guid? ReadingId { get; init; }
     public ICollection<NewTreatmentMealRequest> Meals { get; init; } = [];
     public ICollection<NewTreatmentIngredientRequest> Ingredients { get; init; } = [];
+    public ICollection<NewTreatmentNutritionIngredientRequest> NutritionIngredients { get; init; } = [];
+
+    public sealed record NewTreatmentNutritionIngredientRequest : IMealNutritionIngredientRequest
+    {
+        public required string ProductId { get; init; }
+        public required string ServingId { get; init; }
+        public required decimal Quantity { get; init; }
+    }
 
     public sealed record NewInjectionRequest
     {
@@ -39,7 +47,7 @@ public sealed record NewTreatmentRequest
         public NewTreatmentRequestValidator()
         {
             RuleFor(x => x)
-                .Must(x => x.Meals.Count > 0 || x.Ingredients.Count > 0 || x.Injection is not null)
+                .Must(x => x.Meals.Count > 0 || x.Ingredients.Count > 0 || x.NutritionIngredients?.Count > 0 || x.Injection is not null)
                 .WithMessage(ValidationMessages.MealInjectionIdInjectionIdMustBeProvided);
 
             RuleFor(x => x.Injection!.InsulinId)
@@ -87,6 +95,26 @@ public sealed record NewTreatmentRequest
                 .NotEmpty()
                 .WithMessage(ValidationMessages.ReadingIdRequiredWhenAllNull)
                 .When(x => x.ReadingId is not null);
+
+            RuleFor(x => x.NutritionIngredients).NotNull();
+
+            RuleForEach(x => x.NutritionIngredients).ChildRules(ingredient =>
+            {
+                ingredient.RuleFor(i => i.ProductId)
+                    .NotEmpty()
+                    .WithMessage(ValidationMessages.IngredientIdInvalid);
+                ingredient.RuleFor(i => i.ServingId)
+                    .NotEmpty()
+                    .WithMessage(ValidationMessages.IngredientServingIdInvalid);
+                ingredient.RuleFor(i => i.Quantity)
+                    .GreaterThan(0)
+                    .WithMessage(ValidationMessages.QuantityGreaterThanZero);
+            });
+
+            RuleFor(x => x.NutritionIngredients)
+                .Must(ingredients => ingredients.Select(i => i.ProductId).Distinct().Count() == ingredients.Count)
+                .WithMessage(ValidationMessages.DuplicateIngredientId)
+                .When(x => x.NutritionIngredients is not null);
         }
     }
 }
