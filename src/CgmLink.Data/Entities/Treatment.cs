@@ -95,4 +95,9 @@ public class Treatment : ISoftDeletable
     /// The ingredients included in this treatment.
     /// </summary>
     public virtual ICollection<TreatmentIngredient> Ingredients { get; set; } = [];
+
+    /// <summary>
+    /// The external nutrition ingredients included in this treatment.
+    /// </summary>
+    public virtual ICollection<TreatmentNutritionIngredient> NutritionIngredients { get; set; } = [];
 }

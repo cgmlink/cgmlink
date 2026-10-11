@@ -539,6 +539,37 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.ToTable("treatment_meals");
                 });
 
+            modelBuilder.Entity("CgmLink.Data.Entities.TreatmentNutritionIngredient", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("NutritionIngredientId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("ServingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TreatmentId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("NutritionIngredientId");
+
+                    b.HasIndex("ServingId");
+
+                    b.HasIndex("TreatmentId");
+
+                    b.ToTable("treatment_nutrition_ingredients");
+                });
+
             modelBuilder.Entity("CgmLink.Data.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -862,6 +893,33 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Navigation("Treatment");
                 });
 
+            modelBuilder.Entity("CgmLink.Data.Entities.TreatmentNutritionIngredient", b =>
+                {
+                    b.HasOne("CgmLink.Data.Entities.NutritionIngredient", "NutritionIngredient")
+                        .WithMany()
+                        .HasForeignKey("NutritionIngredientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("CgmLink.Data.Entities.NutritionServing", "Serving")
+                        .WithMany()
+                        .HasForeignKey("ServingId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("CgmLink.Data.Entities.Treatment", "Treatment")
+                        .WithMany("NutritionIngredients")
+                        .HasForeignKey("TreatmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("NutritionIngredient");
+
+                    b.Navigation("Serving");
+
+                    b.Navigation("Treatment");
+                });
+
             modelBuilder.Entity("CgmLink.Data.Entities.User", b =>
                 {
                     b.OwnsMany("CgmLink.Data.Entities.RefreshToken", "RefreshTokens", b1 =>
@@ -1017,6 +1075,8 @@ namespace CgmLink.Data.Migrators.MSSQL.Migrations
                     b.Navigation("Ingredients");
 
                     b.Navigation("Meals");
+
+                    b.Navigation("NutritionIngredients");
                 });
 
             modelBuilder.Entity("CgmLink.Data.Entities.User", b =>
