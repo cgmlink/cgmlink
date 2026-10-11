@@ -90,8 +90,11 @@ public class TreatmentServiceTests
 
         treatment.NutritionIngredients.Add(new TreatmentNutritionIngredient
         {
-            TreatmentId = treatment.Id, NutritionIngredientId = resolved[0].IngredientId,
-            ServingId = resolved[0].ServingId, Quantity = resolved[0].Quantity, Created = treatment.Created,
+            TreatmentId = treatment.Id,
+            NutritionIngredientId = resolved[0].IngredientId,
+            ServingId = resolved[0].ServingId,
+            Quantity = resolved[0].Quantity,
+            Created = treatment.Created,
         });
         _ingredientsServiceMock.Setup(s => s.ResolveIngredientsAsync(
                 It.IsAny<IEnumerable<(Guid IngredientId, Guid ServingId, decimal Quantity)>>(),

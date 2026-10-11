@@ -611,8 +611,13 @@ public class UpdateTreatmentTests
         var serving = CreateServing(Guid.NewGuid(), ingredient.Id);
         var link = new TreatmentIngredient
         {
-            TreatmentId = treatment.Id, IngredientId = ingredient.Id, Ingredient = ingredient,
-            ServingId = serving.Id, Serving = serving, Quantity = 1, Created = treatment.Created,
+            TreatmentId = treatment.Id,
+            IngredientId = ingredient.Id,
+            Ingredient = ingredient,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = 1,
+            Created = treatment.Created,
         };
         treatment.Ingredients.Add(link);
         SetupTreatment(treatment);
@@ -650,7 +655,9 @@ public class UpdateTreatmentTests
             _nutritionCatalogMock.Setup(c => c.GetAsync(productId, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
                 {
-                    ProductId = productId, Name = productId, Attribution = "source attribution",
+                    ProductId = productId,
+                    Name = productId,
+                    Attribution = "source attribution",
                     Servings =
                     [
                         new CgmLink.Nutrition.Source.NutritionServing
@@ -668,8 +675,13 @@ public class UpdateTreatmentTests
         var treatment = CreateTreatment(Guid.NewGuid());
         var existing = new TreatmentNutritionIngredient
         {
-            TreatmentId = treatment.Id, NutritionIngredientId = identity.Id, NutritionIngredient = identity,
-            ServingId = serving.Id, Serving = serving, Quantity = 2, Created = treatment.Created,
+            TreatmentId = treatment.Id,
+            NutritionIngredientId = identity.Id,
+            NutritionIngredient = identity,
+            ServingId = serving.Id,
+            Serving = serving,
+            Quantity = 2,
+            Created = treatment.Created,
         };
         treatment.NutritionIngredients.Add(existing);
         SetupTreatment(treatment);
@@ -739,7 +751,8 @@ public class UpdateTreatmentTests
         _nutritionCatalogMock.Setup(c => c.GetAsync("product-1", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new CgmLink.Nutrition.Source.NutritionProduct
             {
-                ProductId = "product-1", Name = "Milk",
+                ProductId = "product-1",
+                Name = "Milk",
                 Servings = [new CgmLink.Nutrition.Source.NutritionServing { ExternalId = "serving-1" }],
             });
         var treatment = CreateTreatment(Guid.NewGuid());
