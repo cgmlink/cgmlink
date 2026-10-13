@@ -23,7 +23,6 @@ public sealed class InsightsService : IInsightsService
         Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
     {
         var totals = await _treatmentsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
-            .AsNoTracking()
             .Where(t => t.UserId == userId && t.Deleted == null && t.Created >= from && t.Created <= to)
             .GroupBy(t => 1)
             .Select(group => new TotalNutritionResponse
@@ -42,7 +41,6 @@ public sealed class InsightsService : IInsightsService
         Guid userId, DateTimeOffset from, DateTimeOffset to, CancellationToken cancellationToken = default)
     {
         var nutrition = await _treatmentsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
-            .AsNoTracking()
             .Where(t => t.UserId == userId && t.Deleted == null && t.Created >= from && t.Created <= to)
             .Where(t => t.Meals.Any() || t.Ingredients.Any() || t.NutritionIngredients.Any())
             .Select(t => new { t.Created, t.Calories, t.Carbs, t.Protein, t.Fat })
