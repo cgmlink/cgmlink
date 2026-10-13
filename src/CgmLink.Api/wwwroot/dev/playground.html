@@ -54,7 +54,7 @@
   .authMsg.err { color: var(--err); }
   .authMsg.info { color: var(--muted); }
 
-  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+  .tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
   .tabs button { background: transparent; color: var(--muted); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 8px 12px; font-weight: 500; }
   .tabs button.active { color: var(--text); border-bottom-color: var(--accent); }
   .toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
@@ -135,6 +135,7 @@
         <button data-tab="meals">Meals</button>
         <button data-tab="insulins">Insulins</button>
         <button data-tab="treatments">Treatments</button>
+        <button data-tab="insights">Insights</button>
         <button data-tab="raw">Raw request</button>
       </div>
 
@@ -304,6 +305,28 @@
         </div>
       </div>
 
+      <div id="tab-insights" hidden>
+        <h2>Total nutrition</h2>
+        <p class="muted">Recorded calories, carbs, protein, and fat across your treatments in the selected period.</p>
+        <div class="toolbar">
+          <select id="insightsPeriod" aria-label="Insights period">
+            <option value="7">Last 7 days</option>
+            <option value="14">Last 14 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="custom">Custom period</option>
+          </select>
+          <button id="refreshInsightsBtn" class="secondary">Load insights</button>
+        </div>
+        <div id="insightsDates" hidden>
+          <div class="form-grid">
+            <div><label for="insightsFrom">From (optional)</label><input id="insightsFrom" type="datetime-local" /></div>
+            <div><label for="insightsTo">To (optional)</label><input id="insightsTo" type="datetime-local" /></div>
+          </div>
+          <p class="muted">Dates use your browser's local time. To defaults to now; From defaults to seven days before To.</p>
+        </div>
+        <div id="insightsResults" aria-live="polite"><div class="empty">Log in and click "Load insights" to view total nutrition.</div></div>
+      </div>
+
       <div id="tab-raw" hidden>
         <p class="muted">Generic HTTP caller for anything else. The bearer token is attached automatically.</p>
         <div class="row">
@@ -380,6 +403,8 @@
     $("refreshInsulinsBtn").disabled = !on;
     $("newInsulinBtn").disabled = !on;
     $("getInsulinBtn").disabled = !on;
+    $("refreshInsightsBtn").disabled = !on;
+    if (!on) $("insightsResults").innerHTML = '<div class="empty">Log in to view total nutrition.</div>';
   }
 
   function showResponse(res, ms) {
@@ -1998,9 +2023,49 @@
     btn.addEventListener("click", () => {
       document.querySelectorAll(".tabs button").forEach((b) => b.classList.remove("active"));
       btn.classList.add("active");
-      ["ingredients", "meals", "insulins", "treatments", "raw"].forEach((t) => ($("tab-" + t).hidden = t !== btn.dataset.tab));
+      ["ingredients", "meals", "insulins", "treatments", "insights", "raw"].forEach((t) => ($("tab-" + t).hidden = t !== btn.dataset.tab));
       if (btn.dataset.tab === "treatments") loadTreatmentPickers();
     }));
+
+  /* ---------- insights ---------- */
+
+  async function refreshInsights() {
+    const box = $("insightsResults");
+    const period = $("insightsPeriod").value;
+    const params = new URLSearchParams();
+    if (period === "custom") {
+      for (const key of ["from", "to"]) {
+        const input = $(key === "from" ? "insightsFrom" : "insightsTo");
+        if (input.value) params.set(key, new Date(input.value).toISOString());
+      }
+      if (params.has("from") && params.has("to") && new Date(params.get("from")) >= new Date(params.get("to"))) {
+        box.textContent = "From must be earlier than To.";
+        return;
+      }
+    } else if (period !== "7") {
+      const to = new Date();
+      params.set("to", to.toISOString());
+      params.set("from", new Date(to.getTime() - Number(period) * 86400000).toISOString());
+    }
+
+    box.textContent = "Loading total nutrition…";
+    $("refreshInsightsBtn").disabled = true;
+    try {
+      const query = params.toString();
+      const out = await run("total nutrition", () => requestJson("api/v1/insights/total-nutrition" + (query ? "?" + query : ""), "GET"));
+      if (!out || !out.ok) {
+        box.textContent = friendlyError(out) || "Could not load total nutrition. See the response below.";
+        return;
+      }
+      if (!token) { box.textContent = "Log in to view total nutrition."; return; }
+      const d = out.data;
+      const number = (value) => Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
+      box.innerHTML = '<div class="card"><h3>Total nutrition</h3><table><thead><tr><th>Calories</th><th>Carbs</th><th>Protein</th><th>Fat</th></tr></thead><tbody><tr>' +
+        "<td>" + number(d.totalCalories) + " kcal</td><td>" + number(d.totalCarbs) + " g</td><td>" + number(d.totalProtein) + " g</td><td>" + number(d.totalFat) + " g</td></tr></tbody></table></div>";
+    } finally {
+      $("refreshInsightsBtn").disabled = !token;
+    }
+  }
 
   /* ---------- wiring ---------- */
 
@@ -2038,6 +2103,14 @@
   $("getInsulinBtn").addEventListener("click", getInsulin);
   $("insulinId").addEventListener("keydown", (e) => { if (e.key === "Enter") getInsulin(); });
   $("sendBtn").addEventListener("click", rawSend);
+  $("refreshInsightsBtn").addEventListener("click", refreshInsights);
+  $("insightsPeriod").addEventListener("change", () => {
+    $("insightsDates").hidden = $("insightsPeriod").value !== "custom";
+    $("insightsResults").textContent = 'Click "Load insights" to view this period.';
+  });
+  ["insightsFrom", "insightsTo"].forEach((id) => $(id).addEventListener("change", () => {
+    $("insightsResults").textContent = 'Click "Load insights" to view this period.';
+  }));
   $("path").addEventListener("keydown", (e) => { if (e.key === "Enter") rawSend(); });
 
   (function init() {
