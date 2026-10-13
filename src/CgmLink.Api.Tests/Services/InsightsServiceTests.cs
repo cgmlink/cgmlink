@@ -81,7 +81,10 @@ public sealed class InsightsServiceTests
         // Two recorded days: (100 + 200 + 500) / 2, not three treatments or seven days.
         Assert.That(response, Is.EqualTo(new AverageNutritionResponse
         {
-            Calories = 400m, Carbs = 40m, Protein = 20m, Fat = 8m,
+            Calories = 400m,
+            Carbs = 40m,
+            Protein = 20m,
+            Fat = 8m,
         }));
     }
 
