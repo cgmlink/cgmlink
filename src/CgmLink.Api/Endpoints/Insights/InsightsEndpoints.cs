@@ -43,6 +43,11 @@ internal static class InsightsEndpoints
             .WithName("TotalNutritionInsight")
             .RequireAuthorization();
 
+        group.MapGet("/average-nutrition", AverageNutrition.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("AverageNutritionInsight")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }
