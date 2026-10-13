@@ -38,6 +38,11 @@ internal static class InsightsEndpoints
             .WithName("HypoEventsInsight")
             .RequireAuthorization();
 
+        group.MapGet("/total-nutrition", TotalNutrition.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("TotalNutritionInsight")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }
