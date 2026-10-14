@@ -187,8 +187,11 @@ public sealed class InsightsService : IInsightsService
 
         var before = low > 0 ? readings[low - 1] : null;
         var after = !beforeOnly && low < readings.Count ? readings[low] : null;
-        var nearest = before is null ? after : after is null || target - before.Created <= after.Created - target
-            ? before : after;
+        var nearest = before;
+        if (after is not null && (before is null || after.Created - target < target - before.Created))
+        {
+            nearest = after;
+        }
         return nearest is not null && (nearest.Created - target).Duration() <= TimeSpan.FromMinutes(toleranceMinutes)
             ? nearest : null;
     }

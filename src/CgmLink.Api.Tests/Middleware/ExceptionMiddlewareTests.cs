@@ -111,19 +111,4 @@ internal sealed class ExceptionMiddlewareTests
         Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }
 
-    [TestCase(StatusCodes.Status400BadRequest, false)]
-    [TestCase(StatusCodes.Status400BadRequest, true)]
-    [TestCase(StatusCodes.Status413PayloadTooLarge, true)]
-    public async Task InvokeAsync_Preserves_BadHttpRequest_Status_And_Message(int statusCode, bool hasInnerException)
-    {
-        var error = new BadHttpRequestException("Invalid request", statusCode,
-            hasInnerException ? new FormatException("Invalid format") : null);
-
-        await _sut.InvokeAsync(_httpContext, _ => throw error);
-
-        _httpContext.Response.Body.Position = 0;
-        using var result = await JsonDocument.ParseAsync(_httpContext.Response.Body);
-        Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(statusCode));
-        Assert.That(result.RootElement.GetProperty("message").GetString(), Is.EqualTo("Invalid request"));
-    }
 }

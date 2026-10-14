@@ -47,7 +47,7 @@ internal partial class ExceptionMiddleware : IMiddleware
             using var scope = _logger.BeginScope(logContext);
 
             context.Response.ContentType = "application/json";
-            if (e is not (ApiException or BadHttpRequestException) && e.InnerException is not null)
+            if (e is not ApiException && e.InnerException is not null)
             {
                 while (e.InnerException is not null)
                 {
@@ -74,10 +74,6 @@ internal partial class ExceptionMiddleware : IMiddleware
                     break;
                 case ForbiddenException:
                     context.Response.StatusCode = StatusCodes.Status403Forbidden;
-                    messages.Add(e.Message);
-                    break;
-                case BadHttpRequestException badHttpRequestException:
-                    context.Response.StatusCode = badHttpRequestException.StatusCode;
                     messages.Add(e.Message);
                     break;
                 case BadRequestException:

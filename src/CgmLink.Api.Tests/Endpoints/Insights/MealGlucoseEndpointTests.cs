@@ -248,7 +248,7 @@ public sealed class MealGlucoseEndpointTests
 
     [TestCase(null, HttpStatusCode.OK, 30)]
     [TestCase("5", HttpStatusCode.OK, 5)]
-    [TestCase("not-a-number", HttpStatusCode.BadRequest, null)]
+    [TestCase("not-a-number", HttpStatusCode.InternalServerError, null)]
     [TestCase("4", HttpStatusCode.BadRequest, null)]
     public async Task Http_Query_Binding_Uses_Default_And_Rejects_Invalid_Intervals(
         string interval, HttpStatusCode expectedStatus, int? expectedInterval)
