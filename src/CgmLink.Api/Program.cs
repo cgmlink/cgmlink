@@ -3,6 +3,7 @@ using Asp.Versioning;
 using CgmLink.Api.Observability;
 using FluentValidation;
 using CgmLink.Api.Endpoints;
+using CgmLink.Api.Endpoints.Insights.MealGlucose;
 using CgmLink.Api.Middleware;
 using CgmLink.Api.Models;
 using CgmLink.Api.Services;
@@ -80,6 +81,12 @@ builder.Services.AddTransient<ExceptionMiddleware>();
 
 builder.Services.AddScoped<CgmLinkDbInitializer>();
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("Api"));
+builder.Services.AddOptions<MealGlucoseSettings>()
+    .Bind(builder.Configuration.GetSection("Insights:MealGlucose"))
+    .ValidateDataAnnotations()
+    .Validate(settings => settings.DefaultIntervalMinutes >= settings.MinimumIntervalMinutes,
+        "The default meal glucose interval must be at least the minimum interval.")
+    .ValidateOnStart();
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IIngredientsService, IngredientsService>();
 builder.Services.AddScoped<IMealService, MealService>();

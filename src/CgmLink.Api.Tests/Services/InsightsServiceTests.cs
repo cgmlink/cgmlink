@@ -1,4 +1,6 @@
 using System;
+using CgmLink.Api.Endpoints.Insights.MealGlucose;
+using Microsoft.Extensions.Options;
 using System.Threading.Tasks;
 using CgmLink.Api.Endpoints.Insights.TotalNutrition;
 using CgmLink.Api.Endpoints.Insights.AverageNutrition;
@@ -34,7 +36,7 @@ public sealed class InsightsServiceTests
             deleted,
         ]));
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>()).GetTotalNutritionAsync(userId, from, to);
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings())).GetTotalNutritionAsync(userId, from, to);
 
         Assert.That(response, Is.EqualTo(new TotalNutritionResponse
         {
@@ -52,7 +54,7 @@ public sealed class InsightsServiceTests
         repository.Setup(r => r.GetAll(It.IsAny<FindOptions>())).Returns(new TestAsyncEnumerable<Treatment>([]));
         var to = DateTimeOffset.UtcNow;
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>())
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings()))
             .GetTotalNutritionAsync(Guid.NewGuid(), to.AddDays(-7), to);
 
         Assert.That(response, Is.EqualTo(new TotalNutritionResponse()));
@@ -76,7 +78,7 @@ public sealed class InsightsServiceTests
             deleted,
         ]));
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>()).GetAverageNutritionAsync(userId, from, to);
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings())).GetAverageNutritionAsync(userId, from, to);
 
         // Two recorded days: (100 + 200 + 500) / 2, not three treatments or seven days.
         Assert.That(response, Is.EqualTo(new AverageNutritionResponse
@@ -100,7 +102,7 @@ public sealed class InsightsServiceTests
             CreateTreatment(userId, from.AddDays(2), 0m),
         ]));
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>()).GetAverageNutritionAsync(userId, from, from.AddDays(7));
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings())).GetAverageNutritionAsync(userId, from, from.AddDays(7));
 
         Assert.That(response.Calories, Is.EqualTo(50m));
     }
@@ -118,7 +120,7 @@ public sealed class InsightsServiceTests
             CreateFoodTreatment(userId, from.AddHours(23.5), 500m, "external"),
         ]));
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>()).GetAverageNutritionAsync(userId, from, to);
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings())).GetAverageNutritionAsync(userId, from, to);
 
         Assert.That(response.Calories, Is.EqualTo(400m));
     }
@@ -137,7 +139,7 @@ public sealed class InsightsServiceTests
             CreateFoodTreatment(userId, to.AddTicks(1), 1000m, "meal"),
         ]));
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>()).GetAverageNutritionAsync(userId, from, to);
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings())).GetAverageNutritionAsync(userId, from, to);
 
         Assert.That(response.Calories, Is.EqualTo(150m));
     }
@@ -152,7 +154,7 @@ public sealed class InsightsServiceTests
         repository.Setup(r => r.GetAll(It.IsAny<FindOptions>())).Returns(new TestAsyncEnumerable<Treatment>(
             hasTreatment ? [CreateTreatment(userId, from, 0m)] : []));
 
-        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>()).GetAverageNutritionAsync(userId, from, from.AddDays(7));
+        var response = await new InsightsService(repository.Object, Mock.Of<IRepository<Reading>>(), Options.Create(new MealGlucoseSettings())).GetAverageNutritionAsync(userId, from, from.AddDays(7));
 
         Assert.That(response, Is.EqualTo(new AverageNutritionResponse()));
     }

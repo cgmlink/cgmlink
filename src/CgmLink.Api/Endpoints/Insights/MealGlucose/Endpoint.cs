@@ -8,6 +8,7 @@ using FluentValidation;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace CgmLink.Api.Endpoints.Insights.MealGlucose;
 
@@ -18,12 +19,13 @@ internal static class Endpoint
         [FromServices] IValidator<MealGlucoseRequest> validator,
         [FromServices] ICurrentUser currentUser,
         [FromServices] IInsightsService insightsService,
+        [FromServices] IOptions<MealGlucoseSettings> mealGlucoseSettings,
         CancellationToken cancellationToken = default)
     {
         var to = request.To ?? DateTimeOffset.UtcNow;
         var from = request.From ?? (to >= DateTimeOffset.MinValue.AddDays(7)
             ? to.ToUniversalTime().AddDays(-7) : DateTimeOffset.MinValue);
-        var intervalMinutes = request.IntervalMinutes ?? MealGlucoseConstants.DefaultIntervalMinutes;
+        var intervalMinutes = request.IntervalMinutes ?? mealGlucoseSettings.Value.DefaultIntervalMinutes;
         var validation = await validator.ValidateAsync(request with { From = from, To = to, IntervalMinutes = intervalMinutes }, cancellationToken)
             .ConfigureAwait(false);
         if (!validation.IsValid)

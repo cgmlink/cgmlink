@@ -11,7 +11,7 @@ namespace CgmLink.Api.Services;
 public interface IInsightsService
 {
     Task<List<MealGlucoseResponse>> GetMealGlucoseAsync(
-        Guid userId, DateTimeOffset from, DateTimeOffset to, int intervalMinutes = MealGlucoseConstants.DefaultIntervalMinutes,
+        Guid userId, DateTimeOffset from, DateTimeOffset to, int intervalMinutes,
         CancellationToken cancellationToken = default);
 
     Task<TotalNutritionResponse> GetTotalNutritionAsync(

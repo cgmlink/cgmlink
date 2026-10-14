@@ -1,4 +1,5 @@
 using System;
+using Microsoft.Extensions.Options;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -30,10 +31,16 @@ public sealed class MealGlucoseEndpointTests
     private Mock<ICurrentUser> _currentUser;
     private Mock<IInsightsService> _service;
     private Guid _userId;
+    private IOptions<MealGlucoseSettings> _settings;
 
     [SetUp]
     public void SetUp()
     {
+        _settings = Options.Create(new MealGlucoseSettings
+        {
+            WindowMinutes = 360, DefaultIntervalMinutes = 30, MinimumIntervalMinutes = 5,
+            BaselineMinutes = 15, ToleranceMinutes = 10,
+        });
         _userId = Guid.NewGuid();
         _currentUser = new Mock<ICurrentUser>();
         _currentUser.Setup(u => u.GetUserId()).Returns(_userId);
@@ -52,7 +59,7 @@ public sealed class MealGlucoseEndpointTests
         _service.Setup(s => s.GetMealGlucoseAsync(_userId, from, to, 30, cancellation.Token)).ReturnsAsync(totals);
 
         var result = await Endpoint.HandleAsync(new MealGlucoseRequest { From = from, To = to },
-            new MealGlucoseRequest.Validator(), _currentUser.Object, _service.Object, cancellation.Token);
+            new MealGlucoseRequest.Validator(_settings), _currentUser.Object, _service.Object, _settings, cancellation.Token);
 
         Assert.That(result.Result, Is.TypeOf<Ok<List<MealGlucoseResponse>>>());
         Assert.That(((Ok<List<MealGlucoseResponse>>)result.Result).Value, Is.SameAs(totals));
@@ -69,6 +76,28 @@ public sealed class MealGlucoseEndpointTests
         _service.Verify(s => s.GetMealGlucoseAsync(_userId,
             It.Is<DateTimeOffset>(from => from >= before.AddDays(-7) && from <= after.AddDays(-7)),
             It.Is<DateTimeOffset>(to => to >= before && to <= after), 30, CancellationToken.None), Times.Once);
+    }
+
+    [Test]
+    public async Task HandleAsync_Uses_Configured_Default_Interval()
+    {
+        _settings.Value.DefaultIntervalMinutes = 15;
+
+        await HandleAsync(new MealGlucoseRequest());
+
+        _service.Verify(s => s.GetMealGlucoseAsync(_userId, It.IsAny<DateTimeOffset>(),
+            It.IsAny<DateTimeOffset>(), 15, CancellationToken.None), Times.Once);
+    }
+
+    [Test]
+    public async Task HandleAsync_Enforces_Configured_Minimum_Interval()
+    {
+        _settings.Value.MinimumIntervalMinutes = 10;
+
+        var result = await HandleAsync(new MealGlucoseRequest { IntervalMinutes = 7 });
+
+        Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
+        _service.VerifyNoOtherCalls();
     }
 
     [TestCase(-1)]
@@ -225,7 +254,8 @@ public sealed class MealGlucoseEndpointTests
         builder.Services.Configure<RouteHandlerOptions>(options => options.ThrowOnBadRequest = true);
         builder.Services.AddSingleton<IInsightsService>(_service.Object);
         builder.Services.AddSingleton<ICurrentUser>(_currentUser.Object);
-        builder.Services.AddSingleton<IValidator<MealGlucoseRequest>>(new MealGlucoseRequest.Validator());
+        builder.Services.AddSingleton<IOptions<MealGlucoseSettings>>(_settings);
+        builder.Services.AddSingleton<IValidator<MealGlucoseRequest>>(new MealGlucoseRequest.Validator(_settings));
         builder.Services.AddTransient<ExceptionMiddleware>();
         await using var app = builder.Build();
         app.UseMiddleware<ExceptionMiddleware>();
@@ -259,6 +289,6 @@ public sealed class MealGlucoseEndpointTests
     }
 
     private Task<Results<Ok<List<MealGlucoseResponse>>, ValidationProblem, UnauthorizedHttpResult>> HandleAsync(
-        MealGlucoseRequest request) => Endpoint.HandleAsync(request, new MealGlucoseRequest.Validator(),
-            _currentUser.Object, _service.Object);
+        MealGlucoseRequest request) => Endpoint.HandleAsync(request, new MealGlucoseRequest.Validator(_settings),
+            _currentUser.Object, _service.Object, _settings);
 }

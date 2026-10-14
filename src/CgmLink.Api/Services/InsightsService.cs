@@ -10,6 +10,7 @@ using CgmLink.Data.Entities;
 using CgmLink.Data.Enums;
 using CgmLink.Data.Repository;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace CgmLink.Api.Services;
 
@@ -17,11 +18,14 @@ public sealed class InsightsService : IInsightsService
 {
     private readonly IRepository<Treatment> _treatmentsRepository;
     private readonly IRepository<Reading> _readingsRepository;
+    private readonly MealGlucoseSettings _mealGlucoseSettings;
 
-    public InsightsService(IRepository<Treatment> treatmentsRepository, IRepository<Reading> readingsRepository)
+    public InsightsService(IRepository<Treatment> treatmentsRepository, IRepository<Reading> readingsRepository,
+        IOptions<MealGlucoseSettings> mealGlucoseSettings)
     {
         _treatmentsRepository = treatmentsRepository;
         _readingsRepository = readingsRepository;
+        _mealGlucoseSettings = mealGlucoseSettings.Value;
     }
 
     public async Task<TotalNutritionResponse> GetTotalNutritionAsync(
@@ -71,11 +75,11 @@ public sealed class InsightsService : IInsightsService
     }
 
     public async Task<List<MealGlucoseResponse>> GetMealGlucoseAsync(
-        Guid userId, DateTimeOffset from, DateTimeOffset to, int intervalMinutes = MealGlucoseConstants.DefaultIntervalMinutes,
+        Guid userId, DateTimeOffset from, DateTimeOffset to, int intervalMinutes,
         CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (intervalMinutes < MealGlucoseConstants.MinimumIntervalMinutes || intervalMinutes > (to - from).TotalMinutes)
+        if (intervalMinutes < _mealGlucoseSettings.MinimumIntervalMinutes || intervalMinutes > (to - from).TotalMinutes)
         {
             throw new ArgumentOutOfRangeException(nameof(intervalMinutes));
         }
@@ -95,9 +99,9 @@ public sealed class InsightsService : IInsightsService
             return [];
         }
 
-        var readingsFrom = treatments[0].Created.ToUniversalTime().AddMinutes(-MealGlucoseConstants.BaselineMinutes);
+        var readingsFrom = treatments[0].Created.ToUniversalTime().AddMinutes(-_mealGlucoseSettings.BaselineMinutes);
         var readingsTo = treatments[^1].Created.ToUniversalTime()
-            .AddMinutes(MealGlucoseConstants.WindowMinutes + MealGlucoseConstants.ToleranceMinutes);
+            .AddMinutes((double)_mealGlucoseSettings.WindowMinutes + _mealGlucoseSettings.ToleranceMinutes);
         var readings = await _readingsRepository.GetAll(new FindOptions { IsAsNoTracking = true })
             .Where(r => r.UserId == userId && r.Created >= readingsFrom && r.Created <= readingsTo)
             .OrderBy(r => r.Created).ThenBy(r => r.Id)
@@ -124,14 +128,14 @@ public sealed class InsightsService : IInsightsService
         return series.OrderBy(s => s.InsulinName).ThenBy(s => s.InsulinId).ToList();
     }
 
-    private static List<MealGlucosePointResponse> CalculateMealGlucosePoints(
+    private List<MealGlucosePointResponse> CalculateMealGlucosePoints(
         IEnumerable<DateTimeOffset> treatmentTimes, List<GlucoseSample> readings, int intervalMinutes,
         CancellationToken cancellationToken)
     {
         var eligible = treatmentTimes.Select(created => new
             {
                 Created = created,
-                Baseline = FindReading(readings, created, MealGlucoseConstants.BaselineMinutes, beforeOnly: true),
+                Baseline = FindReading(readings, created, _mealGlucoseSettings.BaselineMinutes, beforeOnly: true),
             })
             .Where(t => t.Baseline is not null).ToList();
         var points = new List<MealGlucosePointResponse>();
@@ -140,12 +144,12 @@ public sealed class InsightsService : IInsightsService
             return points;
         }
 
-        for (var minute = 0; minute <= MealGlucoseConstants.WindowMinutes; minute += intervalMinutes)
+        for (long minute = 0; minute <= _mealGlucoseSettings.WindowMinutes; minute += intervalMinutes)
         {
             cancellationToken.ThrowIfCancellationRequested();
             var levels = eligible
                 .Select(t => minute == 0 ? t.Baseline : FindReading(readings,
-                    t.Created.ToUniversalTime().AddMinutes(minute), MealGlucoseConstants.ToleranceMinutes))
+                    t.Created.ToUniversalTime().AddMinutes(minute), _mealGlucoseSettings.ToleranceMinutes))
                 .Where(reading => reading is not null)
                 .Select(reading => reading!.GlucoseLevel)
                 .Order()
@@ -153,7 +157,7 @@ public sealed class InsightsService : IInsightsService
 
             points.Add(new MealGlucosePointResponse
             {
-                MinutesAfterFood = minute,
+                MinutesAfterFood = (int)minute,
                 AverageGlucoseLevel = levels.Count == 0 ? null : levels.Average(),
                 P25GlucoseLevel = Percentile(levels, 0.25),
                 P75GlucoseLevel = Percentile(levels, 0.75),

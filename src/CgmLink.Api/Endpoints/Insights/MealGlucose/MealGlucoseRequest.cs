@@ -1,5 +1,6 @@
 using System;
 using FluentValidation;
+using Microsoft.Extensions.Options;
 
 namespace CgmLink.Api.Endpoints.Insights.MealGlucose;
 
@@ -11,18 +12,19 @@ public sealed record MealGlucoseRequest
 
     public sealed class Validator : AbstractValidator<MealGlucoseRequest>
     {
-        public Validator()
+        public Validator(IOptions<MealGlucoseSettings> mealGlucoseSettings)
         {
+            var settings = mealGlucoseSettings.Value;
             RuleFor(x => x.From).LessThan(x => x.To).WithMessage(Resources.ValidationMessages.ToBeforeFrom);
             RuleFor(x => x.IntervalMinutes)
-                .GreaterThanOrEqualTo(MealGlucoseConstants.MinimumIntervalMinutes)
+                .GreaterThanOrEqualTo(settings.MinimumIntervalMinutes)
                 .WithMessage(Resources.ValidationMessages.IntervalInvalid)
                 .Must((request, interval) => !request.From.HasValue || !request.To.HasValue ||
-                    (interval ?? MealGlucoseConstants.DefaultIntervalMinutes) <= (request.To.Value - request.From.Value).TotalMinutes)
+                    (interval ?? settings.DefaultIntervalMinutes) <= (request.To.Value - request.From.Value).TotalMinutes)
                 .WithMessage(Resources.ValidationMessages.IntervalInvalid);
-            RuleFor(x => x.From).GreaterThanOrEqualTo(DateTimeOffset.MinValue.AddMinutes(MealGlucoseConstants.BaselineMinutes));
+            RuleFor(x => x.From).GreaterThanOrEqualTo(DateTimeOffset.MinValue.AddMinutes(settings.BaselineMinutes));
             RuleFor(x => x.To).LessThanOrEqualTo(DateTimeOffset.MaxValue.AddMinutes(
-                -MealGlucoseConstants.WindowMinutes - MealGlucoseConstants.ToleranceMinutes));
+                -(double)settings.WindowMinutes - settings.ToleranceMinutes));
         }
     }
 }

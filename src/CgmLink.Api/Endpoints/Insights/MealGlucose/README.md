@@ -4,14 +4,30 @@
 
 Requires authentication. Both dates are optional; `to` defaults to now and `from` to seven days before `to`. Equal or reversed dates return a validation problem.
 
-`intervalMinutes` is an optional whole number, defaulting to 30. It must be at least 5 and no greater than the actual duration between the resolved `from` and `to` dates, in minutes. Validation uses elapsed time across offsets without rounding up. An invalid interval returns a validation problem. The default interval must also fit within the period.
+`intervalMinutes` is an optional whole number. Its default and minimum come from `Insights:MealGlucose` configuration (30 and 5 minutes in the supplied settings). It must be no greater than the actual duration between the resolved `from` and `to` dates, in minutes. Validation uses elapsed time across offsets without rounding up. An invalid interval returns a validation problem. The default interval must also fit within the period.
 
 The period selects non-deleted food treatments belonging to the current user, including meals, personal ingredients, and external nutrition ingredients. Only treatments with a linked bolus injection and a usable pre-food baseline contribute. Series are grouped by insulin ID, even when different insulins share a name. Basal injections and injection-only treatments are excluded.
 
-Each series starts at 0 minutes after food and advances by `intervalMinutes`, including points up to 360 minutes. The default gives 13 points; a five-minute interval gives 73. An interval that does not divide six hours stops at the last multiple within the window. An interval greater than six hours returns only the point at zero. The six-hour observation window remains separate from the period selecting treatments. Insulin duration does not stretch the time axis. Glucose values use mg/dL, matching the other glucose endpoints; the client handles conversion for display. Time fields explicitly use minutes, so neither glucose nor time unit metadata is sent.
+Each series starts at 0 minutes after food and advances by `intervalMinutes`, including points up to the configured `WindowMinutes`. With the supplied six-hour window, the default gives 13 points; a five-minute interval gives 73. An interval that does not divide the window stops at the last multiple within it. An interval greater than the window returns only the point at zero. The observation window remains separate from the period selecting treatments. Insulin duration does not stretch the time axis. Glucose values use mg/dL, matching the other glucose endpoints; the client handles conversion for display. Time fields explicitly use minutes, so neither glucose nor time unit metadata is sent.
 
-- Baseline: the latest reading at or before food, no more than 15 minutes earlier.
-- Later points: the closest reading within 10 minutes of the requested instant; ties choose the earlier reading. Readings are not interpolated or carried forward across gaps.
+All timing settings are configured in `appsettings.json` under `Insights:MealGlucose`, and can be overridden by environment variables such as `Insights__MealGlucose__WindowMinutes`:
+
+```json
+"Insights": {
+  "MealGlucose": {
+    "WindowMinutes": 360,
+    "DefaultIntervalMinutes": 30,
+    "MinimumIntervalMinutes": 5,
+    "BaselineMinutes": 15,
+    "ToleranceMinutes": 10
+  }
+}
+```
+
+Window and interval values must be positive; baseline and tolerance can be zero. The default interval must be at least the minimum. Invalid settings fail validation at startup.
+
+- Baseline: the latest reading at or before food, within the configured `BaselineMinutes` (15 in the supplied settings).
+- Later points: the closest reading within the configured `ToleranceMinutes` (10 in the supplied settings); ties choose the earlier reading. Readings are not interpolated or carried forward across gaps.
 - Each treatment contributes at most one reading to each point, so denser recording does not give a treatment more weight.
 - Points show absolute glucose levels. Baseline matching and reading tolerance are internal calculation rules, not response fields.
 - Missing readings do not contribute to an average or percentile. Missing points contain null averages and percentiles. No eligible treatments return an empty array.

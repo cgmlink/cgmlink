@@ -1,4 +1,6 @@
 using System;
+using CgmLink.Api.Endpoints.Insights.MealGlucose;
+using Microsoft.Extensions.Options;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -38,7 +40,7 @@ public sealed class MealGlucoseServiceTests
         }
         var (service, repository) = Service(meals, readings);
 
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7), 30);
 
         var series = response.Single();
         var point = series.Points.Single(p => p.MinutesAfterFood == 30);
@@ -65,7 +67,7 @@ public sealed class MealGlucoseServiceTests
             Reading(a.Created, 100), Reading(a.Created.AddMinutes(30), 80), Reading(b.Created, 300),
         ]);
 
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7), 30);
 
         var series = response.Single();
         var point = series.Points[1];
@@ -108,7 +110,7 @@ public sealed class MealGlucoseServiceTests
         ], [Reading(_from, 100), Reading(external.Created, 120), Reading(ingredient.Created, 140),
             Reading(_from, 999, Guid.NewGuid())]);
 
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7), 30);
 
         Assert.That(response, Has.Count.EqualTo(2));
         Assert.That(response.Single(s => s.InsulinId == personal.Id).Points[0].AverageGlucoseLevel, Is.EqualTo(120));
@@ -126,7 +128,7 @@ public sealed class MealGlucoseServiceTests
             Reading(last.Created.AddMinutes(370).AddTicks(1), 999),
         ]);
 
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(7), 30);
 
         var series = response.Single();
         Assert.That(series.Points[0].AverageGlucoseLevel, Is.EqualTo(110));
@@ -142,7 +144,7 @@ public sealed class MealGlucoseServiceTests
         var (service, _) = Service([Food(_from)], [
             Reading(_from, 100), Reading(_from.AddMinutes(30 + minutes).AddTicks(ticks), 150),
         ]);
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1), 30);
 
         Assert.That(response.Single().Points[1].AverageGlucoseLevel, Is.EqualTo(expected));
     }
@@ -156,7 +158,7 @@ public sealed class MealGlucoseServiceTests
             Reading(_from.AddMinutes(1), 200),
         ]);
 
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1), 30);
 
         Assert.That(response.Single().Points[0].AverageGlucoseLevel, Is.EqualTo(100));
         Assert.That(response.Single().Points[1].AverageGlucoseLevel, Is.EqualTo(140));
@@ -167,7 +169,7 @@ public sealed class MealGlucoseServiceTests
     public async Task Omits_Treatments_Without_A_Recent_Pre_Food_Baseline(int minutes, int ticks)
     {
         var (service, _) = Service([Food(_from)], [Reading(_from.AddMinutes(minutes).AddTicks(ticks), 100)]);
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1), 30);
 
         Assert.That(response, Is.Empty);
     }
@@ -176,7 +178,7 @@ public sealed class MealGlucoseServiceTests
     public async Task Does_Not_Fetch_Readings_When_No_Treatments_Match()
     {
         var (service, repository) = Service([], []);
-        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1));
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1), 30);
 
         Assert.That(response, Is.Empty);
         repository.VerifyNoOtherCalls();
@@ -229,16 +231,62 @@ public sealed class MealGlucoseServiceTests
         repository.VerifyNoOtherCalls();
     }
 
-    private (InsightsService Service, Mock<IRepository<Reading>> Readings) Service(
-        IEnumerable<Treatment> treatments, IEnumerable<Reading> readings)
+    [Test]
+    public async Task Uses_Configured_Window_Baseline_And_Reading_Tolerance()
     {
+        var first = Food(_from);
+        var second = Food(_from.AddDays(1), first.Injection.Insulin);
+        var settings = new MealGlucoseSettings
+        {
+            WindowMinutes = 20, DefaultIntervalMinutes = 10, MinimumIntervalMinutes = 10,
+            BaselineMinutes = 3, ToleranceMinutes = 1,
+        };
+        var (service, _) = Service([first, second], [
+            Reading(first.Created.AddMinutes(-3), 110),
+            Reading(first.Created.AddMinutes(12), 150),
+            Reading(first.Created.AddMinutes(21), 160),
+            Reading(second.Created.AddMinutes(-4), 999),
+        ], settings);
+
+        var response = await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(2), 10);
+
+        var points = response.Single().Points;
+        Assert.That(points.Select(p => p.MinutesAfterFood), Is.EqualTo(new[] { 0, 10, 20 }));
+        Assert.That(points[0].AverageGlucoseLevel, Is.EqualTo(110));
+        Assert.That(points[1].AverageGlucoseLevel, Is.Null);
+        Assert.That(points[2].AverageGlucoseLevel, Is.EqualTo(160));
+    }
+
+    [Test]
+    public void Enforces_Configured_Minimum_Interval()
+    {
+        var settings = new MealGlucoseSettings
+        {
+            WindowMinutes = 360, DefaultIntervalMinutes = 30, MinimumIntervalMinutes = 10,
+            BaselineMinutes = 15, ToleranceMinutes = 10,
+        };
+        var (service, repository) = Service([], [], settings);
+
+        Assert.That(async () => await service.GetMealGlucoseAsync(_userId, _from, _from.AddDays(1), 5),
+            Throws.TypeOf<ArgumentOutOfRangeException>());
+        repository.VerifyNoOtherCalls();
+    }
+
+    private (InsightsService Service, Mock<IRepository<Reading>> Readings) Service(
+        IEnumerable<Treatment> treatments, IEnumerable<Reading> readings, MealGlucoseSettings settings = null)
+    {
+        settings ??= new MealGlucoseSettings
+        {
+            WindowMinutes = 360, DefaultIntervalMinutes = 30, MinimumIntervalMinutes = 5,
+            BaselineMinutes = 15, ToleranceMinutes = 10,
+        };
         var treatmentRepository = new Mock<IRepository<Treatment>>();
         treatmentRepository.Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Treatment>(treatments));
         var readingRepository = new Mock<IRepository<Reading>>();
         readingRepository.Setup(r => r.GetAll(It.IsAny<FindOptions>()))
             .Returns(new TestAsyncEnumerable<Reading>(readings));
-        return (new InsightsService(treatmentRepository.Object, readingRepository.Object), readingRepository);
+        return (new InsightsService(treatmentRepository.Object, readingRepository.Object, Options.Create(settings)), readingRepository);
     }
 
     private Treatment Food(DateTimeOffset created, Insulin insulin = null)
