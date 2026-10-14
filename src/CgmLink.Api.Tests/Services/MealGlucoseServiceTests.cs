@@ -247,14 +247,23 @@ public sealed class MealGlucoseServiceTests
         var injection = new Injection { UserId = _userId, InsulinId = insulin.Id, Insulin = insulin, Units = 4, Created = created };
         return new Treatment
         {
-            UserId = _userId, Created = created, Calories = 100, Carbs = 20, Protein = 5, Fat = 2,
-            InjectionId = injection.Id, Injection = injection,
+            UserId = _userId,
+            Created = created,
+            Calories = 100,
+            Carbs = 20,
+            Protein = 5,
+            Fat = 2,
+            InjectionId = injection.Id,
+            Injection = injection,
             Meals = [new TreatmentMeal { Quantity = 1, Created = created }],
         };
     }
 
     private Reading Reading(DateTimeOffset created, double glucose, Guid? userId = null) => new()
     {
-        UserId = userId ?? _userId, Created = created, GlucoseLevel = glucose, Direction = ReadingDirection.Steady,
+        UserId = userId ?? _userId,
+        Created = created,
+        GlucoseLevel = glucose,
+        Direction = ReadingDirection.Steady,
     };
 }

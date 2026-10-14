@@ -80,7 +80,9 @@ public sealed class MealGlucoseEndpointTests
         var from = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
         var result = await HandleAsync(new MealGlucoseRequest
         {
-            From = from, To = from.AddMinutes(10), IntervalMinutes = intervalMinutes,
+            From = from,
+            To = from.AddMinutes(10),
+            IntervalMinutes = intervalMinutes,
         });
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
@@ -108,7 +110,9 @@ public sealed class MealGlucoseEndpointTests
         var from = new DateTimeOffset(2026, 10, 1, 0, 0, 0, TimeSpan.Zero);
         var result = await HandleAsync(new MealGlucoseRequest
         {
-            From = from, To = from.AddMinutes(5).AddTicks(-1), IntervalMinutes = 5,
+            From = from,
+            To = from.AddMinutes(5).AddTicks(-1),
+            IntervalMinutes = 5,
         });
 
         Assert.That(result.Result, Is.TypeOf<ValidationProblem>());
@@ -180,7 +184,8 @@ public sealed class MealGlucoseEndpointTests
         var minimum = await HandleAsync(new MealGlucoseRequest { To = DateTimeOffset.MinValue });
         var maximum = await HandleAsync(new MealGlucoseRequest
         {
-            From = DateTimeOffset.UtcNow, To = DateTimeOffset.MaxValue,
+            From = DateTimeOffset.UtcNow,
+            To = DateTimeOffset.MaxValue,
         });
 
         Assert.That(minimum.Result, Is.TypeOf<ValidationProblem>());
