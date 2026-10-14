@@ -238,8 +238,11 @@ public sealed class MealGlucoseServiceTests
         var second = Food(_from.AddDays(1), first.Injection.Insulin);
         var settings = new MealGlucoseSettings
         {
-            WindowMinutes = 20, DefaultIntervalMinutes = 10, MinimumIntervalMinutes = 10,
-            BaselineMinutes = 3, ToleranceMinutes = 1,
+            WindowMinutes = 20,
+            DefaultIntervalMinutes = 10,
+            MinimumIntervalMinutes = 10,
+            BaselineMinutes = 3,
+            ToleranceMinutes = 1,
         };
         var (service, _) = Service([first, second], [
             Reading(first.Created.AddMinutes(-3), 110),
@@ -262,8 +265,11 @@ public sealed class MealGlucoseServiceTests
     {
         var settings = new MealGlucoseSettings
         {
-            WindowMinutes = 360, DefaultIntervalMinutes = 30, MinimumIntervalMinutes = 10,
-            BaselineMinutes = 15, ToleranceMinutes = 10,
+            WindowMinutes = 360,
+            DefaultIntervalMinutes = 30,
+            MinimumIntervalMinutes = 10,
+            BaselineMinutes = 15,
+            ToleranceMinutes = 10,
         };
         var (service, repository) = Service([], [], settings);
 
@@ -277,8 +283,11 @@ public sealed class MealGlucoseServiceTests
     {
         settings ??= new MealGlucoseSettings
         {
-            WindowMinutes = 360, DefaultIntervalMinutes = 30, MinimumIntervalMinutes = 5,
-            BaselineMinutes = 15, ToleranceMinutes = 10,
+            WindowMinutes = 360,
+            DefaultIntervalMinutes = 30,
+            MinimumIntervalMinutes = 5,
+            BaselineMinutes = 15,
+            ToleranceMinutes = 10,
         };
         var treatmentRepository = new Mock<IRepository<Treatment>>();
         treatmentRepository.Setup(r => r.GetAll(It.IsAny<FindOptions>()))
