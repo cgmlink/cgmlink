@@ -38,8 +38,11 @@ public sealed class MealGlucoseEndpointTests
     {
         _settings = Options.Create(new MealGlucoseSettings
         {
-            WindowMinutes = 360, DefaultIntervalMinutes = 30, MinimumIntervalMinutes = 5,
-            BaselineMinutes = 15, ToleranceMinutes = 10,
+            WindowMinutes = 360,
+            DefaultIntervalMinutes = 30,
+            MinimumIntervalMinutes = 5,
+            BaselineMinutes = 15,
+            ToleranceMinutes = 10,
         });
         _userId = Guid.NewGuid();
         _currentUser = new Mock<ICurrentUser>();

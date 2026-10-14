@@ -133,10 +133,10 @@ public sealed class InsightsService : IInsightsService
         CancellationToken cancellationToken)
     {
         var eligible = treatmentTimes.Select(created => new
-            {
-                Created = created,
-                Baseline = FindReading(readings, created, _mealGlucoseSettings.BaselineMinutes, beforeOnly: true),
-            })
+        {
+            Created = created,
+            Baseline = FindReading(readings, created, _mealGlucoseSettings.BaselineMinutes, beforeOnly: true),
+        })
             .Where(t => t.Baseline is not null).ToList();
         var points = new List<MealGlucosePointResponse>();
         if (eligible.Count == 0)
