@@ -70,7 +70,7 @@ public class EndpointTests
     }
 
     [Test]
-    public void HandleAsync_With_Null_User_Throws_Unauthorized_Exception()
+    public async Task HandleAsync_With_Null_User_Throws_Unauthorized_Exception()
     {
         var userId = Guid.NewGuid();
 
@@ -78,7 +78,7 @@ public class EndpointTests
         _userRepositoryMock.Setup(repo => repo.FindOneAsync(It.IsAny<Expression<Func<Data.Entities.User, bool>>>(), It.IsAny<FindOptions>(), It.IsAny<CancellationToken>()))
                            .ReturnsAsync((Data.Entities.User)null);
 
-        var exception = Assert.ThrowsAsync<UnauthorizedException>(() => Endpoint.HandleAsync(_currentUserMock.Object, _userRepositoryMock.Object, CancellationToken.None));
+        var exception = await Assert.ThrowsAsync<UnauthorizedException>(() => Endpoint.HandleAsync(_currentUserMock.Object, _userRepositoryMock.Object, CancellationToken.None));
 
         Assert.That(exception.Message, Is.EqualTo("USER_NOT_LOGGED_IN"));
     }

@@ -81,7 +81,7 @@ public class PairConnectionTests
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_UnauthorizedException_When_Patient_AuthTicket_Not_Found()
+    public async Task HandleAsync_Should_Throw_UnauthorizedException_When_Patient_AuthTicket_Not_Found()
     {
         var userId = Guid.NewGuid();
         var patientId = Guid.NewGuid();
@@ -96,14 +96,13 @@ public class PairConnectionTests
             .ReturnsAsync([
                 new ConnectionData { PatientId = patientId, FirstName = "Firstname", LastName = "LastName" }
             ]);
-
-        Assert.ThrowsAsync<UnauthorizedException>(async () =>
+        await Assert.ThrowsAsync<UnauthorizedException>(async () =>
             await Endpoint.HandleAsync(request, _currentUserMock.Object, _patientRepositoryMock.Object,
                 _libreLinkClientFactoryMock.Object, CancellationToken.None));
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_UnauthorizedException_When_Patient_Not_Found()
+    public async Task HandleAsync_Should_Throw_UnauthorizedException_When_Patient_Not_Found()
     {
         var userId = Guid.NewGuid();
         var request = new PairConnectionRequest { PatientId = Guid.NewGuid() };
@@ -112,14 +111,13 @@ public class PairConnectionTests
         _patientRepositoryMock.Setup(x =>
                 x.FindOne(It.IsAny<Expression<Func<Patient, bool>>>(), It.IsAny<FindOptions>()))
             .Returns((Patient)null);
-
-        Assert.ThrowsAsync<UnauthorizedException>(async () =>
+        await Assert.ThrowsAsync<UnauthorizedException>(async () =>
             await Endpoint.HandleAsync(request, _currentUserMock.Object, _patientRepositoryMock.Object,
                 _libreLinkClientFactoryMock.Object, CancellationToken.None));
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_NotFoundException_When_Connection_Not_Found()
+    public async Task HandleAsync_Should_Throw_NotFoundException_When_Connection_Not_Found()
     {
         var userId = Guid.NewGuid();
         var patient = new Patient
@@ -145,14 +143,13 @@ public class PairConnectionTests
             .ReturnsAsync(patient);
         _libreLinkClientMock.Setup(x => x.GetConnectionsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync([]);
-
-        Assert.ThrowsAsync<NotFoundException>(async () =>
+        await Assert.ThrowsAsync<NotFoundException>(async () =>
             await Endpoint.HandleAsync(request, _currentUserMock.Object, _patientRepositoryMock.Object,
                 _libreLinkClientFactoryMock.Object, CancellationToken.None));
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_UnauthorizedException_When_Region_Is_Null()
+    public async Task HandleAsync_Should_Throw_UnauthorizedException_When_Region_Is_Null()
     {
         var userId = Guid.NewGuid();
         var patient = new Patient
@@ -174,14 +171,13 @@ public class PairConnectionTests
         _patientRepositoryMock.Setup(x =>
                 x.FindOne(It.IsAny<Expression<Func<Patient, bool>>>(), It.IsAny<FindOptions>()))
             .Returns(patient);
-
-        Assert.ThrowsAsync<UnauthorizedException>(async () =>
+        await Assert.ThrowsAsync<UnauthorizedException>(async () =>
             await Endpoint.HandleAsync(request, _currentUserMock.Object, _patientRepositoryMock.Object,
                 _libreLinkClientFactoryMock.Object, CancellationToken.None));
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_UnauthorizedException_When_NotAuthenticated()
+    public async Task HandleAsync_Should_Throw_UnauthorizedException_When_NotAuthenticated()
     {
         var userId = Guid.NewGuid();
         var patient = new Patient
@@ -207,8 +203,7 @@ public class PairConnectionTests
             .ReturnsAsync(patient);
         _libreLinkClientMock.Setup(x => x.GetConnectionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new LibreLinkNotAuthenticatedException());
-
-        Assert.ThrowsAsync<UnauthorizedException>(async () =>
+        await Assert.ThrowsAsync<UnauthorizedException>(async () =>
             await Endpoint.HandleAsync(request, _currentUserMock.Object, _patientRepositoryMock.Object,
                 _libreLinkClientFactoryMock.Object, CancellationToken.None));
     }
@@ -245,7 +240,7 @@ public class PairConnectionTests
     }
 
     [Test]
-    public void HandleAsync_Should_Throw_UnauthorizedException_When_Authentication_Fails()
+    public async Task HandleAsync_Should_Throw_UnauthorizedException_When_Authentication_Fails()
     {
         var userId = Guid.NewGuid();
         var patient = new Patient
@@ -270,8 +265,7 @@ public class PairConnectionTests
             .Returns(patient);
         _libreLinkClientMock.Setup(x => x.GetConnectionsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new LibreLinkAuthenticationFailedException());
-
-        Assert.ThrowsAsync<UnauthorizedException>(async () =>
+        await Assert.ThrowsAsync<UnauthorizedException>(async () =>
             await Endpoint.HandleAsync(request, _currentUserMock.Object, _patientRepositoryMock.Object,
                 _libreLinkClientFactoryMock.Object, CancellationToken.None));
     }

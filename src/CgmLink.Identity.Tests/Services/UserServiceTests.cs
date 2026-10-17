@@ -483,14 +483,13 @@ internal sealed class UserServiceTests
     }
 
     [Test]
-    public void RefreshTokenAsync_Rejects_Concurrency_Conflict_Without_Issuing_Access_Token()
+    public async Task RefreshTokenAsync_Rejects_Concurrency_Conflict_Without_Issuing_Access_Token()
     {
         StubUser(ActiveToken("device-a"));
         _tokenService.Setup(x => x.GenerateRefreshToken(It.IsAny<string>())).Returns(ActiveToken("replacement"));
         _dbContext.Setup(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new DbUpdateConcurrencyException());
-
-        Assert.ThrowsAsync<UnauthorizedException>(() => _sut.RefreshTokenAsync("device-a", "127.0.0.1"));
+        await Assert.ThrowsAsync<UnauthorizedException>(() => _sut.RefreshTokenAsync("device-a", "127.0.0.1"));
 
         _tokenService.Verify(x => x.GenerateJwtToken(It.IsAny<User>()), Times.Never);
         Assert.That(_dbContext.Object.ChangeTracker.HasChanges(), Is.False, "The losing replacement must not remain pending.");
