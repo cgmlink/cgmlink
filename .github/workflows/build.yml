@@ -4,7 +4,6 @@ env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   DOTNET_NOLOGO: true
   DOTNET_VERSION: 10.0.x
-  SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
 on:
   push:
@@ -39,15 +38,35 @@ jobs:
 
   build:
     runs-on: ubuntu-latest
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
       - name: Restore dependencies
         run: dotnet restore src/cgm-link.sln
+      - name: Install SonarScanner
+        if: env.SONAR_TOKEN != ''
+        run: dotnet tool install --global dotnet-sonarscanner
+      - name: Begin Sonar analysis
+        if: env.SONAR_TOKEN != ''
+        run: >-
+          dotnet sonarscanner begin
+          /k:"cgmlink_cgmlink"
+          /o:"cgmlink"
+          /s:"$GITHUB_WORKSPACE/SonarQube.Analysis.xml"
+          /d:sonar.host.url="https://sonarcloud.io"
+          /d:sonar.projectBaseDir="$GITHUB_WORKSPACE"
+          /d:sonar.token="$SONAR_TOKEN"
       - name: Build
         run: dotnet build src/cgm-link.sln -c Release --no-restore
       - name: Test
         run: dotnet test src/cgm-link.sln -c Release --no-build --logger "trx;LogFilePrefix=UnitTestResults" --collect:"XPlat Code Coverage" -- DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Format=opencover
+      - name: Upload Sonar analysis and coverage
+        if: env.SONAR_TOKEN != ''
+        run: dotnet sonarscanner end /d:sonar.token="$SONAR_TOKEN"
