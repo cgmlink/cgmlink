@@ -39,8 +39,7 @@ builder.Services.AddApiVersioning(options =>
     {
         options.GroupNameFormat = "'v'VVV";
         options.SubstituteApiVersionInUrl = true;
-    })
-    .EnableApiVersionBinding();
+    });
 
 var swaggerSettings = builder.Configuration.GetSection(SwaggerSettings.SectionName)
     .Get<SwaggerSettings>() ?? new SwaggerSettings();
