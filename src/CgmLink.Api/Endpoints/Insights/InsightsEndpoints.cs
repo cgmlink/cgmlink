@@ -48,6 +48,11 @@ internal static class InsightsEndpoints
             .WithName("AverageNutritionInsight")
             .RequireAuthorization();
 
+        group.MapGet("/meal-glucose", MealGlucose.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("MealGlucoseInsight")
+            .RequireAuthorization();
+
         return endpoints;
     }
 }

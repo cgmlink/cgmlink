@@ -110,4 +110,5 @@ internal sealed class ExceptionMiddlewareTests
         await _sut.InvokeAsync(_httpContext, next);
         Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status400BadRequest));
     }
+
 }
