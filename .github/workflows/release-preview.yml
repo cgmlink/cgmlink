@@ -37,7 +37,7 @@ jobs:
         run: dotnet test src/cgm-link.sln --configuration Release /p:Version=$env:VERSION --no-build
       - name: Pack
         run: dotnet pack src/cgm-link.sln --configuration Release /p:Version=$env:VERSION --output .
-       - name: NuGet login
+      - name: NuGet login
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
         id: nuget-login
         with:
