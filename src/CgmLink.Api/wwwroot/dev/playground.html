@@ -1700,8 +1700,9 @@
         "<td>" + t.protein + " g</td>" +
         "<td>" + t.fat + " g</td>" +
         "<td>" + (t.glucoseLevel != null ? t.glucoseLevel + " mmol/L" : "-") + "</td>" +
-        "<td>" + (t.injectionUnits != null ? t.injectionUnits + " u" : "-") + "</td>" +
-        "<td>" + (esc(t.insulinName) || "-") + "</td>" +
+        "<td>" + (t.injection?.units != null ? t.injection.units + " u" : "-") + "</td>" +
+        "<td>" + (esc(insulinOptions?.find((i) => i.id === t.injection?.insulinId)?.name
+          ?? t.injection?.insulinId) || "-") + "</td>" +
         "<td style='text-align:right;'>" +
           "<button class='small secondary' data-view-treatment='" + t.id + "'>View</button> " +
           "<button class='small secondary' data-edit-treatment='" + t.id + "'>Edit</button> " +

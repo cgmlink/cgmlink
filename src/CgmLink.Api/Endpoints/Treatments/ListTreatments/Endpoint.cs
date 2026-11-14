@@ -37,7 +37,6 @@ internal static class Endpoint
         var treatments = await treatmentsRepository.Find(t => t.UserId == userId && t.Deleted == null, new FindOptions { IsAsNoTracking = true })
             .Include(t => t.Reading)
             .Include(t => t.Injection)
-                .ThenInclude(i => i.Insulin)
             .OrderByProperty(sortBy, descending)
             .Skip(request.Page * request.PageSize)
             .Take(request.PageSize)

@@ -20,8 +20,7 @@ public sealed record ListTreatmentResponse
     public required decimal Protein { get; init; }
     public required decimal Fat { get; init; }
     public double? GlucoseLevel { get; init; }
-    public decimal? InjectionUnits { get; init; }
-    public string? InsulinName { get; init; }
+    public ListTreatmentInjectionResponse? Injection { get; init; }
 
     public static ListTreatmentResponse ToResponse(Treatment treatment)
     {
@@ -35,8 +34,23 @@ public sealed record ListTreatmentResponse
             Protein = treatment.Protein,
             Fat = treatment.Fat,
             GlucoseLevel = treatment.Reading?.GlucoseLevel,
-            InjectionUnits = treatment.Injection?.Units,
-            InsulinName = treatment.Injection?.Insulin?.Name,
+            Injection = treatment.Injection is { } injection
+                ? ListTreatmentInjectionResponse.ToResponse(injection)
+                : null,
         };
     }
+}
+
+public sealed record ListTreatmentInjectionResponse
+{
+    public required DateTimeOffset Created { get; init; }
+    public required decimal Units { get; init; }
+    public required Guid InsulinId { get; init; }
+
+    public static ListTreatmentInjectionResponse ToResponse(Injection injection) => new()
+    {
+        Created = injection.Created,
+        Units = injection.Units,
+        InsulinId = injection.InsulinId,
+    };
 }
