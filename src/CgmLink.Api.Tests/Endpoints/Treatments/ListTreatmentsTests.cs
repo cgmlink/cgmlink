@@ -162,8 +162,12 @@ public class ListTreatmentsTests
             Assert.That(response.Protein, Is.EqualTo(15m));
             Assert.That(response.Fat, Is.EqualTo(6m));
             Assert.That(response.GlucoseLevel, Is.EqualTo(9.5));
-            Assert.That(response.InjectionUnits, Is.EqualTo(8m));
-            Assert.That(response.InsulinName, Is.EqualTo("Novorapid"));
+            Assert.That(response.Injection, Is.EqualTo(new ListTreatmentInjectionResponse
+            {
+                Created = treatment.Injection!.Created,
+                Units = 8m,
+                InsulinId = treatment.Injection.InsulinId,
+            }));
             Assert.That(okResult.Value.NumberOfPages, Is.EqualTo(1));
         });
     }
@@ -195,8 +199,7 @@ public class ListTreatmentsTests
         Assert.Multiple(() =>
         {
             Assert.That(response.GlucoseLevel, Is.Null);
-            Assert.That(response.InjectionUnits, Is.Null);
-            Assert.That(response.InsulinName, Is.Null);
+            Assert.That(response.Injection, Is.Null);
         });
     }
 
