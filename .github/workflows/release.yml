@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   packages: read
+  id-token: write
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
@@ -70,10 +71,16 @@ jobs:
         run: dotnet test src/cgm-link.sln --configuration Release /p:Version=$env:VERSION --no-build
       - name: Pack
         run: dotnet pack src/cgm-link.sln --configuration Release /p:Version=$env:VERSION --output .
+      - name: NuGet login
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841
+        id: nuget-login
+        with:
+          user: ${{ secrets.CGMLINK_NUGET_USER }}
+
       - name: Push
         env:
-          NUGET_APIKEY: ${{ secrets.NUGET_APIKEY }}
-        run: dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key $env:NUGET_APIKEY
+          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --skip-duplicate --api-key "$env:NUGET_API_KEY"
       - name: Deploy
         uses: rasmusbuchholdt/simply-web-deploy@2.2.0
         with:
