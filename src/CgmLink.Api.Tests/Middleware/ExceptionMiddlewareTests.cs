@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CgmLink.Api.Middleware;
@@ -80,6 +81,28 @@ internal sealed class ExceptionMiddlewareTests
         await _sut.InvokeAsync(_httpContext, next);
 
         Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status403Forbidden));
+    }
+
+    [Test]
+    public async Task InvokeAsync_WithUnavailableProvider_Returns503WithoutProviderDetails()
+    {
+        _logger.Setup(logger => logger.IsEnabled(LogLevel.Error)).Returns(true);
+        var providerError = new HttpRequestException("FatSecret API error 14: Missing scope: barcode");
+        var exception = new CgmLink.Api.Exceptions.NutritionUnavailableException(providerError);
+        var next = new RequestDelegate(_ => throw exception);
+
+        await _sut.InvokeAsync(_httpContext, next);
+
+        _httpContext.Response.Body.Position = 0;
+        using var result = await JsonDocument.ParseAsync(_httpContext.Response.Body);
+        using (Assert.EnterMultipleScope())
+        {
+            Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status503ServiceUnavailable));
+            Assert.That(result.RootElement.GetProperty("message").GetString(), Is.EqualTo("INTERNAL_SERVER_ERROR"));
+            Assert.That(result.RootElement.GetRawText(), Does.Not.Contain(providerError.Message));
+        }
+        _logger.Verify(logger => logger.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
+            exception, It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
     }
 
     [Test]

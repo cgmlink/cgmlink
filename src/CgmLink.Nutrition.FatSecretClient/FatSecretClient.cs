@@ -14,6 +14,8 @@ namespace CgmLink.Nutrition.FatSecretClient;
 
 internal sealed class FatSecretClient : INutritionSourceClient
 {
+    private const int NoFoodItemDetected = 211;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         NumberHandling = JsonNumberHandling.AllowReadingFromString
@@ -80,18 +82,25 @@ internal sealed class FatSecretClient : INutritionSourceClient
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(barcode);
 
-        var response = await GetAsync<FoodResponse>(
-            BuildPath("food/barcode/find-by-id/v2", new Dictionary<string, string> { ["barcode"] = barcode }),
-            cancellationToken).ConfigureAwait(false);
+        try
+        {
+            var response = await GetAsync<FoodResponse>(
+                BuildPath("food/barcode/find-by-id/v2", new Dictionary<string, string> { ["barcode"] = barcode }),
+                cancellationToken).ConfigureAwait(false);
 
-        return response?.Food is null ? null : Map(response.Food, barcode);
+            return response?.Food is null ? null : Map(response.Food, barcode);
+        }
+        catch (FatSecretApiException exception) when (exception.ErrorCode == NoFoodItemDetected)
+        {
+            return null;
+        }
     }
 
-    private async Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken)
+    private Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken)
     {
-        return await SendAsync<T>(
+        return SendAsync<T>(
             () => new HttpRequestMessage(HttpMethod.Get, path),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken);
     }
 
     private async Task<T?> SendAsync<T>(
@@ -133,7 +142,7 @@ internal sealed class FatSecretClient : INutritionSourceClient
 
         if (error is not null)
         {
-            throw new HttpRequestException($"FatSecret API error {error.Code}: {error.Message}");
+            throw new FatSecretApiException(error.Code, error.Message);
         }
 
         return JsonSerializer.Deserialize<T>(json, JsonOptions);

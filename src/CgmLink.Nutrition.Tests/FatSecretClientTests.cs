@@ -123,13 +123,24 @@ internal sealed class FatSecretClientTests
     }
 
     [Test]
+    public async Task GetByBarcodeAsync_NoFoodItemDetected_ReturnsNull()
+    {
+        var handler = JsonHandler("""{"error":{"code":"211","message":"No food item detected"}}""");
+        var sut = CreateClient(handler);
+
+        var result = await sut.GetByBarcodeAsync("0000012345678");
+
+        Assert.That(result, Is.Null);
+    }
+
+    [Test]
     public void SearchAsync_FatSecretError_ThrowsHttpRequestException()
     {
         var handler = JsonHandler("""{"error":{"code":"14","message":"Missing scope: premier"}}""");
         var sut = CreateClient(handler);
 
         Assert.That(async () => await sut.SearchAsync("bread"),
-            Throws.TypeOf<HttpRequestException>()
+            Throws.InstanceOf<HttpRequestException>()
                 .With.Message.EqualTo("FatSecret API error 14: Missing scope: premier"));
     }
 

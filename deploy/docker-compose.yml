@@ -32,6 +32,9 @@ services:
       Mail__SmtpPassword: ${SMTP_PASSWORD}
       Mail__DisplayName: ${SMTP_DISPLAY_NAME}
       Mail__From: ${SMTP_FROM}
+      FatSecret__ClientId: ${FATSECRET_CLIENT_ID}
+      FatSecret__ClientSecret: ${FATSECRET_CLIENT_SECRET}
+      Nutrition__CacheConnectionString: ${NUTRITION_CACHE_CONNECTION_STRING}
     ports:
       - "21653:8080"
       - "21654:8081"
