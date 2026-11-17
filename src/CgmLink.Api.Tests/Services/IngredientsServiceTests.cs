@@ -597,13 +597,13 @@ public class IngredientsServiceTests
 
         var response = await _service.SearchExternalIngredientsAsync(" Milk ", 2, 10);
 
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(response.Single().ProductId, Is.EqualTo("123"));
             Assert.That(response.Single().IngredientId, Is.Null);
             Assert.That(response.Single().Servings.Single().ServingId, Is.EqualTo("456"));
             Assert.That(response.Single().Attribution, Is.EqualTo("Provider attribution"));
-        });
+        }
         _ingredientsRepositoryMock.VerifyNoOtherCalls();
         _nutritionIngredientsRepositoryMock.VerifyNoOtherCalls();
     }

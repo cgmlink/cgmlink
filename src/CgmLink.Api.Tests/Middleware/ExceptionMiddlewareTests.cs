@@ -96,12 +96,12 @@ internal sealed class ExceptionMiddlewareTests
 
         _httpContext.Response.Body.Position = 0;
         using var result = await JsonDocument.ParseAsync(_httpContext.Response.Body);
-        Assert.Multiple(() =>
+        using (Assert.EnterMultipleScope())
         {
             Assert.That(_httpContext.Response.StatusCode, Is.EqualTo(StatusCodes.Status503ServiceUnavailable));
             Assert.That(result.RootElement.GetProperty("message").GetString(), Is.EqualTo("INTERNAL_SERVER_ERROR"));
             Assert.That(result.RootElement.GetRawText(), Does.Not.Contain(providerError.Message));
-        });
+        }
         _logger.Verify(logger => logger.Log(LogLevel.Error, It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(),
             exception, It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
     }
