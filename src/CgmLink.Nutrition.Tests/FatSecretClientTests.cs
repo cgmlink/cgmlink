@@ -140,7 +140,7 @@ internal sealed class FatSecretClientTests
         var sut = CreateClient(handler);
 
         Assert.That(async () => await sut.SearchAsync("bread"),
-            Throws.TypeOf<HttpRequestException>()
+            Throws.InstanceOf<HttpRequestException>()
                 .With.Message.EqualTo("FatSecret API error 14: Missing scope: premier"));
     }
 

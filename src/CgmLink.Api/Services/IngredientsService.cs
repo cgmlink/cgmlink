@@ -3,7 +3,7 @@ using CgmLink.Api.Endpoints.Ingredients;
 using CgmLink.Api.Endpoints.Ingredients.ListIngredients;
 using CgmLink.Api.Models;
 using CgmLink.Data.Extensions;
-using System.Net;
+using CgmLink.Api.Exceptions;
 using System.Net.Http;
 using CgmLink.Data.Entities;
 using CgmLink.Data.Repository;
@@ -76,7 +76,7 @@ public sealed class IngredientsService : IIngredientsService
         catch (Exception exception) when (exception is HttpRequestException ||
             exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable, exception);
+            throw new NutritionUnavailableException(exception);
         }
     }
 
@@ -134,7 +134,7 @@ public sealed class IngredientsService : IIngredientsService
         catch (Exception exception) when (exception is HttpRequestException ||
             exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable, exception);
+            throw new NutritionUnavailableException(exception);
         }
         if (product is null)
         {

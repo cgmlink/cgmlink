@@ -499,7 +499,7 @@ public class IngredientsServiceTests
             .ThrowsAsync(new System.Net.Http.HttpRequestException("private provider detail"));
 
         Assert.That(async () => await _service.GetIngredientAsync("123", _userId, type: CgmLink.Api.Endpoints.Ingredients.IngredientType.External),
-            Throws.TypeOf<ApiException>().With.Property("StatusCode").EqualTo(System.Net.HttpStatusCode.ServiceUnavailable)
+            Throws.TypeOf<CgmLink.Api.Exceptions.NutritionUnavailableException>().With.Property("StatusCode").EqualTo(System.Net.HttpStatusCode.ServiceUnavailable)
                 .And.Message.EqualTo("NUTRITION_UNAVAILABLE"));
     }
 
@@ -616,7 +616,7 @@ public class IngredientsServiceTests
         _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 0, 20, CancellationToken.None))
             .ThrowsAsync(new System.Net.Http.HttpRequestException("private detail"));
         Assert.That(async () => await _service.SearchExternalIngredientsAsync("Milk", 0, 20),
-            Throws.TypeOf<ApiException>().With.Message.EqualTo("NUTRITION_UNAVAILABLE"));
+            Throws.TypeOf<CgmLink.Api.Exceptions.NutritionUnavailableException>().With.Message.EqualTo("NUTRITION_UNAVAILABLE"));
     }
 
     [Test]

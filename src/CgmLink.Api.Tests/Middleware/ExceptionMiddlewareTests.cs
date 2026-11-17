@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -89,7 +88,7 @@ internal sealed class ExceptionMiddlewareTests
     {
         _logger.Setup(logger => logger.IsEnabled(LogLevel.Error)).Returns(true);
         var providerError = new HttpRequestException("FatSecret API error 14: Missing scope: barcode");
-        var exception = new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable, providerError);
+        var exception = new CgmLink.Api.Exceptions.NutritionUnavailableException(providerError);
         var next = new RequestDelegate(_ => throw exception);
 
         await _sut.InvokeAsync(_httpContext, next);
