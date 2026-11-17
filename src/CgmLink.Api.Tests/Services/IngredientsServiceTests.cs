@@ -548,7 +548,9 @@ public class IngredientsServiceTests
         _nutritionCatalogMock.Setup(catalog => catalog.GetByBarcodeAsync("0036000291452", CancellationToken.None))
             .ReturnsAsync(new NutritionProduct
             {
-                ProductId = "123", Name = "Milk", Attribution = "Provider attribution",
+                ProductId = "123",
+                Name = "Milk",
+                Attribution = "Provider attribution",
                 Servings = [CreateNutritionServing("456")],
             });
 
