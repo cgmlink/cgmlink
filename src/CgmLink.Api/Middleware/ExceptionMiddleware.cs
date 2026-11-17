@@ -80,6 +80,10 @@ internal partial class ExceptionMiddleware : IMiddleware
                     context.Response.StatusCode = StatusCodes.Status400BadRequest;
                     messages.Add(e.Message);
                     break;
+                case ApiException apiException:
+                    context.Response.StatusCode = (int)apiException.StatusCode;
+                    messages.Add(apiException.Message);
+                    break;
                 default:
                     context.Response.StatusCode = StatusCodes.Status500InternalServerError;
                     break;

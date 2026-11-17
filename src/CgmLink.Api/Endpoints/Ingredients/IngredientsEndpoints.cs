@@ -25,6 +25,14 @@ public static class IngredientsEndpoints
             .Produces(StatusCodes.Status503ServiceUnavailable)
             .RequireAuthorization();
 
+        group.MapGet("/barcode/{barcode}", GetIngredientByBarcode.Endpoint.HandleAsync)
+            .HasApiVersion(1.0)
+            .WithName("GetIngredientByBarcode")
+            .Produces(StatusCodes.Status400BadRequest)
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status503ServiceUnavailable)
+            .RequireAuthorization();
+
         group.MapPost("/", NewIngredient.Endpoint.HandleAsync)
             .HasApiVersion(1.0)
             .WithName("CreateIngredient")

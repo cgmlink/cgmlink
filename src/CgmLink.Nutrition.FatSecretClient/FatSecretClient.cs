@@ -14,6 +14,8 @@ namespace CgmLink.Nutrition.FatSecretClient;
 
 internal sealed class FatSecretClient : INutritionSourceClient
 {
+    private const int NoFoodItemDetected = 211;
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         NumberHandling = JsonNumberHandling.AllowReadingFromString
@@ -82,21 +84,22 @@ internal sealed class FatSecretClient : INutritionSourceClient
 
         var response = await GetAsync<FoodResponse>(
             BuildPath("food/barcode/find-by-id/v2", new Dictionary<string, string> { ["barcode"] = barcode }),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken, NoFoodItemDetected).ConfigureAwait(false);
 
         return response?.Food is null ? null : Map(response.Food, barcode);
     }
 
-    private async Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken)
+    private Task<T?> GetAsync<T>(string path, CancellationToken cancellationToken, int? notFoundErrorCode = null)
     {
-        return await SendAsync<T>(
+        return SendAsync<T>(
             () => new HttpRequestMessage(HttpMethod.Get, path),
-            cancellationToken).ConfigureAwait(false);
+            cancellationToken, notFoundErrorCode);
     }
 
     private async Task<T?> SendAsync<T>(
         Func<HttpRequestMessage> requestFactory,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        int? notFoundErrorCode = null)
     {
         var accessToken = await _authenticator.GetAccessTokenAsync(cancellationToken).ConfigureAwait(false);
         using var response = await SendOnceAsync(requestFactory, accessToken, cancellationToken).ConfigureAwait(false);
@@ -105,7 +108,7 @@ internal sealed class FatSecretClient : INutritionSourceClient
 
         if (response.StatusCode != System.Net.HttpStatusCode.Unauthorized && error?.Code != 13)
         {
-            return Deserialize<T>(response, json, error);
+            return Deserialize<T>(response, json, error, notFoundErrorCode);
         }
 
         await _authenticator.InvalidateAccessTokenAsync(accessToken, cancellationToken).ConfigureAwait(false);
@@ -114,7 +117,7 @@ internal sealed class FatSecretClient : INutritionSourceClient
         using var retryResponse = await SendOnceAsync(requestFactory, accessToken, cancellationToken).ConfigureAwait(false);
         var retryJson = await retryResponse.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
         var retryError = DeserializeError(retryJson);
-        return Deserialize<T>(retryResponse, retryJson, retryError);
+        return Deserialize<T>(retryResponse, retryJson, retryError, notFoundErrorCode);
     }
 
     private async Task<HttpResponseMessage> SendOnceAsync(
@@ -127,8 +130,13 @@ internal sealed class FatSecretClient : INutritionSourceClient
         return await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private static T? Deserialize<T>(HttpResponseMessage response, string json, Error? error)
+    private static T? Deserialize<T>(HttpResponseMessage response, string json, Error? error, int? notFoundErrorCode)
     {
+        if (notFoundErrorCode is int code && error?.Code == code)
+        {
+            return default;
+        }
+
         response.EnsureSuccessStatusCode();
 
         if (error is not null)

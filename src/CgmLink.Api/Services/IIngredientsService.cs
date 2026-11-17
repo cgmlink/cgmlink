@@ -22,6 +22,8 @@ public interface IIngredientsService
         string identifier, Guid userId, CancellationToken cancellationToken = default,
         IngredientType type = IngredientType.Personal);
 
+    Task<IngredientResponse> GetIngredientByBarcodeAsync(string barcode, CancellationToken cancellationToken = default);
+
     Task<Dictionary<Guid, (IngredientResponse Product, IngredientServingResponse Serving)>> GetNutritionServingsAsync(
         IEnumerable<(NutritionIngredient? Ingredient, NutritionServing? Serving)> ingredients,
         Guid userId,

@@ -543,6 +543,49 @@ public class IngredientsServiceTests
     }
 
     [Test]
+    public async Task BarcodeLookup_NormalizesBarcodeAndReturnsExternalIngredient()
+    {
+        _nutritionCatalogMock.Setup(catalog => catalog.GetByBarcodeAsync("0036000291452", CancellationToken.None))
+            .ReturnsAsync(new NutritionProduct
+            {
+                ProductId = "123", Name = "Milk", Attribution = "Provider attribution",
+                Servings = [CreateNutritionServing("456")],
+            });
+
+        var response = await _service.GetIngredientByBarcodeAsync(" 036000291452 ");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(response.ProductId, Is.EqualTo("123"));
+            Assert.That(response.IngredientId, Is.Null);
+            Assert.That(response.Servings.Single().ServingId, Is.EqualTo("456"));
+        });
+        _ingredientsRepositoryMock.VerifyNoOtherCalls();
+        _nutritionIngredientsRepositoryMock.VerifyNoOtherCalls();
+    }
+
+    [TestCase(" ")]
+    [TestCase("1234567")]
+    [TestCase("1234567A")]
+    public void BarcodeLookup_InvalidBarcode_IsRejectedBeforeCatalogLookup(string barcode)
+    {
+        Assert.That(async () => await _service.GetIngredientByBarcodeAsync(barcode),
+            Throws.TypeOf<BadRequestException>().With.Message.EqualTo("BARCODE_INVALID"));
+        _nutritionCatalogMock.Verify(catalog => catalog.GetByBarcodeAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
+    public void BarcodeLookup_NoCatalogMatch_IsNotFound()
+    {
+        const string barcode = "0036000291452";
+        _nutritionCatalogMock.Setup(catalog => catalog.GetByBarcodeAsync(barcode, CancellationToken.None))
+            .ReturnsAsync((NutritionProduct)null);
+
+        Assert.That(async () => await _service.GetIngredientByBarcodeAsync(barcode), Throws.TypeOf<NotFoundException>());
+    }
+
+    [Test]
     public async Task ExternalSearch_PagesCatalogWithoutReadingOrWritingUserData()
     {
         _nutritionCatalogMock.Setup(catalog => catalog.SearchAsync("Milk", 2, 10, CancellationToken.None))

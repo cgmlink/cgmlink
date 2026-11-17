@@ -76,7 +76,7 @@ public sealed class IngredientsService : IIngredientsService
         catch (Exception exception) when (exception is HttpRequestException ||
             exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable);
+            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable, exception);
         }
     }
 
@@ -106,15 +106,35 @@ public sealed class IngredientsService : IIngredientsService
             throw new NotFoundException(ValidationMessages.IngredientNotFound);
         }
 
+        return await GetExternalIngredientAsync(identifier, _nutritionCatalog.GetAsync, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public Task<IngredientResponse> GetIngredientByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+    {
+        barcode = barcode?.Trim() ?? string.Empty;
+        if (barcode.Length is not (8 or 12 or 13) || barcode.Any(character => !char.IsAsciiDigit(character)))
+        {
+            throw new BadRequestException("BARCODE_INVALID");
+        }
+
+        return GetExternalIngredientAsync(barcode.PadLeft(13, '0'), _nutritionCatalog.GetByBarcodeAsync, cancellationToken);
+    }
+
+    private static async Task<IngredientResponse> GetExternalIngredientAsync(
+        string identifier,
+        Func<string, CancellationToken, Task<Nutrition.Source.NutritionProduct?>> lookup,
+        CancellationToken cancellationToken)
+    {
         Nutrition.Source.NutritionProduct? product;
         try
         {
-            product = await _nutritionCatalog.GetAsync(identifier, cancellationToken).ConfigureAwait(false);
+            product = await lookup(identifier, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception exception) when (exception is HttpRequestException ||
             exception is OperationCanceledException && !cancellationToken.IsCancellationRequested)
         {
-            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable);
+            throw new ApiException("NUTRITION_UNAVAILABLE", null, HttpStatusCode.ServiceUnavailable, exception);
         }
         if (product is null)
         {

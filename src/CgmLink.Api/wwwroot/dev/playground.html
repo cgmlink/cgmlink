@@ -147,6 +147,12 @@
           <button id="newIngredientBtn" class="secondary">New ingredient</button>
           <span id="ingCount" class="muted" style="align-self:center;"></span>
         </div>
+        <form id="ingredientBarcodeForm" class="row">
+          <input id="ingredientBarcode" aria-label="Product barcode" inputmode="numeric" autocomplete="off" placeholder="Enter or scan a product barcode" />
+          <button id="ingredientBarcodeBtn" type="submit" class="secondary" style="flex:0 0 auto;" disabled>Find barcode</button>
+        </form>
+        <div id="ingredientBarcodeStatus" class="muted small" role="status"></div>
+        <div id="ingredientBarcodeResult"></div>
         <div id="ingredientsTableBox">
           <div class="empty">Click "Refresh list" to load the ingredients for the signed-in user.</div>
         </div>
@@ -395,6 +401,7 @@
     tokenText.textContent = on ? token : "";
     $("logoutBtn").style.display = on ? "inline-block" : "none";
     $("refreshBtn").disabled = !on;
+    $("ingredientBarcodeBtn").disabled = !on;
     $("newIngredientBtn").disabled = !on;
     $("getMealBtn").disabled = !on;
     $("addMealIngredientBtn").disabled = !on;
@@ -587,6 +594,53 @@
   }
 
   /* ---------- ingredients ---------- */
+
+  function validLookupBarcode(barcode) {
+    return /^(?:[0-9]{8}|[0-9]{12,13})$/.test(barcode);
+  }
+
+  function lookupIngredientBarcode(barcode) {
+    return run("find ingredient by barcode", () =>
+      requestJson("api/v1/ingredients/barcode/" + encodeURIComponent(barcode), "GET"));
+  }
+
+  function barcodeLookupError(out) {
+    if (out?.status === 404) return "No product matched that barcode. Try another barcode or search by name.";
+    if (out?.status === 503) return "The nutrition provider is unavailable. Try again later.";
+    return friendlyError(out) || "Barcode lookup failed. Try again.";
+  }
+
+  async function findIngredientByBarcode(event) {
+    event.preventDefault();
+    const button = $("ingredientBarcodeBtn");
+    if (!token || button.disabled) return;
+    const barcode = $("ingredientBarcode").value.trim();
+    const status = $("ingredientBarcodeStatus");
+    const result = $("ingredientBarcodeResult");
+    if (!validLookupBarcode(barcode)) {
+      status.textContent = "Enter an 8-, 12-, or 13-digit barcode.";
+      return;
+    }
+
+    result.replaceChildren();
+    button.disabled = true;
+    status.textContent = "Looking up barcode…";
+    try {
+      const out = await lookupIngredientBarcode(barcode);
+      if (!out?.ok || !out.data) {
+        status.textContent = barcodeLookupError(out);
+        return;
+      }
+      status.textContent = "";
+      result.innerHTML = ingredientDetailHtml({ ...out.data, barcode });
+      result.querySelector("[data-close]").addEventListener("click", () => {
+        result.replaceChildren();
+        $("ingredientBarcode").focus();
+      });
+    } finally {
+      button.disabled = !token;
+    }
+  }
 
   async function refreshIngredients(resetPage) {
     if (!token) return;
@@ -1468,8 +1522,10 @@
     row.className = "card nutrition-ingredient-row";
     row.dataset.existing = ingredient ? "true" : "false";
     row.innerHTML =
-      '<div class="row"><input class="ni-search" aria-label="Search nutrition ingredients" placeholder="Search foods, e.g. milk" />' +
-      '<button class="ni-search-btn secondary small" style="flex:0 0 auto;">Search</button></div>' +
+      '<form class="row ni-name-form"><input class="ni-search" aria-label="Search nutrition ingredients" placeholder="Search foods, e.g. milk" />' +
+      '<button type="submit" class="secondary small" style="flex:0 0 auto;">Search</button></form>' +
+      '<form class="row ni-barcode-form"><input class="ni-barcode" aria-label="Barcode" inputmode="numeric" autocomplete="off" placeholder="Enter or scan a barcode" />' +
+      '<button type="submit" class="secondary small" style="flex:0 0 auto;">Find barcode</button></form>' +
       '<div class="ni-hint muted small" role="status"></div>' +
       '<div class="meal-ing-row">' +
       '<select class="ni-product" aria-label="Nutrition product"><option value="">Search and select a product</option></select>' +
@@ -1484,9 +1540,13 @@
       row.querySelector(".ni-qty").value = ingredient.quantity;
     }
     product.addEventListener("change", () => populateNutritionServings(row));
-    row.querySelector(".ni-search-btn").addEventListener("click", () => searchNutritionIngredients(row));
-    row.querySelector(".ni-search").addEventListener("keydown", (event) => {
-      if (event.key === "Enter") { event.preventDefault(); searchNutritionIngredients(row); }
+    row.querySelector(".ni-name-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      searchNutritionIngredients(row);
+    });
+    row.querySelector(".ni-barcode-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      searchNutritionIngredients(row, true);
     });
     row.querySelector(".mi-remove").addEventListener("click", () => row.remove());
     container.appendChild(row);
@@ -1494,20 +1554,36 @@
     else row.querySelector(".ni-search").focus();
   }
 
-  async function searchNutritionIngredients(row) {
-    const name = row.querySelector(".ni-search").value.trim();
+  async function searchNutritionIngredients(row, byBarcode = false) {
+    const nameButton = row.querySelector(".ni-name-form button");
+    const barcodeButton = row.querySelector(".ni-barcode-form button");
+    if (nameButton.disabled) return;
+    const query = row.querySelector(byBarcode ? ".ni-barcode" : ".ni-search").value.trim();
     const hint = row.querySelector(".ni-hint");
-    if (!name) { hint.textContent = "Enter a food name to search."; return; }
-    const button = row.querySelector(".ni-search-btn");
-    if (button.disabled) return;
-    button.disabled = true;
+    if (byBarcode && !validLookupBarcode(query)) {
+      hint.textContent = "Enter an 8-, 12-, or 13-digit barcode.";
+      return;
+    }
+    if (!query) { hint.textContent = "Enter a food name to search."; return; }
+    nameButton.disabled = barcodeButton.disabled = true;
     hint.textContent = "Searching…";
     try {
-      const params = new URLSearchParams({ type: "External", name, page: 0, pageSize: 25 });
-      const out = await run("search nutrition ingredients", () => requestJson("api/v1/ingredients?" + params, "GET"));
-      if (!out || !out.ok || !out.data) { hint.textContent = "Search failed. Try again."; return; }
-      const products = out.data.ingredients || [];
+      const nameParams = new URLSearchParams({ type: "External", name: query, page: 0, pageSize: 25 });
+      const out = byBarcode ? await lookupIngredientBarcode(query) : await run("search nutrition ingredients", () =>
+        requestJson("api/v1/ingredients?" + nameParams, "GET"));
+      if (!out || !out.ok || !out.data) {
+        hint.textContent = byBarcode ? barcodeLookupError(out) : friendlyError(out) || "Search failed. Try again.";
+        return;
+      }
       const productSelect = row.querySelector(".ni-product");
+      if (byBarcode) {
+        const product = out.data;
+        productSelect.innerHTML = '<option value="' + esc(product.productId) + '">' + esc(product.name) + '</option>';
+        showNutritionServings(row, product.servings || []);
+        return;
+      }
+
+      const products = out.data.ingredients || [];
       const selectedId = productSelect.value;
       const selectedName = selectedId ? productSelect.selectedOptions[0].textContent : "";
       productSelect.innerHTML = '<option value="">Select a product</option>' +
@@ -1521,7 +1597,7 @@
       }
       hint.textContent = products.length ? products.length + " results. Choose a product below; narrow your search if needed." : "No products found. Try another name.";
     } finally {
-      button.disabled = false;
+      nameButton.disabled = barcodeButton.disabled = false;
     }
   }
 
@@ -1533,13 +1609,18 @@
     serving.disabled = true;
     const out = await run("get nutrition servings", () =>
       requestJson("api/v1/ingredients/" + encodeURIComponent(productId) + "?type=External", "GET"));
-    if (row.querySelector(".ni-product").value !== productId) return;
-    serving.disabled = false;
+    if (row.querySelector(".ni-product").value !== productId || !serving.disabled) return;
     if (!out || !out.ok || !out.data) {
+      serving.disabled = false;
       row.querySelector(".ni-hint").textContent = "Could not load servings. Select the product again to retry.";
       return;
     }
-    const servings = out.data.servings || [];
+    showNutritionServings(row, out.data.servings || [], selectedServingId);
+  }
+
+  function showNutritionServings(row, servings, selectedServingId) {
+    const serving = row.querySelector(".ni-serving");
+    serving.disabled = false;
     serving.innerHTML = '<option value="">Select a serving</option>' + servings.map(s =>
       '<option value="' + esc(s.servingId) + '">' + esc((s.description || "Serving") +
         (s.servingAmount != null ? " - " + s.servingAmount + " " + (s.servingUnit || "") : "") +
@@ -2081,6 +2162,7 @@
   $("registerBtn").addEventListener("click", register);
   $("logoutBtn").addEventListener("click", () => { setToken(null); authMessage(""); });
   $("refreshBtn").addEventListener("click", () => refreshIngredients(true));
+  $("ingredientBarcodeForm").addEventListener("submit", findIngredientByBarcode);
   $("ingredientType").addEventListener("change", () => { clearExpansions(); refreshIngredients(true); });
   $("ingredientName").addEventListener("keydown", (event) => { if (event.key === "Enter") refreshIngredients(true); });
   $("newIngredientBtn").addEventListener("click", () => openIngredientForm("new", {}));
