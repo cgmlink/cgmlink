@@ -13,7 +13,7 @@ permissions:
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
   DOTNET_NOLOGO: true
-  DOTNET_VERSION: 10.0.x
+  DOTNET_VERSION: 11.0.x
 
 jobs:
   build:
@@ -88,4 +88,4 @@ jobs:
           server-computer-name: ${{ secrets.SERVER_COMPUTER_NAME }}
           server-username: ${{ secrets.SERVER_USERNAME }}
           server-password: ${{ secrets.SERVER_PASSWORD }}
-          source-path: src\CgmLink.Api\bin\Release\net10.0\win-x86\publish\
+          source-path: src\CgmLink.Api\bin\Release\net11.0\win-x86\publish\
