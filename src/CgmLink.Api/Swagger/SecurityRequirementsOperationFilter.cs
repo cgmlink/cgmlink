@@ -28,7 +28,7 @@ public class SecurityRequirementsOperationFilter : IOperationFilter
             _ = operation.Responses.TryAdd("401", new OpenApiResponse
             {
                 Description = "Unauthorized",
-                Content = new ConcurrentDictionary<string, OpenApiMediaType>
+                Content = new ConcurrentDictionary<string, IOpenApiMediaType>
                 {
                     ["application/json"] = new OpenApiMediaType
                     {
